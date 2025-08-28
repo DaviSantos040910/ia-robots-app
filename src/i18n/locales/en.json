@@ -1,0 +1,24 @@
+{
+    "login": {
+      "invalidPasswordTitle": "Invalid password",
+      "invalidPasswordMessage": "Password must be at least 8 characters long and include one uppercase letter, one lowercase letter, one number, and one special character.",
+      "successTitle": "Login successful!",
+      "welcome": "Welcome",
+      "failedTitle": "Login failed",
+      "failedMessage": "Please check your credentials and try again.",
+      "greeting": "Hello",
+      "subtitle": "It's StarryAI bot",
+      "description": "Your own chat buddy",
+      "emailOrUsername": "Email or Username",
+      "password": "Password",
+      "signIn": "Sign In",
+      "continueWithGoogle": "Continue with Google",
+      "continueWithApple": "Continue with Apple",
+      "disclaimer": {
+        "part1": "By continuing, you agree to our",
+        "userAgreement": "User Agreement",
+        "and": "and",
+        "privacyPolicy": "Privacy Policy"
+      }
+    }
+  }
