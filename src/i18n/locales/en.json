@@ -1,24 +1,68 @@
 {
-    "login": {
-      "invalidPasswordTitle": "Invalid password",
-      "invalidPasswordMessage": "Password must be at least 8 characters long and include one uppercase letter, one lowercase letter, one number, and one special character.",
-      "successTitle": "Login successful!",
-      "welcome": "Welcome",
-      "failedTitle": "Login failed",
-      "failedMessage": "Please check your credentials and try again.",
-      "greeting": "Hello",
-      "subtitle": "It's StarryAI bot",
-      "description": "Your own chat buddy",
-      "emailOrUsername": "Email or Username",
-      "password": "Password",
-      "signIn": "Sign In",
-      "continueWithGoogle": "Continue with Google",
-      "continueWithApple": "Continue with Apple",
-      "disclaimer": {
-        "part1": "By continuing, you agree to our",
-        "userAgreement": "User Agreement",
-        "and": "and",
-        "privacyPolicy": "Privacy Policy"
-      }
+  "common": {
+    "show": "Show",
+    "hide": "Hide"
+  },
+  "errors": {
+    "generic": "An error occurred. Please try again."
+  },
+  "validation": {
+    "required": "{{field}} is required.",
+    "name": {
+      "minLength": "Name must be at least 3 characters long."
+    },
+    "email": {
+      "invalid": "Please enter a valid email address."
+    },
+    "password": {
+      "minLength": "Password must be at least 8 characters long.",
+      "complexity": "Password must include uppercase, lowercase, numbers, and special characters.",
+      "mismatch": "Passwords do not match"
     }
+  },
+  "accessibility": {
+    "avatar": "Avatar image",
+    "enterEmailOrUsername": "Enter your email or username",
+    "enterPassword": "Enter your password",
+    "showPassword": "Show password",
+    "hidePassword": "Hide password"
+  },
+  "login": {
+    "invalidPasswordTitle": "Invalid password",
+    "invalidPasswordMessage": "Your password must be at least 8 characters and include an uppercase letter, a lowercase letter, a number, and a special character.",
+    "successTitle": "Login successful!",
+    "welcome": "Welcome",
+    "failedTitle": "Login failed",
+    "failedMessage": "Check your credentials and try again.",
+    "greeting": "Hello",
+    "subtitle": "This is the StarryAI bot",
+    "description": "Your personal conversation companion",
+    "emailOrUsername": "Email or username",
+    "password": "Password",
+    "signIn": "Sign in",
+    "continueWithGoogle": "Continue with Google",
+    "continueWithApple": "Continue with Apple",
+    "forgotPassword": "Forgot your password?",
+    "disclaimer": {
+      "part1": "By continuing, you agree to our",
+      "userAgreement": "User Agreement",
+      "and": "and",
+      "privacyPolicy": "Privacy Policy"
+    }
+  },
+  "signup": {
+    "title": "Create Account",
+    "subtitle": "Sign up to get started",
+    "name": "Full Name",
+    "namePlaceholder": "Enter your full name",
+    "email": "Email",
+    "emailPlaceholder": "Enter your email",
+    "password": "Password",
+    "passwordPlaceholder": "Create a password",
+    "confirmPassword": "Confirm Password",
+    "confirmPasswordPlaceholder": "Re-enter your password",
+    "button": "Sign Up",
+    "haveAccount": "Already have an account?",
+    "signIn": "Sign In"
   }
+}

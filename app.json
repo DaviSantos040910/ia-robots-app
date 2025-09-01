@@ -23,10 +23,20 @@
       "edgeToEdgeEnabled": true
     },
     "web": {
-      "favicon": "./assets/favicon.png"
+      "favicon": "./assets/favicon.png",
+      "bundler": "metro",
+      "output": "single",
+      "build": {
+        "babel": {
+          "include": [
+            "node_modules/react-native-reanimated"
+          ]
+        }
+      }
     },
     "plugins": [
-      "expo-font"
+      "expo-font",
+      "expo-localization"
     ]
   }
 }

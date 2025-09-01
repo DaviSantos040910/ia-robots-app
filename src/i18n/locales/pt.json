@@ -1,24 +1,68 @@
 {
-    "login": {
-      "invalidPasswordTitle": "Senha inválida",
-      "invalidPasswordMessage": "A senha deve ter pelo menos 8 caracteres e incluir uma letra maiúscula, uma letra minúscula, um número e um caractere especial.",
-      "successTitle": "Login bem-sucedido!",
-      "welcome": "Bem-vindo",
-      "failedTitle": "Falha no login",
-      "failedMessage": "Verifique suas credenciais e tente novamente.",
-      "greeting": "Olá",
-      "subtitle": "É o bot StarryAI",
-      "description": "Seu próprio companheiro de conversa",
-      "emailOrUsername": "Email ou nome de usuário",
-      "password": "Senha",
-      "signIn": "Entrar",
-      "continueWithGoogle": "Continuar com Google",
-      "continueWithApple": "Continuar com Apple",
-      "disclaimer": {
-        "part1": "Ao continuar, você concorda com nosso",
-        "userAgreement": "Contrato de Usuário",
-        "and": "e",
-        "privacyPolicy": "Política de Privacidade"
-      }
+  "common": {
+    "show": "Mostrar",
+    "hide": "Ocultar"
+  },
+  "errors": {
+    "generic": "Ocorreu um erro. Tente novamente."
+  },
+  "validation": {
+    "required": "{{field}} é obrigatório.",
+    "name": {
+      "minLength": "O nome deve ter pelo menos 3 caracteres."
+    },
+    "email": {
+      "invalid": "Por favor, insira um e-mail válido."
+    },
+    "password": {
+      "minLength": "A senha deve ter pelo menos 8 caracteres.",
+      "complexity": "A senha deve conter letras maiúsculas, minúsculas, números e caracteres especiais.",
+      "mismatch": "As senhas não conferem"
     }
+  },
+  "accessibility": {
+    "avatar": "Imagem do avatar",
+    "enterEmailOrUsername": "Digite seu e-mail ou nome de usuário",
+    "enterPassword": "Digite sua senha",
+    "showPassword": "Mostrar senha",
+    "hidePassword": "Ocultar senha"
+  },
+  "login": {
+    "invalidPasswordTitle": "Senha inválida",
+    "invalidPasswordMessage": "A senha deve ter pelo menos 8 caracteres e incluir uma letra maiúscula, uma letra minúscula, um número e um caractere especial.",
+    "successTitle": "Login bem-sucedido!",
+    "welcome": "Bem-vindo",
+    "failedTitle": "Falha no login",
+    "failedMessage": "Verifique suas credenciais e tente novamente.",
+    "greeting": "Olá",
+    "subtitle": "É o bot StarryAI",
+    "description": "Seu próprio companheiro de conversa",
+    "emailOrUsername": "Email ou nome de usuário",
+    "password": "Senha",
+    "signIn": "Entrar",
+    "continueWithGoogle": "Continuar com Google",
+    "continueWithApple": "Continuar com Apple",
+    "forgotPassword": "Esqueceu sua senha?",
+    "disclaimer": {
+      "part1": "Ao continuar, você concorda com nosso",
+      "userAgreement": "Contrato de Usuário",
+      "and": "e",
+      "privacyPolicy": "Política de Privacidade"
+    }
+  },
+  "signup": {
+    "title": "Criar Conta",
+    "subtitle": "Cadastre-se para começar",
+    "name": "Nome Completo",
+    "namePlaceholder": "Digite seu nome completo",
+    "email": "E-mail",
+    "emailPlaceholder": "Digite seu e-mail",
+    "password": "Senha",
+    "passwordPlaceholder": "Crie uma senha",
+    "confirmPassword": "Confirme a Senha",
+    "confirmPasswordPlaceholder": "Digite sua senha novamente",
+    "button": "Cadastrar",
+    "haveAccount": "Já tem uma conta?",
+    "signIn": "Entrar"
   }
+}

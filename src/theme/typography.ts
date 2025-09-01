@@ -2,6 +2,18 @@
 // typography.ts - Figma typography scale
 
 export const Typography = {
+  bodySemiBold: {
+    medium: {
+      fontSize: 14,
+      lineHeight: 22,
+      fontFamily: 'Inter_600SemiBold',
+    },
+    small: {
+      fontSize: 12,
+      lineHeight: 20,
+      fontFamily: 'Inter_600SemiBold',
+    },
+  },
   titleSemiBold: {
     extraLarge: {
       fontSize: 20,

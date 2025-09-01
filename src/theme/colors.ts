@@ -1,5 +1,27 @@
 // colors.ts - Figma color palette
 export const Colors = {
+  semantic: {
+    error: {
+      normal: '#DC2626',
+      light: '#FEE2E2',
+      dark: '#B91C1C',
+    },
+    success: {
+      normal: '#059669',
+      light: '#D1FAE5',
+      dark: '#047857',
+    },
+    warning: {
+      normal: '#D97706',
+      light: '#FEF3C7',
+      dark: '#B45309',
+    },
+    info: {
+      normal: '#2563EB',
+      light: '#DBEAFE',
+      dark: '#1D4ED8',
+    },
+  },
   brand: {
     light: {
       normal: '#7C57FF',

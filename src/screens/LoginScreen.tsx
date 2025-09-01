@@ -1,86 +1,331 @@
-
-import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, Alert, Image } from 'react-native';
-import { styles } from './LoginScreen.styles';
-import axios from 'axios';
+// LoginScreen.tsx
+import React, { useState, useMemo } from 'react';
+import {
+  View,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  Image,
+  ActivityIndicator,
+  Keyboard,
+  TouchableWithoutFeedback,
+  useWindowDimensions,
+  Platform,
+} from 'react-native';
+import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
+import * as yup from 'yup';
+import api from '../services/api';
+import * as SecureStore from 'expo-secure-store';
+import { styles } from './LoginScreen.styles';
+import { Spacing } from '../theme/spacing';
+import { AntDesign } from '@expo/vector-icons';
+import { NativeStackScreenProps } from '@react-navigation/native-stack';
 
-// Expressão regular para validação de senha
-const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[\W_]).{8,}$/;
+type RootStackParamList = {
+  Login: undefined;
+  SignUp: undefined;
+  Main: undefined;
+  ForgotPassword: undefined;
+};
 
-// URL base da API fictícia (substituir pelo backend Django futuramente)
-const API_BASE_URL = 'https://fake-server.com/api';
+type LoginScreenProps = NativeStackScreenProps<RootStackParamList, 'Login'>;
 
-const LoginScreen = () => {
+type FormErrors = {
+  emailOrUsername?: string;
+  password?: string;
+};
+
+const LoginScreen: React.FC<LoginScreenProps> = ({ navigation }) => {
   const { t } = useTranslation();
-  const [emailOrUsername, setEmailOrUsername] = useState('');
-  const [password, setPassword] = useState('');
+  const [formData, setFormData] = useState({
+    emailOrUsername: '',
+    password: '',
+  });
+  const [errors, setErrors] = useState<FormErrors>({});
+  const [isLoading, setIsLoading] = useState(false);
+  const [isPasswordVisible, setIsPasswordVisible] = useState(false);
 
-  const handleLogin = async () => {
-    if (!passwordRegex.test(password)) {
-      Alert.alert(
-        t('login.invalidPasswordTitle'),
-        t('login.invalidPasswordMessage')
-      );
-      return;
-    }
+  const insets = useSafeAreaInsets();
+  const { width, height } = useWindowDimensions();
 
+  const navigateToSignUp = () => {
+    navigation.navigate('SignUp' as never);
+  };
+
+  // --- Responsive sizing (no magic numbers) ---
+  const avatarSize = useMemo(
+    () => Math.min(Math.max(width * 0.24, 80), 120), // 80–120
+    [width]
+  );
+  const vGap = useMemo(
+    () => Math.min(Math.max(height * 0.02, Spacing['spacing-element-m']), Spacing['spacing-card-m']),
+    [height]
+  );
+
+  // --- Validation schema (i18n messages) ---
+  const loginSchema = yup.object().shape({
+    emailOrUsername: yup
+      .string()
+      .required(t('validation.required', { field: t('login.emailOrUsername') })),
+    password: yup
+      .string()
+      .min(8, t('validation.password.minLength'))
+      .matches(
+        /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[\W_]).{8,}$/,
+        t('validation.password.complexity')
+      )
+      .required(t('validation.required', { field: t('login.password') })),
+  });
+
+  const validateForm = async () => {
     try {
-      const response = await axios.post(`${API_BASE_URL}/login`, {
-        identifier: emailOrUsername,
-        password: password,
+      await loginSchema.validate(formData, { abortEarly: false });
+      setErrors({});
+      return true;
+    } catch (err: any) {
+      const validationErrors: FormErrors = {};
+      err.inner.forEach((error: any) => {
+        validationErrors[error.path as keyof FormErrors] = error.message;
       });
-
-      Alert.alert(t('login.successTitle'), `${t('login.welcome')}, ${response.data.username}`);
-    } catch (error) {
-      Alert.alert(t('login.failedTitle'), t('login.failedMessage'));
+      setErrors(validationErrors);
+      return false;
     }
   };
 
+  const handleInputChange = (field: string, value: string) => {
+    setFormData({ ...formData, [field]: value });
+    if (errors[field as keyof FormErrors]) {
+      setErrors({ ...errors, [field]: undefined });
+    }
+  };
+
+  const handleLogin = async () => {
+    Keyboard.dismiss();
+    const isValid = await validateForm();
+    if (!isValid) return;
+
+    setIsLoading(true);
+    try {
+      interface LoginResponse {
+        token: string;
+        user: { id: string; username: string };
+      }
+
+      const response = await api.post<LoginResponse>('/auth/login', {
+        identifier: formData.emailOrUsername,
+        password: formData.password,
+      });
+
+      await SecureStore.setItemAsync('authToken', response.token);
+
+      navigation.reset({ index: 0, routes: [{ name: 'Main' }] });
+    } catch (error: any) {
+      const errorMessage = error.response?.data?.message ?? t('errors.generic');
+      setErrors({ ...errors, password: errorMessage });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleSocialLogin = (provider: string) => {
+    console.log(`Logging in with ${provider}`);
+  };
+
   return (
-    <View style={styles.container}>
-      <Image source={require('../assets/avatar.png')} style={styles.avatar} />
+    <SafeAreaView style={{ flex: 1 }}>
+      <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+        <KeyboardAwareScrollView
+          enableOnAndroid
+          keyboardShouldPersistTaps="handled"
+          extraScrollHeight={Platform.select({ ios: Spacing['spacing-element-l'], android: 0 })}
+          contentContainerStyle={{
+            flexGrow: 1,
+            paddingTop: insets.top + Spacing['spacing-element-s'],
+            paddingBottom: insets.bottom + Spacing['spacing-element-l'],
+          }}
+          style={{ flex: 1 }}
+        >
+          {/* Split screen: header | form | actions/footer */}
+          <View style={[styles.contentSplit, styles.pagePadding]}>
+            {/* ===== Header ===== */}
+            <View style={styles.headerCenter}>
+              <Image
+                source={require('../assets/avatar.png')}
+                style={[
+                  styles.avatar,
+                  {
+                    width: avatarSize,
+                    height: avatarSize,
+                    borderRadius: avatarSize / 2,
+                    marginBottom: vGap,
+                  },
+                ]}
+                accessibilityLabel={t('accessibility.avatar')}
+              />
 
-      <Text style={styles.title}>{t('login.greeting')}</Text>
-      <Text style={styles.subtitle}>{t('login.subtitle')}</Text>
-      <Text style={styles.description}>{t('login.description')}</Text>
+              <Text style={styles.title} accessibilityRole="header">
+                {t('login.greeting')}
+              </Text>
+              <Text style={styles.subtitle}>{t('login.subtitle')}</Text>
+              <Text style={styles.description}>{t('login.description')}</Text>
+            </View>
 
-      <TextInput
-        style={styles.input}
-        placeholder={t('login.emailOrUsername')}
-        placeholderTextColor={'#00000040'}
-        value={emailOrUsername}
-        onChangeText={setEmailOrUsername}
-      />
+            {/* ===== Form ===== */}
+            <View style={{ marginTop: vGap }}>
+              {/* Email / Username */}
+              <View style={styles.formGroup}>
+                <TextInput
+                  style={[styles.input, errors.emailOrUsername && styles.inputError]}
+                  placeholder={t('login.emailOrUsername')}
+                  placeholderTextColor="#00000040"
+                  value={formData.emailOrUsername}
+                  onChangeText={(text) => handleInputChange('emailOrUsername', text)}
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  keyboardType="email-address"
+                  textContentType="username"
+                  autoComplete="username"
+                  accessibilityLabel={t('login.emailOrUsername')}
+                  accessibilityHint={t('accessibility.enterEmailOrUsername')}
+                  editable={!isLoading}
+                  returnKeyType="next"
+                />
+                {errors.emailOrUsername && (
+                  <Text style={styles.errorText}>{errors.emailOrUsername}</Text>
+                )}
+              </View>
 
-      <TextInput
-        style={styles.input}
-        placeholder={t('login.password')}
-        placeholderTextColor={'#00000040'}
-        secureTextEntry
-        value={password}
-        onChangeText={setPassword}
-      />
+              {/* Password */}
+              <View style={styles.formGroup}>
+                <View style={styles.passwordContainer}>
+                  <TextInput
+                    style={[
+                      styles.input,
+                      styles.passwordInput,
+                      errors.password && styles.inputError,
+                    ]}
+                    placeholder={t('login.password')}
+                    placeholderTextColor="#00000040"
+                    secureTextEntry={!isPasswordVisible}
+                    value={formData.password}
+                    onChangeText={(text) => handleInputChange('password', text)}
+                    autoCapitalize="none"
+                    autoCorrect={false}
+                    textContentType="password"
+                    autoComplete="password"
+                    accessibilityLabel={t('login.password')}
+                    accessibilityHint={t('accessibility.enterPassword')}
+                    editable={!isLoading}
+                    onSubmitEditing={handleLogin}
+                    returnKeyType="done"
+                  />
+                  <TouchableOpacity
+                    style={styles.visibilityToggle}
+                    onPress={() => setIsPasswordVisible(!isPasswordVisible)}
+                    accessibilityLabel={
+                      isPasswordVisible
+                        ? t('accessibility.hidePassword')
+                        : t('accessibility.showPassword')
+                    }
+                  >
+                    <Text style={styles.visibilityToggleText}>
+                      {isPasswordVisible ? t('common.hide') : t('common.show')}
+                    </Text>
+                  </TouchableOpacity>
+                </View>
 
-      <TouchableOpacity style={styles.signInButton} onPress={handleLogin}>
-        <Text style={styles.signInText}>{t('login.signIn')}</Text>
-      </TouchableOpacity>
+                {errors.password && <Text style={styles.errorText}>{errors.password}</Text>}
 
-      <TouchableOpacity style={styles.altButton}>
-        <Text style={styles.altButtonText}>{t('login.continueWithGoogle')}</Text>
-      </TouchableOpacity>
+                {/* Inline "Forgot your password?" below password field */}
+                <TouchableOpacity
+                  onPress={() => navigation.navigate('ForgotPassword')}
+                  style={styles.forgotInlineButton}
+                  disabled={isLoading}
+                  accessibilityRole="button"
+                  accessibilityLabel={t('login.forgotPassword')}
+                >
+                  <Text style={styles.forgotInlineText}>{t('login.forgotPassword')}</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
 
-      <TouchableOpacity style={styles.altButton}>
-        <Text style={styles.altButtonText}>{t('login.continueWithApple')}</Text>
-      </TouchableOpacity>
+            {/* ===== Actions & Footer ===== */}
+            <View>
+              {/* Sign in */}
+              <TouchableOpacity
+                style={[styles.signInButton, isLoading && styles.signInButtonDisabled]}
+                onPress={handleLogin}
+                disabled={isLoading}
+                accessibilityRole="button"
+                accessibilityState={{ disabled: isLoading }}
+              >
+                {isLoading ? (
+                  <ActivityIndicator color="#fff" />
+                ) : (
+                  <Text style={styles.signInText}>{t('login.signIn')}</Text>
+                )}
+              </TouchableOpacity>
 
-      <Text style={styles.disclaimer}>
-        {t('login.disclaimer.part1')}{' '}
-        <Text style={styles.link}>{t('login.disclaimer.userAgreement')}</Text>{' '}
-        {t('login.disclaimer.and')}{' '}
-        <Text style={styles.link}>{t('login.disclaimer.privacyPolicy')}</Text>.
-      </Text>
-    </View>
+              {/* Social - Google (AntDesign icon) */}
+              <TouchableOpacity
+                style={[styles.altButton, styles.googleButton]}
+                onPress={() => handleSocialLogin('google')}
+                disabled={isLoading}
+                accessibilityRole="button"
+                accessibilityLabel={t('login.continueWithGoogle')}
+              >
+                <AntDesign
+                  name="google"
+                  size={20}
+                  color="#fff"
+                  style={{ marginRight: Spacing['spacing-element-m'] }}
+                />
+                <Text style={[styles.altButtonText, styles.googleButtonText]}>
+                  {t('login.continueWithGoogle')}
+                </Text>
+              </TouchableOpacity>
+
+              {/* Social - Apple (AntDesign icon) */}
+              <TouchableOpacity
+                style={[styles.altButton, styles.appleButton]}
+                onPress={() => handleSocialLogin('apple')}
+                disabled={isLoading}
+                accessibilityRole="button"
+                accessibilityLabel={t('login.continueWithApple')}
+              >
+                <AntDesign
+                  name="apple1"
+                  size={20}
+                  color="#fff"
+                  style={{ marginRight: Spacing['spacing-element-m'] }}
+                />
+                <Text style={[styles.altButtonText, styles.appleButtonText]}>
+                  {t('login.continueWithApple')}
+                </Text>
+              </TouchableOpacity>
+
+              {/* Sign Up Link */}
+              <View style={styles.signupContainer}>
+                <Text style={styles.signupText}>{t('signup.haveAccount')} </Text>
+                <TouchableOpacity onPress={navigateToSignUp} disabled={isLoading}>
+                  <Text style={styles.signupLink}>{t('signup.signIn')}</Text>
+                </TouchableOpacity>
+              </View>
+
+              {/* Disclaimer */}
+              <Text style={styles.disclaimer}>
+                {t('login.disclaimer.part1')}{' '}
+                <Text style={styles.link}>{t('login.disclaimer.userAgreement')}</Text>{' '}
+                {t('login.disclaimer.and')}{' '}
+                <Text style={styles.link}>{t('login.disclaimer.privacyPolicy')}</Text>
+              </Text>
+            </View>
+          </View>
+        </KeyboardAwareScrollView>
+      </TouchableWithoutFeedback>
+    </SafeAreaView>
   );
 };
 

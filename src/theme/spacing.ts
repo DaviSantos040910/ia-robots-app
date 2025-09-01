@@ -1,6 +1,7 @@
 // spacing.ts - Figma spacing scale
 export const Spacing = {
   'spacing-none': 0,
+  'spacing-element-xxs': 1,
   'spacing-element-xs': 2,
   'spacing-element-s': 4,
   'spacing-element-s-2': 6,

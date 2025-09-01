@@ -6,5 +6,5 @@ export const Radius = {
   large: 8,
   extraLarge: 12,
   round: 999,
-  circle: '50%',
+  circle: 50,
 };
