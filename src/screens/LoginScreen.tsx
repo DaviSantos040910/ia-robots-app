@@ -39,7 +39,7 @@ const LoginScreen = () => {
 
   return (
     <View style={styles.container}>
-      <Image source={require('../../assets/avatar.png')} style={styles.avatar} />
+      <Image source={require('../assets/avatar.png')} style={styles.avatar} />
 
       <Text style={styles.title}>{t('login.greeting')}</Text>
       <Text style={styles.subtitle}>{t('login.subtitle')}</Text>
