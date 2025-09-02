@@ -129,4 +129,17 @@ export const styles = StyleSheet.create({
     lineHeight: Typography.bodySemiBold.small.lineHeight,
     color: Colors.brand.light.normal,
   },
+  // Disclaimer + links
+  disclaimer: {
+    fontFamily: Typography.bodyRegular.small.fontFamily,
+    fontSize: Typography.bodyRegular.small.fontSize,
+    lineHeight: Typography.bodyRegular.small.lineHeight,
+    color: NeutralColors.fontAndIcon.light.placeholder,
+    textAlign: 'center',
+    marginTop: Spacing['spacing-element-l'],
+  },
+  link: {
+    color: Colors.brand.light.normal,
+    textDecorationLine: 'underline',
+  },
 });

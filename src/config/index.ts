@@ -11,7 +11,7 @@ type Environment = {
 const ENV = {
   dev: {
     api: {
-      baseUrl: 'http://localhost:8000/api',
+      baseUrl: 'http://127.0.0.1:8000/',
       timeout: 10000,
     },
     isDev: true,
@@ -38,6 +38,7 @@ const getEnvVars = (env = Constants.expoConfig?.releaseChannel): Environment => 
   if (env.indexOf('staging') !== -1) return ENV.staging;
   if (env.indexOf('prod') !== -1) return ENV.production;
   return ENV.dev;
+  
 };
 
 export default getEnvVars;

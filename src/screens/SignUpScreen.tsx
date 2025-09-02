@@ -21,6 +21,9 @@ import { styles } from './SignUpScreen.styles';
 import { Spacing } from '../theme/spacing';
 import { Colors } from '../theme/colors';
 import { NeutralColors } from '../theme/neutralColors';
+// inside SignUpScreen component (replace handleSignUp)
+import api from '../services/api'; // add near top imports
+import { Alert } from 'react-native';
 
 type RootStackParamList = {
   SignUp: undefined;
@@ -109,14 +112,42 @@ const SignUpScreen: React.FC<SignUpScreenProps> = ({ navigation }) => {
     Keyboard.dismiss();
     const isValid = await validateForm();
     if (!isValid) return;
-
+  
     setIsLoading(true);
     try {
-      // TODO: Implement signup API call
-      console.log('Signup data:', formData);
-      // Navigate to main app or verify email screen
-    } catch (error) {
-      console.error('Signup error:', error);
+      // Prepare payload: use username instead of full name
+      const payload = {
+        username: formData.name.trim(),
+        email: formData.email.trim(),
+        password: formData.password,
+      };
+  
+      // API call to register endpoint
+      // POST /api/auth/register/ expected to return { message: "User registered. Please verify your email." }
+      const res = await api.post('/auth/register/', payload);
+  
+      // Show confirmation and navigate user to login or a verify screen
+      Alert.alert(
+        'Registered',
+        'Account created. Check your email for a verification link.',
+        [{ text: 'OK', onPress: () => navigation.navigate('Login') }]
+      );
+    } catch (error: any) {
+      // Map backend validation errors to form fields when possible
+      const data = error.response?.data;
+      if (data) {
+        // If serializer returned field errors, set them
+        const fieldErrors: any = {};
+        if (data.username) fieldErrors.name = data.username.join(' ');
+        if (data.email) fieldErrors.email = data.email.join(' ');
+        if (data.password) fieldErrors.password = data.password.join(' ');
+        if (Object.keys(fieldErrors).length) setErrors(fieldErrors);
+        else {
+          Alert.alert('Error', data.detail || 'Signup failed. Try again.');
+        }
+      } else {
+        Alert.alert('Error', 'Network error. Please try again.');
+      }
     } finally {
       setIsLoading(false);
     }
@@ -260,6 +291,13 @@ const SignUpScreen: React.FC<SignUpScreenProps> = ({ navigation }) => {
                 <Text style={styles.footerLink}>{t('signup.signIn')}</Text>
               </TouchableOpacity>
             </View>
+            {/* Disclaimer */}
+             <Text style={styles.disclaimer}>
+              {t('login.disclaimer.part1')}{' '}
+              <Text style={styles.link}>{t('login.disclaimer.userAgreement')}</Text>{' '}
+              {t('login.disclaimer.and')}{' '}
+               <Text style={styles.link}>{t('login.disclaimer.privacyPolicy')}</Text>
+                </Text>
           </View>
         </KeyboardAwareScrollView>
       </SafeAreaView>

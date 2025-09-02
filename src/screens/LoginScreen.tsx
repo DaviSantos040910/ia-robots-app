@@ -101,40 +101,52 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ navigation }) => {
     }
   };
 
-  const handleLogin = async () => {
-    Keyboard.dismiss();
-    const isValid = await validateForm();
-    if (!isValid) return;
+  // inside LoginScreen component (replace handleLogin)
+const handleLogin = async () => {
+  Keyboard.dismiss();
+  const isValid = await validateForm();
+  if (!isValid) return;
 
-    setIsLoading(true);
-    try {
-      interface LoginResponse {
-        token: string;
-        user: { id: string; username: string };
-      }
-
-      const response = await api.post<LoginResponse>('/auth/login', {
-        identifier: formData.emailOrUsername,
-        password: formData.password,
-      });
-
-      await SecureStore.setItemAsync('authToken', response.token);
-
-      navigation.reset({ index: 0, routes: [{ name: 'Main' }] });
-    } catch (error: any) {
-      const errorMessage = error.response?.data?.message ?? t('errors.generic');
-      setErrors({ ...errors, password: errorMessage });
-    } finally {
-      setIsLoading(false);
+  setIsLoading(true);
+  try {
+    interface LoginResponse {
+      token: string;
+      refresh: string;
+      user: { id: string; username: string; email: string; is_email_verified?: boolean };
     }
-  };
+
+    // POST to backend login endpoint
+    const response = await api.post<LoginResponse>('/auth/login/', {
+      identifier: formData.emailOrUsername.trim(),
+      password: formData.password,
+    });
+
+    // Save access token (frontend expects 'token' field)
+    if (response?.token) {
+      await SecureStore.setItemAsync('authToken', response.token);
+      // Optionally store refresh token if you want to implement refresh flow
+      if (response.refresh) {
+        await SecureStore.setItemAsync('refreshToken', response.refresh);
+      }
+      // Navigate to main app
+      navigation.reset({ index: 0, routes: [{ name: 'Main' }] });
+    } else {
+      setErrors({ ...errors, password: t('errors.generic') });
+    }
+  } catch (error: any) {
+    const errorMessage = error.response?.data?.detail ?? t('errors.generic');
+    setErrors({ ...errors, password: errorMessage });
+  } finally {
+    setIsLoading(false);
+  }
+};
 
   const handleSocialLogin = (provider: string) => {
     console.log(`Logging in with ${provider}`);
   };
 
   return (
-    <SafeAreaView style={{ flex: 1 }}>
+        <SafeAreaView style={styles.container}>
       <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
         <KeyboardAwareScrollView
           enableOnAndroid
