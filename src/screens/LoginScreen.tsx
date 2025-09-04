@@ -11,6 +11,7 @@ import {
   TouchableWithoutFeedback,
   useWindowDimensions,
   Platform,
+  Alert,
 } from 'react-native';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -22,12 +23,21 @@ import { styles } from './LoginScreen.styles';
 import { Spacing } from '../theme/spacing';
 import { AntDesign } from '@expo/vector-icons';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { AxiosResponse } from 'axios';
+import { ChatBootstrap, ChatMessage } from '../types/chat'; // ajuste o caminho se necessário
 
 type RootStackParamList = {
   Login: undefined;
   SignUp: undefined;
   Main: undefined;
   ForgotPassword: undefined;
+  ChatScreen: {
+    bootstrap: ChatBootstrap;
+    messages: ChatMessage[];
+    onSendMessage: (text: string) => void;
+    loading?: boolean;
+    isTyping?: boolean;
+  };
 };
 
 type LoginScreenProps = NativeStackScreenProps<RootStackParamList, 'Login'>;
@@ -54,17 +64,19 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ navigation }) => {
     navigation.navigate('SignUp' as never);
   };
 
-  // --- Responsive sizing (no magic numbers) ---
   const avatarSize = useMemo(
-    () => Math.min(Math.max(width * 0.24, 80), 120), // 80–120
+    () => Math.min(Math.max(width * 0.24, 80), 120),
     [width]
   );
   const vGap = useMemo(
-    () => Math.min(Math.max(height * 0.02, Spacing['spacing-element-m']), Spacing['spacing-card-m']),
+    () =>
+      Math.min(
+        Math.max(height * 0.02, Spacing['spacing-element-m']),
+        Spacing['spacing-card-m']
+      ),
     [height]
   );
 
-  // --- Validation schema (i18n messages) ---
   const loginSchema = yup.object().shape({
     emailOrUsername: yup
       .string()
@@ -101,52 +113,98 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ navigation }) => {
     }
   };
 
-  // inside LoginScreen component (replace handleLogin)
-const handleLogin = async () => {
-  Keyboard.dismiss();
-  const isValid = await validateForm();
-  if (!isValid) return;
+  const handleLogin = async () => {
+    Keyboard.dismiss();
+    const isValid = await validateForm();
+    if (!isValid) return;
 
-  setIsLoading(true);
-  try {
-    interface LoginResponse {
-      token: string;
-      refresh: string;
-      user: { id: string; username: string; email: string; is_email_verified?: boolean };
-    }
-
-    // POST to backend login endpoint
-    const response = await api.post<LoginResponse>('/auth/login/', {
-      identifier: formData.emailOrUsername.trim(),
-      password: formData.password,
-    });
-
-    // Save access token (frontend expects 'token' field)
-    if (response?.token) {
-      await SecureStore.setItemAsync('authToken', response.token);
-      // Optionally store refresh token if you want to implement refresh flow
-      if (response.refresh) {
-        await SecureStore.setItemAsync('refreshToken', response.refresh);
+    setIsLoading(true);
+    try {
+      interface LoginResponse {
+        token: string;
+        refresh: string;
+        user: { id: string; username: string; email: string; is_email_verified?: boolean };
       }
-      // Navigate to main app
-      navigation.reset({ index: 0, routes: [{ name: 'Main' }] });
-    } else {
-      setErrors({ ...errors, password: t('errors.generic') });
+
+      const response = await api.post<LoginResponse>('/auth/login/', {
+        identifier: formData.emailOrUsername.trim(),
+        password: formData.password,
+      });
+
+      if (response?.token) {
+        await SecureStore.setItemAsync('authToken', response.token);
+        if (response.refresh) {
+          await SecureStore.setItemAsync('refreshToken', response.refresh);
+        }
+
+        // Exemplo de bootstrap e messages para ChatScreen
+        const bootstrapExample: ChatBootstrap = {
+          conversationId: '123',
+          bot: { name: 'Robo', handle: 'robo', avatarUrl: '' },
+          welcome: 'Olá! Como posso ajudar?',
+          suggestions: ['Oi', 'Como você está?', 'Me conte uma piada'],
+        };
+        const messagesExample: ChatMessage[] = [];
+
+        navigation.reset({
+          index: 0,
+          routes: [
+            {
+              name: 'ChatScreen',
+              params: {
+                bootstrap: bootstrapExample,
+                messages: messagesExample,
+                onSendMessage: (text: string) => {
+                  console.log('Mensagem enviada:', text);
+                  // integração com backend aqui
+                },
+              },
+            },
+          ],
+        });
+      } else {
+        setErrors({ ...errors, password: t('errors.generic') });
+      }
+    } catch (error: any) {
+      const errorMessage = error.response?.data?.detail ?? t('errors.generic');
+      setErrors({ ...errors, password: errorMessage });
+    } finally {
+      setIsLoading(false);
     }
-  } catch (error: any) {
-    const errorMessage = error.response?.data?.detail ?? t('errors.generic');
-    setErrors({ ...errors, password: errorMessage });
-  } finally {
-    setIsLoading(false);
-  }
-};
+  };
+
+  const handleForgotPassword = async () => {
+    if (!formData.emailOrUsername.trim()) {
+      Alert.alert(t('errors.required'), t('login.enterEmailOrUsernameForReset'));
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      const response: AxiosResponse = await api.post('/auth/forgot-password/', {
+        email: formData.emailOrUsername.trim(),
+      });
+
+      if (response.status === 200 || response.status === 201) {
+        Alert.alert(t('login.forgotPassword'), t('login.forgotPasswordSuccess'));
+      } else {
+        Alert.alert(t('login.forgotPassword'), t('login.forgotPasswordError'));
+      }
+    } catch (error: any) {
+      console.error(error);
+      const message = error.response?.data?.detail ?? t('login.forgotPasswordError');
+      Alert.alert(t('login.forgotPassword'), message);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const handleSocialLogin = (provider: string) => {
     console.log(`Logging in with ${provider}`);
   };
 
   return (
-        <SafeAreaView style={styles.container}>
+    <SafeAreaView style={styles.container}>
       <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
         <KeyboardAwareScrollView
           enableOnAndroid
@@ -159,24 +217,19 @@ const handleLogin = async () => {
           }}
           style={{ flex: 1 }}
         >
-          {/* Split screen: header | form | actions/footer */}
           <View style={[styles.contentSplit, styles.pagePadding]}>
-            {/* ===== Header ===== */}
+            {/* Header */}
             <View style={styles.headerCenter}>
               <Image
                 source={require('../assets/avatar.png')}
-                style={[
-                  styles.avatar,
-                  {
-                    width: avatarSize,
-                    height: avatarSize,
-                    borderRadius: avatarSize / 2,
-                    marginBottom: vGap,
-                  },
-                ]}
+                style={{
+                  width: avatarSize,
+                  height: avatarSize,
+                  borderRadius: avatarSize / 2,
+                  marginBottom: vGap,
+                }}
                 accessibilityLabel={t('accessibility.avatar')}
               />
-
               <Text style={styles.title} accessibilityRole="header">
                 {t('login.greeting')}
               </Text>
@@ -184,9 +237,8 @@ const handleLogin = async () => {
               <Text style={styles.description}>{t('login.description')}</Text>
             </View>
 
-            {/* ===== Form ===== */}
+            {/* Form */}
             <View style={{ marginTop: vGap }}>
-              {/* Email / Username */}
               <View style={styles.formGroup}>
                 <TextInput
                   style={[styles.input, errors.emailOrUsername && styles.inputError]}
@@ -204,20 +256,13 @@ const handleLogin = async () => {
                   editable={!isLoading}
                   returnKeyType="next"
                 />
-                {errors.emailOrUsername && (
-                  <Text style={styles.errorText}>{errors.emailOrUsername}</Text>
-                )}
+                {errors.emailOrUsername && <Text style={styles.errorText}>{errors.emailOrUsername}</Text>}
               </View>
 
-              {/* Password */}
               <View style={styles.formGroup}>
                 <View style={styles.passwordContainer}>
                   <TextInput
-                    style={[
-                      styles.input,
-                      styles.passwordInput,
-                      errors.password && styles.inputError,
-                    ]}
+                    style={[styles.input, styles.passwordInput, errors.password && styles.inputError]}
                     placeholder={t('login.password')}
                     placeholderTextColor="#00000040"
                     secureTextEntry={!isPasswordVisible}
@@ -236,23 +281,17 @@ const handleLogin = async () => {
                   <TouchableOpacity
                     style={styles.visibilityToggle}
                     onPress={() => setIsPasswordVisible(!isPasswordVisible)}
-                    accessibilityLabel={
-                      isPasswordVisible
-                        ? t('accessibility.hidePassword')
-                        : t('accessibility.showPassword')
-                    }
+                    accessibilityLabel={isPasswordVisible ? t('accessibility.hidePassword') : t('accessibility.showPassword')}
                   >
                     <Text style={styles.visibilityToggleText}>
                       {isPasswordVisible ? t('common.hide') : t('common.show')}
                     </Text>
                   </TouchableOpacity>
                 </View>
-
                 {errors.password && <Text style={styles.errorText}>{errors.password}</Text>}
 
-                {/* Inline "Forgot your password?" below password field */}
                 <TouchableOpacity
-                  onPress={() => navigation.navigate('ForgotPassword')}
+                  onPress={handleForgotPassword}
                   style={styles.forgotInlineButton}
                   disabled={isLoading}
                   accessibilityRole="button"
@@ -263,9 +302,8 @@ const handleLogin = async () => {
               </View>
             </View>
 
-            {/* ===== Actions & Footer ===== */}
+            {/* Actions & Footer */}
             <View>
-              {/* Sign in */}
               <TouchableOpacity
                 style={[styles.signInButton, isLoading && styles.signInButtonDisabled]}
                 onPress={handleLogin}
@@ -273,14 +311,9 @@ const handleLogin = async () => {
                 accessibilityRole="button"
                 accessibilityState={{ disabled: isLoading }}
               >
-                {isLoading ? (
-                  <ActivityIndicator color="#fff" />
-                ) : (
-                  <Text style={styles.signInText}>{t('login.signIn')}</Text>
-                )}
+                {isLoading ? <ActivityIndicator color="#fff" /> : <Text style={styles.signInText}>{t('login.signIn')}</Text>}
               </TouchableOpacity>
 
-              {/* Social - Google (AntDesign icon) */}
               <TouchableOpacity
                 style={[styles.altButton, styles.googleButton]}
                 onPress={() => handleSocialLogin('google')}
@@ -288,18 +321,10 @@ const handleLogin = async () => {
                 accessibilityRole="button"
                 accessibilityLabel={t('login.continueWithGoogle')}
               >
-                <AntDesign
-                  name="google"
-                  size={20}
-                  color="#fff"
-                  style={{ marginRight: Spacing['spacing-element-m'] }}
-                />
-                <Text style={[styles.altButtonText, styles.googleButtonText]}>
-                  {t('login.continueWithGoogle')}
-                </Text>
+                <AntDesign name="google" size={20} color="#fff" style={{ marginRight: Spacing['spacing-element-m'] }} />
+                <Text style={[styles.altButtonText, styles.googleButtonText]}>{t('login.continueWithGoogle')}</Text>
               </TouchableOpacity>
 
-              {/* Social - Apple (AntDesign icon) */}
               <TouchableOpacity
                 style={[styles.altButton, styles.appleButton]}
                 onPress={() => handleSocialLogin('apple')}
@@ -307,18 +332,10 @@ const handleLogin = async () => {
                 accessibilityRole="button"
                 accessibilityLabel={t('login.continueWithApple')}
               >
-                <AntDesign
-                  name="apple1"
-                  size={20}
-                  color="#fff"
-                  style={{ marginRight: Spacing['spacing-element-m'] }}
-                />
-                <Text style={[styles.altButtonText, styles.appleButtonText]}>
-                  {t('login.continueWithApple')}
-                </Text>
+                <AntDesign name="apple1" size={20} color="#fff" style={{ marginRight: Spacing['spacing-element-m'] }} />
+                <Text style={[styles.altButtonText, styles.appleButtonText]}>{t('login.continueWithApple')}</Text>
               </TouchableOpacity>
 
-              {/* Sign Up Link */}
               <View style={styles.signupContainer}>
                 <Text style={styles.signupText}>{t('signup.haveAccount')} </Text>
                 <TouchableOpacity onPress={navigateToSignUp} disabled={isLoading}>
@@ -326,7 +343,6 @@ const handleLogin = async () => {
                 </TouchableOpacity>
               </View>
 
-              {/* Disclaimer */}
               <Text style={styles.disclaimer}>
                 {t('login.disclaimer.part1')}{' '}
                 <Text style={styles.link}>{t('login.disclaimer.userAgreement')}</Text>{' '}
