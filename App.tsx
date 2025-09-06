@@ -1,3 +1,4 @@
+
 import { StatusBar } from 'expo-status-bar';
 import { useFonts, Inter_400Regular, Inter_500Medium, Inter_600SemiBold } from '@expo-google-fonts/inter';
 import * as SplashScreen from 'expo-splash-screen';
@@ -10,18 +11,18 @@ import LoginScreen from './src/screens/LoginScreen';
 import SignUpScreen from './src/screens/SignUpScreen';
 import ChatScreen from './src/screens/Chat/ChatScreen';
 import { ChatMessage, ChatBootstrap } from './src/types/chat';
+import { ChatProvider } from './src/contexts/chat/ChatProvider';
 
+// 🚫 IMPORTANT: Keep navigation params serializable
 export type RootStackParamList = {
   Login: undefined;
   SignUp: undefined;
   Main: undefined;
   ForgotPassword: undefined;
   ChatScreen: {
+    chatId: string;
     bootstrap: ChatBootstrap;
-    messages: ChatMessage[];
-    onSendMessage: (text: string) => void;
-    loading?: boolean;
-    isTyping?: boolean;
+    initialMessages?: ChatMessage[];
   };
 };
 
@@ -49,7 +50,7 @@ export default function App() {
 
   if (!fontsLoaded) return null;
 
-  // Exemplo de dados para ChatScreen
+  // Example data for ChatScreen (all serializable)
   const bootstrapExample: ChatBootstrap = {
     conversationId: '123',
     bot: { name: 'Robo', handle: 'robo', avatarUrl: '' },
@@ -59,29 +60,26 @@ export default function App() {
 
   const messagesExample: ChatMessage[] = [];
 
-  const handleSendMessage = (text: string) => {
-    console.log('Mensagem enviada:', text);
-    // Aqui você pode integrar com seu backend
-  };
-
   return (
     <NavigationContainer>
-      <View style={{ flex: 1 }} onLayout={onLayoutRootView}>
-        <Stack.Navigator screenOptions={{ headerShown: false }}>
-          <Stack.Screen name="Login" component={LoginScreen} />
-          <Stack.Screen name="SignUp" component={SignUpScreen} />
-          <Stack.Screen
-            name="ChatScreen"
-            component={ChatScreen}
-            initialParams={{
-              bootstrap: bootstrapExample,
-              messages: messagesExample,
-              onSendMessage: handleSendMessage,
-            }}
-          />
-        </Stack.Navigator>
-        <StatusBar style="auto" />
-      </View>
+      <ChatProvider>
+        <View style={{ flex: 1 }} onLayout={onLayoutRootView}>
+          <Stack.Navigator screenOptions={{ headerShown: false }}>
+            <Stack.Screen name="Login" component={LoginScreen} />
+            <Stack.Screen name="SignUp" component={SignUpScreen} />
+            <Stack.Screen
+              name="ChatScreen"
+              component={ChatScreen}
+              initialParams={{
+                chatId: 'chat-123',
+                bootstrap: bootstrapExample,
+                initialMessages: messagesExample,
+              }}
+            />
+          </Stack.Navigator>
+          <StatusBar style="auto" />
+        </View>
+      </ChatProvider>
     </NavigationContainer>
   );
 }

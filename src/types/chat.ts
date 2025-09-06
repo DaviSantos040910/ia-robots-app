@@ -1,20 +1,22 @@
-export type ChatRole = 'user' | 'bot' | 'system';
 
-export interface ChatMessage {
+export type ChatMessage = {
   id: string;
-  role: ChatRole;
+  role: 'user' | 'assistant';
   content: string;
-  createdAt: string; // ISO
-  status?: 'sending' | 'delivered' | 'failed';
-}
+  liked?: boolean;
+  rewriting?: boolean;
+  audioUri?: string | null;
+  /**
+   * Sugestões de follow-up retornadas pelo backend para esta resposta do bot.
+   * Quando existir, o app exibe mini chips logo abaixo do card desta mensagem.
+   */
+  suggestions?: string[];
+};
 
-export interface ChatBootstrap {
+export type ChatBootstrap = {
   conversationId: string;
-  bot: {
-    name: string;
-    handle: string;
-    avatarUrl: string;
-  };
+  bot: { name: string; handle: string; avatarUrl?: string };
   welcome: string;
+  /** Sugestões iniciais (Header da tela) exibidas antes da primeira mensagem. */
   suggestions: string[];
-}
+};

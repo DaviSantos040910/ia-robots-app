@@ -6,13 +6,13 @@ import { useColorScheme } from 'react-native';
 
 type Props = { label: string; onPress: () => void };
 
-export const SuggestionChip: React.FC<Props> = ({ label, onPress }) => {
+export const MiniSuggestionChip: React.FC<Props> = ({ label, onPress }) => {
   const scheme = useColorScheme();
   const theme = getTheme(scheme === 'dark');
   const s = createChatStyles(theme);
   return (
-    <Pressable onPress={onPress} style={s.chip}>
-      <Text style={s.chipText}>{label}</Text>
+    <Pressable onPress={onPress} style={s.miniChip}>
+      <Text style={s.miniChipText}>{label}</Text>
     </Pressable>
   );
 };

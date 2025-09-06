@@ -1,33 +1,17 @@
 
 import React from 'react';
-import { Pressable, Text, TextInput, View, LayoutChangeEvent } from 'react-native';
+import { Pressable, Text, TextInput, View, LayoutChangeEvent, Platform } from 'react-native';
 import { createChatStyles, getTheme } from '../../screens/Chat/Chat.styles';
 import { useColorScheme } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
- type Props = {
-  value: string;
-  placeholder: string;
-  onChangeText: (v: string) => void;
-  onSend: () => void;
-  onMic: () => void;
-  onPlus: () => void;
-  onHeightChange?: (h: number) => void; // comunica a altura real para o screen
- };
+type Props = { value: string; placeholder: string; onChangeText: (v: string) => void; onSend: () => void; onMic: () => void; onPlus: () => void; onHeightChange?: (h: number) => void; };
 
 const MicIcon = () => <Text>{'🎙️'}</Text>;
 const PlusIcon = () => <Text>{'＋'}</Text>;
 const SendIcon = () => <Text>{'➤'}</Text>;
 
-export const ChatInput: React.FC<Props> = ({
-  value,
-  placeholder,
-  onChangeText,
-  onSend,
-  onMic,
-  onPlus,
-  onHeightChange,
-}) => {
+export const ChatInput: React.FC<Props> = ({ value, placeholder, onChangeText, onSend, onMic, onPlus, onHeightChange }) => {
   const scheme = useColorScheme();
   const theme = getTheme(scheme === 'dark');
   const s = createChatStyles(theme);
@@ -49,8 +33,9 @@ export const ChatInput: React.FC<Props> = ({
           placeholder={placeholder}
           placeholderTextColor={(s.placeholder as any).color}
           style={s.textInput}
-          // Envio via botão (mic -> enviar)
-          returnKeyType={canSend ? 'send' : 'default'}
+          multiline
+          textAlignVertical={Platform.OS === 'android' ? 'center' : 'auto'}
+          returnKeyType={'default'}
           blurOnSubmit={false}
         />
         <View style={s.inputIcons}>
