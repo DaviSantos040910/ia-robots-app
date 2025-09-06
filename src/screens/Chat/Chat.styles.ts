@@ -1,4 +1,5 @@
-import { StyleSheet } from 'react-native';
+
+import { StyleSheet, Platform } from 'react-native';
 import { Colors } from '../../theme/colors';
 import { NeutralColors } from '../../theme/neutralColors';
 import { Spacing } from '../../theme/spacing';
@@ -13,7 +14,7 @@ const getFontColors = (isDark: boolean) => {
       secondary: NeutralColors.fontAndIcon.dark.wh2,
       placeholder: NeutralColors.fontAndIcon.dark.wh3,
       disabled: NeutralColors.fontAndIcon.dark.wh4,
-    };
+    } as const;
   }
   return NeutralColors.fontAndIcon.light;
 };
@@ -21,7 +22,6 @@ const getFontColors = (isDark: boolean) => {
 export const getTheme = (isDark: boolean) => {
   const font = getFontColors(isDark);
 
-  // Acesse explicitamente light / dark para evitar erros de união de tipos
   const background = isDark
     ? NeutralColors.neutral.dark.gray1
     : NeutralColors.neutral.light.gray1;
@@ -38,24 +38,19 @@ export const getTheme = (isDark: boolean) => {
     ? NeutralColors.neutral.dark.gray3
     : NeutralColors.neutral.light.gray3;
 
-  // Escolha das cores de marca — aqui mantive identidade similar entre temas,
-  // mas você pode ajustar para Colors.brand.dark quando quiser.
   const brandNormal = Colors.brand.light.normal;
   const brandSurface = Colors.brand.light.surface;
 
   return {
     isDark,
-
-    background, // page bg
-    surface, // cards/bubbles
+    background,
+    surface,
     surfaceAlt,
     border,
-
     textPrimary: font.primary,
     textSecondary: font.secondary,
     placeholder: font.placeholder,
     disabled: font.disabled,
-
     brand: {
       normal: brandNormal,
       surface: brandSurface,
@@ -67,17 +62,20 @@ export type ChatTheme = ReturnType<typeof getTheme>;
 
 export const createChatStyles = (t: ChatTheme) =>
   StyleSheet.create({
+    // Layout base
     screen: {
       flex: 1,
       backgroundColor: t.background,
     },
     content: {
       flex: 1,
+      backgroundColor: t.background,
     },
+
     listContent: {
       paddingHorizontal: Spacing['spacing-group-s'],
       paddingTop: Spacing['spacing-card-m'],
-      paddingBottom: Spacing['spacing-card-xl'] + 64,
+      paddingBottom: Spacing['spacing-group-m'],
     },
 
     // Header
@@ -93,7 +91,6 @@ export const createChatStyles = (t: ChatTheme) =>
     headerLeft: {
       flexDirection: 'row',
       alignItems: 'center',
-      // OBS: React Native não suporta `gap`. Aplique margin nos filhos (ex.: marginRight)
       flex: 1,
     },
     backButton: {
@@ -102,12 +99,14 @@ export const createChatStyles = (t: ChatTheme) =>
       borderRadius: Radius.round,
       alignItems: 'center',
       justifyContent: 'center',
+      marginRight: Spacing['spacing-group-s'],
     },
     tinyAvatar: {
       width: 32,
       height: 32,
       borderRadius: 16,
       backgroundColor: t.surfaceAlt,
+      marginRight: Spacing['spacing-group-s'],
     },
     titleArea: {
       flex: 1,
@@ -123,7 +122,6 @@ export const createChatStyles = (t: ChatTheme) =>
     headerRight: {
       flexDirection: 'row',
       alignItems: 'center',
-      // OBS: remova `gap` — use style nos ícones (ex.: { marginLeft: spacing })
     },
     iconButton: {
       width: 32,
@@ -132,8 +130,11 @@ export const createChatStyles = (t: ChatTheme) =>
       alignItems: 'center',
       justifyContent: 'center',
     },
+    mlIcon: {
+      marginLeft: Spacing['spacing-group-s'],
+    },
 
-    // Hero avatar (top of chat when empty)
+    // Hero avatar
     heroContainer: {
       alignItems: 'center',
       marginBottom: Spacing['spacing-card-l'],
@@ -151,6 +152,19 @@ export const createChatStyles = (t: ChatTheme) =>
       height: 168,
       borderRadius: 84,
       backgroundColor: t.surfaceAlt,
+    },
+
+    // Welcome bubble
+    welcomeBubble: {
+      backgroundColor: t.surface,
+      borderRadius: Radius.extraLarge,
+      paddingHorizontal: Spacing['spacing-group-s'],
+      paddingVertical: Spacing['spacing-element-l'],
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: t.border,
+      maxWidth: '90%',
+      alignSelf: 'center',
+      marginTop: Spacing['spacing-group-m'],
     },
 
     // Bubbles
@@ -187,24 +201,29 @@ export const createChatStyles = (t: ChatTheme) =>
       paddingVertical: Spacing['spacing-element-l'],
       borderWidth: StyleSheet.hairlineWidth,
       borderColor: t.border,
+      ...Platform.select({
+        ios: { shadowColor: '#000', shadowOpacity: 0.06, shadowRadius: 6, shadowOffset: { width: 0, height: 2 } },
+        android: { elevation: 1 },
+      }),
     },
     chipText: {
       ...Typography.bodyMedium.medium,
       color: t.textPrimary,
     },
     chipStack: {
-      // OBS: remova `gap` — você pode aplicar marginRight/marginBottom nos chips filhos
       marginTop: Spacing['spacing-element-l'],
+      width: '100%',
+    },
+    chipItem: {
+      marginBottom: Spacing['spacing-group-s'],
+      alignSelf: 'flex-start',
     },
 
-    // Input
+    // Footer/Input
     inputWrap: {
-      position: 'absolute',
-      left: 0,
-      right: 0,
-      bottom: 0,
       paddingHorizontal: Spacing['spacing-group-s'],
-      paddingBottom: Spacing['spacing-card-s'], // safe-area handled pelo container pai
+      paddingTop: Spacing['spacing-element-m'],
+      paddingBottom: Spacing['spacing-element-m'],
       backgroundColor: 'transparent',
     },
     inputContainer: {
@@ -216,7 +235,6 @@ export const createChatStyles = (t: ChatTheme) =>
       paddingVertical: Spacing['spacing-element-l'],
       borderWidth: StyleSheet.hairlineWidth,
       borderColor: t.border,
-      // OBS: remova `gap` — se precisar de espaçamento entre ícones, use margin nos ícones
     },
     textInput: {
       flex: 1,
@@ -227,7 +245,6 @@ export const createChatStyles = (t: ChatTheme) =>
     inputIcons: {
       flexDirection: 'row',
       alignItems: 'center',
-      // use margin nos filhos em vez de gap
     },
     plusButton: {
       width: 32,
@@ -235,6 +252,19 @@ export const createChatStyles = (t: ChatTheme) =>
       borderRadius: 16,
       alignItems: 'center',
       justifyContent: 'center',
-      backgroundColor: t.surfaceAlt,
+      backgroundColor: 'transparent',
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: t.border,
+    },
+
+    // Typing indicator
+    typingBubble: {
+      backgroundColor: t.surface,
+      borderRadius: Radius.extraLarge,
+      paddingHorizontal: Spacing['spacing-group-s'],
+      paddingVertical: Spacing['spacing-element-l'],
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: t.border,
+      alignSelf: 'flex-start',
     },
   });

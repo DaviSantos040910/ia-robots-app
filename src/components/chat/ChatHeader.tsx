@@ -1,18 +1,20 @@
+
 import React from 'react';
 import { Image, Pressable, Text, View } from 'react-native';
 import { createChatStyles, getTheme } from '../../screens/Chat/Chat.styles';
 import { useColorScheme } from 'react-native';
 
-// TODO: Replace these with your actual icon components or Image sources
 const BackIcon = () => <Text>{'‹'}</Text>;
+const PhoneIcon = () => <Text>{'📞'}</Text>;
 const VolumeIcon = () => <Text>{'🔊'}</Text>;
 const MoreIcon = () => <Text>{'⋯'}</Text>;
 
-type Props = {
+ type Props = {
   avatarUrl?: string;
   title: string;
   subtitle?: string;
   onBack: () => void;
+  onPhone: () => void;
   onVolume: () => void;
   onMore: () => void;
 };
@@ -22,6 +24,7 @@ export const ChatHeader: React.FC<Props> = ({
   title,
   subtitle,
   onBack,
+  onPhone,
   onVolume,
   onMore,
 }) => {
@@ -35,13 +38,11 @@ export const ChatHeader: React.FC<Props> = ({
         <Pressable onPress={onBack} style={s.backButton} hitSlop={8}>
           <BackIcon />
         </Pressable>
-
         {avatarUrl ? (
           <Image source={{ uri: avatarUrl }} style={s.tinyAvatar} />
         ) : (
           <View style={s.tinyAvatar} />
         )}
-
         <View style={s.titleArea}>
           <Text style={s.title} numberOfLines={1}>{title}</Text>
           {!!subtitle && (
@@ -49,13 +50,14 @@ export const ChatHeader: React.FC<Props> = ({
           )}
         </View>
       </View>
-
       <View style={s.headerRight}>
-        {/* Phone icon intentionally removed as requested */}
-        <Pressable onPress={onVolume} style={s.iconButton} hitSlop={8}>
+        <Pressable onPress={onPhone} style={s.iconButton} hitSlop={8}>
+          <PhoneIcon />
+        </Pressable>
+        <Pressable onPress={onVolume} style={[s.iconButton, s.mlIcon]} hitSlop={8}>
           <VolumeIcon />
         </Pressable>
-        <Pressable onPress={onMore} style={s.iconButton} hitSlop={8}>
+        <Pressable onPress={onMore} style={[s.iconButton, s.mlIcon]} hitSlop={8}>
           <MoreIcon />
         </Pressable>
       </View>
