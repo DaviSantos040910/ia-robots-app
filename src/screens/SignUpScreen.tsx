@@ -24,14 +24,9 @@ import { NeutralColors } from '../theme/neutralColors';
 // inside SignUpScreen component (replace handleSignUp)
 import api from '../services/api'; // add near top imports
 import { Alert } from 'react-native';
-
-type RootStackParamList = {
-  SignUp: undefined;
-  Login: undefined;
-};
+import type { RootStackParamList } from '../types/navigation';
 
 type SignUpScreenProps = NativeStackScreenProps<RootStackParamList, 'SignUp'>;
-
 type FormErrors = {
   name?: string;
   email?: string;

@@ -1,8 +1,8 @@
 
 import React from 'react';
 import { Pressable, Text } from 'react-native';
-import { createChatStyles, getTheme } from '../../screens/Chat/Chat.styles';
 import { useColorScheme } from 'react-native';
+import { createChatStyles, getTheme } from '../../screens/Chat/Chat.styles';
 
 type Props = { label: string; onPress: () => void };
 

@@ -3,7 +3,6 @@ import { StatusBar } from 'expo-status-bar';
 import { useFonts, Inter_400Regular, Inter_500Medium, Inter_600SemiBold } from '@expo-google-fonts/inter';
 import * as SplashScreen from 'expo-splash-screen';
 import { NavigationContainer } from '@react-navigation/native';
-import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import React, { useCallback, useEffect } from 'react';
 import { View } from 'react-native';
 import './src/i18n/config';
@@ -12,19 +11,10 @@ import SignUpScreen from './src/screens/SignUpScreen';
 import ChatScreen from './src/screens/Chat/ChatScreen';
 import { ChatMessage, ChatBootstrap } from './src/types/chat';
 import { ChatProvider } from './src/contexts/chat/ChatProvider';
+import BotSettingsScreen from '@/screens/BotSettings/BotSettingsScreen';
+import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import type { RootStackParamList } from './src/types/navigation';
 
-// 🚫 IMPORTANT: Keep navigation params serializable
-export type RootStackParamList = {
-  Login: undefined;
-  SignUp: undefined;
-  Main: undefined;
-  ForgotPassword: undefined;
-  ChatScreen: {
-    chatId: string;
-    bootstrap: ChatBootstrap;
-    initialMessages?: ChatMessage[];
-  };
-};
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
@@ -76,6 +66,9 @@ export default function App() {
                 initialMessages: messagesExample,
               }}
             />
+            <Stack.Screen name="BotSettings" component={BotSettingsScreen} />
+           
+
           </Stack.Navigator>
           <StatusBar style="auto" />
         </View>

@@ -25,20 +25,8 @@ import { AntDesign } from '@expo/vector-icons';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { AxiosResponse } from 'axios';
 import { ChatBootstrap, ChatMessage } from '../types/chat'; // ajuste o caminho se necessário
+import type { RootStackParamList } from '../types/navigation';
 
-type RootStackParamList = {
-  Login: undefined;
-  SignUp: undefined;
-  Main: undefined;
-  ForgotPassword: undefined;
-  ChatScreen: {
-    bootstrap: ChatBootstrap;
-    messages: ChatMessage[];
-    onSendMessage: (text: string) => void;
-    loading?: boolean;
-    isTyping?: boolean;
-  };
-};
 
 type LoginScreenProps = NativeStackScreenProps<RootStackParamList, 'Login'>;
 
