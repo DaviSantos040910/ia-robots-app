@@ -1,32 +1,91 @@
 
-import React from 'react';
-import { Modal, Pressable, Text, View, Platform } from 'react-native';
-import { useColorScheme } from 'react-native';
-import { createChatStyles, getTheme } from '../../screens/Chat/Chat.styles';
+import React, { useMemo, useState } from 'react';
+import { Modal, Pressable, Text, View, useColorScheme, Dimensions, LayoutChangeEvent, StyleSheet } from 'react-native';
+import { getTheme } from '../../screens/Chat/Chat.styles';
 
 export type SheetItem = { label: string; onPress: () => void; danger?: boolean };
+export type Anchor = { x: number; y: number; width: number; height: number } | null;
+
+const MARGIN = 8; // outer safe margin to screen edges
 
 export const ActionSheetMenu: React.FC<{
   visible: boolean;
   onClose: () => void;
   items: SheetItem[];
-}> = ({ visible, onClose, items }) => {
+  anchor: Anchor;
+}> = ({ visible, onClose, items, anchor }) => {
   const scheme = useColorScheme();
   const theme = getTheme(scheme === 'dark');
-  const s = createChatStyles(theme);
+  const screen = Dimensions.get('window');
+  const [menuSize, setMenuSize] = useState<{ w: number; h: number } | null>(null);
+
+  const onMenuLayout = (e: LayoutChangeEvent) => {
+    const { width, height } = e.nativeEvent.layout;
+    if (!menuSize || menuSize.w !== width || menuSize.h !== height) {
+      setMenuSize({ w: width, h: height });
+    }
+  };
+
+  const position = useMemo(() => {
+    if (!anchor || !menuSize) return { top: -9999, left: -9999 };
+    const { x, y, width, height } = anchor;
+    let left = x + width - menuSize.w; // align right edges (WhatsApp-like)
+    let top = y + height + 4; // prefer below the anchor
+
+    // Horizontal clamping
+    if (left < MARGIN) left = MARGIN;
+    if (left + menuSize.w + MARGIN > screen.width) left = screen.width - menuSize.w - MARGIN;
+
+    // Vertical flip if not enough space below
+    const spaceBelow = screen.height - (y + height);
+    if (spaceBelow < menuSize.h + MARGIN) {
+      top = y - menuSize.h - 4;
+      if (top < MARGIN) top = MARGIN; // clamp to top margin
+    }
+    return { top, left };
+  }, [anchor, menuSize, screen.height, screen.width]);
 
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
-      <Pressable style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.25)' }} onPress={onClose}>
-        <View style={{ flex: 1, justifyContent: 'flex-end' }}>
-          <View style={{ backgroundColor: theme.surface, borderTopLeftRadius: 16, borderTopRightRadius: 16, paddingTop: 8, paddingBottom: 16 }}>
+      {/* Backdrop */}
+      <Pressable style={{ flex: 1, backgroundColor: 'transparent' }} onPress={onClose}>
+        {/* Absolutely positioned menu box */}
+        <View pointerEvents="box-none" style={StyleSheet.absoluteFill}>
+          <View
+            onLayout={onMenuLayout}
+            style={{
+              position: 'absolute',
+              top: position.top,
+              left: position.left,
+              backgroundColor: theme.surface,
+              borderRadius: 12,
+              paddingVertical: 6,
+              minWidth: 180,
+              maxWidth: Math.min(280, screen.width - MARGIN * 2),
+              borderWidth: StyleSheet.hairlineWidth,
+              borderColor: theme.border,
+              // subtle shadow
+              shadowColor: '#000',
+              shadowOpacity: 0.12,
+              shadowRadius: 12,
+              shadowOffset: { width: 0, height: 6 },
+              elevation: 6,
+            }}
+          >
             {items.map((it, idx) => (
-              <Pressable key={idx} onPress={() => { onClose(); setTimeout(it.onPress, 0); }}
-                style={{ paddingVertical: 14, paddingHorizontal: 20, borderTopWidth: idx===0?0:0.5, borderColor: theme.border }}>
-                <Text style={{ fontSize: 16, color: it.danger ? '#E5484D' : theme.textPrimary }}>{it.label}</Text>
+              <Pressable
+                key={idx}
+                onPress={() => {
+                  onClose();
+                  setTimeout(it.onPress, 0);
+                }}
+                style={{ paddingVertical: 10, paddingHorizontal: 14 }}
+              >
+                <Text style={{ fontSize: 16, color: it.danger ? '#E5484D' : theme.textPrimary }}>
+                  {it.label}
+                </Text>
               </Pressable>
             ))}
-            <View style={{ height: 8 }} />
           </View>
         </View>
       </Pressable>

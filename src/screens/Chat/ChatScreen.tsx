@@ -1,6 +1,6 @@
 
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, FlatList, Platform, Text, View, Keyboard, EmitterSubscription, KeyboardAvoidingView } from 'react-native';
+import { ActivityIndicator, FlatList, Platform, View,Text, Keyboard, EmitterSubscription, KeyboardAvoidingView } from 'react-native';
 import { useColorScheme } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ChatHeader } from '../../components/chat/ChatHeader';
@@ -8,10 +8,10 @@ import { ChatInput } from '../../components/chat/ChatInput';
 import { MessageBubble } from '../../components/chat/MessageBubble';
 import { SuggestionChip } from '../../components/chat/SuggestionChip';
 import { createChatStyles, getTheme } from './Chat.styles';
-import { ChatMessage, ChatBootstrap } from '../../types/chat';
+import { ChatMessage } from '../../types/chat';
 import { useChatController } from '../../contexts/chat/ChatProvider';
 import * as Clipboard from 'expo-clipboard';
-import { ActionSheetMenu } from '../../components/chat/ActionSheetMenu';
+import { ActionSheetMenu, type Anchor } from '../../components/chat/ActionSheetMenu';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../../types/navigation';
 
@@ -26,11 +26,14 @@ const ChatScreen: React.FC<Props> = ({ route, navigation }) => {
   const scheme = useColorScheme();
   const theme = getTheme(scheme === 'dark');
   const s = createChatStyles(theme);
-
   const listRef = useRef<FlatList<ChatMessage>>(null);
+
   const [input, setInput] = useState('');
   const [showHeaderChips, setShowHeaderChips] = useState<boolean>(true);
+
+  // Menu state
   const [menuOpen, setMenuOpen] = useState(false);
+  const [menuAnchor, setMenuAnchor] = useState<Anchor>(null);
 
   const safeScrollToEnd = useCallback((animated = true) => {
     requestAnimationFrame(() => {
@@ -42,7 +45,8 @@ const ChatScreen: React.FC<Props> = ({ route, navigation }) => {
 
   useEffect(() => {
     if (initialMessages && initialMessages.length) initialMessages.forEach(m => appendMessage(m));
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     if (messages.length) safeScrollToEnd(true);
@@ -92,7 +96,7 @@ const ChatScreen: React.FC<Props> = ({ route, navigation }) => {
 
   if (!bootstrap) {
     return (
-      <View style={[s.screen, { justifyContent: 'center', alignItems: 'center' }]}> 
+      <View style={[s.screen, { justifyContent: 'center', alignItems: 'center' }]}>
         <ActivityIndicator size="large" color={theme.brand.normal} />
       </View>
     );
@@ -113,7 +117,13 @@ const ChatScreen: React.FC<Props> = ({ route, navigation }) => {
   };
 
   const handleOpenSettings = () => {
-    navigation.navigate('BotSettings', { botId: bootstrap.bot.handle || 'bot-001' });
+    const id = (bootstrap as any)?.bot?.handle ?? 'bot-001';
+    navigation.navigate('BotSettings', { botId: id });
+  };
+
+  const openOverflow = (anchor: Anchor) => {
+    setMenuAnchor(anchor);
+    setMenuOpen(true);
   };
 
   return (
@@ -125,7 +135,7 @@ const ChatScreen: React.FC<Props> = ({ route, navigation }) => {
         onBack={() => navigation.goBack()}
         onPhone={() => {}}
         onVolume={() => {}}
-        onMore={() => setMenuOpen(true)}
+        onMorePress={openOverflow}
       />
 
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={keyboardBehavior} keyboardVerticalOffset={keyboardOffset}>
@@ -158,7 +168,7 @@ const ChatScreen: React.FC<Props> = ({ route, navigation }) => {
           onContentSizeChange={() => safeScrollToEnd(true)}
         />
 
-        {/* ChatInput no rodapé, sem overlay */}
+        {/* ChatInput at bottom */}
         <ChatInput
           value={input}
           placeholder="Digite sua mensagem..."
@@ -172,6 +182,7 @@ const ChatScreen: React.FC<Props> = ({ route, navigation }) => {
       <ActionSheetMenu
         visible={menuOpen}
         onClose={() => setMenuOpen(false)}
+        anchor={menuAnchor}
         items={[
           { label: 'New chat', onPress: handleNewChat },
           { label: 'Settings', onPress: handleOpenSettings },

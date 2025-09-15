@@ -320,7 +320,7 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ navigation }) => {
                 accessibilityRole="button"
                 accessibilityLabel={t('login.continueWithApple')}
               >
-                <AntDesign name="apple1" size={20} color="#fff" style={{ marginRight: Spacing['spacing-element-m'] }} />
+                <AntDesign name="apple" size={20} color="#fff" style={{ marginRight: Spacing['spacing-element-m'] }} />
                 <Text style={[styles.altButtonText, styles.appleButtonText]}>{t('login.continueWithApple')}</Text>
               </TouchableOpacity>
 

@@ -1,111 +1,103 @@
 
 import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, ScrollView, Text, View, Pressable, Alert } from 'react-native';
+import { ActivityIndicator, ScrollView, Text, View, Pressable, Switch } from 'react-native';
 import { useColorScheme } from 'react-native';
-import { getTheme } from '../Chat/Chat.styles';
+import { getTheme as getBotTheme, createBotSettingsStyles } from './BotSettings.styles';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../../types/navigation';
+import { SectionCard } from '../../components/shared/SectionCard';
+import { Divider } from '../../components/shared/Divider';
+import { Chip } from '../../components/shared/Chip';
+import { ValueRow } from '../../components/settings/ValueRow';
 
-type Props = NativeStackScreenProps<RootStackParamList, 'BotSettings'>;
-
-type BotDetails = {
-  id: string;
-  name: string;
-  handle: string;
-  createdBy: string;
-  category: string;
-  users: number;
-  followers: number;
-  voiceType: string;
-  language: string;
-};
+ type Props = NativeStackScreenProps<RootStackParamList, 'BotSettings'>;
+ type BotDetails = { id: string; name: string; handle: string; users: string; followers: string; voice: string; language: string; publicity: string; };
 
 export const BotSettingsScreen: React.FC<Props> = ({ route, navigation }) => {
   const { botId } = route.params;
   const scheme = useColorScheme();
-  const theme = getTheme(scheme === 'dark');
+  const t = getBotTheme(scheme === 'dark');
+  const s = createBotSettingsStyles(t);
+
   const [loading, setLoading] = useState(true);
   const [bot, setBot] = useState<BotDetails | null>(null);
+  const [cleanText, setCleanText] = useState(true);
 
   useEffect(() => {
     let mounted = true;
     setLoading(true);
-    // MOCK: simula fetch no backend
     setTimeout(() => {
       if (!mounted) return;
       setBot({
         id: botId,
-        name: 'Atlas AI',
-        handle: 'atlas_ai',
-        createdBy: 'Criado por @davi',
-        category: 'Assistente & Produtividade',
-        users: 12450,
-        followers: 8800,
-        voiceType: 'Neural • Feminina',
-        language: 'PT-BR',
+        name: 'Space traveler',
+        handle: '@StarrySia',
+        users: '56K monthly users',
+        followers: '8.4K followers',
+        voice: 'Energetic Youth',
+        language: 'English',
+        publicity: 'Anyone',
       });
       setLoading(false);
-    }, 400);
+    }, 220);
     return () => { mounted = false; };
   }, [botId]);
 
   if (loading || !bot) {
     return (
-      <View style={{ flex: 1, backgroundColor: theme.background, alignItems: 'center', justifyContent: 'center' }}>
-        <ActivityIndicator size="large" color={theme.brand.normal} />
+      <View style={{ flex: 1, backgroundColor: t.background, alignItems: 'center', justifyContent: 'center' }}>
+        <ActivityIndicator size="large" color={t.brand.normal} />
       </View>
     );
   }
 
-  const InfoRow: React.FC<{ label: string; value: string | number }> = ({ label, value }) => (
-    <View style={{ paddingVertical: 12, borderBottomWidth: 0.5, borderColor: theme.border }}>
-      <Text style={{ color: theme.textSecondary, fontSize: 12, marginBottom: 4 }}>{label}</Text>
-      <Text style={{ color: theme.textPrimary, fontSize: 16 }}>{String(value)}</Text>
-    </View>
-  );
-
   return (
-    <View style={{ flex: 1, backgroundColor: theme.background }}>
-      {/* Header simples */}
-      <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 12, backgroundColor: theme.surface, borderBottomWidth: 0.5, borderColor: theme.border }}>
+    <View style={s.screen}>
+      {/* Header */}
+      <View style={s.header}>
         <Pressable onPress={() => navigation.goBack()} hitSlop={10} style={{ marginRight: 12 }}>
-          <Text style={{ fontSize: 18 }}>{'‹'}</Text>
+          <Text style={s.headerBackText}>{'‹'}</Text>
         </Pressable>
-        <Text style={{ fontWeight: '600', fontSize: 16, color: theme.textPrimary }}>Configurações</Text>
+        <Text style={s.headerTitle}>Bot settings</Text>
       </View>
 
-      <ScrollView contentContainerStyle={{ padding: 16 }}>
-        {/* Card do bot */}
-        <View style={{ backgroundColor: theme.surface, borderWidth: 0.5, borderColor: theme.border, borderRadius: 16, padding: 16, marginBottom: 16 }}>
-          <View style={{ width: 72, height: 72, borderRadius: 36, backgroundColor: theme.surfaceAlt, marginBottom: 12 }} />
-          <Text style={{ color: theme.textPrimary, fontSize: 18, fontWeight: '600' }}>{bot.name}</Text>
-          <Text style={{ color: theme.textSecondary, marginTop: 2 }}>@{bot.handle}</Text>
-
-          <View style={{ flexDirection: 'row', marginTop: 12 }}>
-            <View style={{ paddingHorizontal: 10, paddingVertical: 6, borderRadius: 999, backgroundColor: theme.surfaceAlt, marginRight: 8 }}>
-              <Text style={{ color: theme.textPrimary, fontSize: 12 }}>{bot.voiceType}</Text>
-            </View>
-            <View style={{ paddingHorizontal: 10, paddingVertical: 6, borderRadius: 999, backgroundColor: theme.surfaceAlt }}>
-              <Text style={{ color: theme.textPrimary, fontSize: 12 }}>{bot.language}</Text>
+      <ScrollView contentContainerStyle={s.content}>
+        {/* Identity card */}
+        <SectionCard bg={t.surface} border={t.border} radius={12}>
+          <View style={s.identityRow}>
+            <View style={s.avatar} />
+            <View style={{ flex: 1 }}>
+              <Text style={s.title}>{bot.name}</Text>
+              <Text style={s.byline}>By {bot.handle}</Text>
+              <View style={s.chipRow}>
+                <Chip label="featured" bg={t.surfaceAlt} fg={t.textPrimary} />
+                <Chip label="Popular" bg={t.surfaceAlt} fg={t.textPrimary} />
+              </View>
+              <Text style={s.statsText}>{bot.users} · {bot.followers}</Text>
             </View>
           </View>
-        </View>
+        </SectionCard>
 
-        {/* Infos alimentadas pelo backend (mock) */}
-        <View style={{ backgroundColor: theme.surface, borderWidth: 0.5, borderColor: theme.border, borderRadius: 16, paddingHorizontal: 16 }}>
-          <InfoRow label="Criado por" value={bot.createdBy} />
-          <InfoRow label="Categoria" value={bot.category} />
-          <InfoRow label="Usuários" value={bot.users} />
-          <InfoRow label="Seguidores" value={bot.followers} />
-        </View>
+        <View style={s.spacer16} />
 
-        <View style={{ height: 24 }} />
+        {/* Settings list */}
+        <SectionCard bg={t.surface} border={t.border} radius={12}>
+          <ValueRow label="Voice" value={bot.voice} color={t.textPrimary} onPress={() => {}} />
+          <Divider color={t.border} />
+          <ValueRow label="Language" value={bot.language} color={t.textPrimary} onPress={() => {}} />
+          <Divider color={t.border} />
+          <ValueRow label="Publicity" value={bot.publicity} color={t.textPrimary} onPress={() => {}} />
+        </SectionCard>
 
-        {/* Ações */}
-        <Pressable onPress={() => Alert.alert('Excluir bot', 'Esta ação será controlada pelo backend.', [{ text: 'OK' }])}
-          style={{ alignItems: 'center', justifyContent: 'center', paddingVertical: 14, borderRadius: 12, backgroundColor: '#E5484D' }}>
-          <Text style={{ color: '#fff', fontWeight: '600' }}>Apagar bot</Text>
-        </Pressable>
+        <View style={s.spacer16} />
+
+        {/* Toggle */}
+        <SectionCard bg={t.surface} border={t.border} radius={12}>
+          <View style={s.toggleRow}>
+            <Text style={{ color: t.textPrimary }}>Clean up the full text</Text>
+            <Switch value={cleanText} onValueChange={setCleanText} />
+          </View>
+        </SectionCard>
       </ScrollView>
     </View>
   );
