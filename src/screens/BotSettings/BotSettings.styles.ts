@@ -27,29 +27,45 @@ export const getTheme = (isDark: boolean) => {
     placeholder: (font as any).placeholder,
     disabled: (font as any).disabled,
     brand: { normal: Colors.brand.light.normal, surface: Colors.brand.light.surface },
+    danger: { normal: Colors.semantic.error.normal },
   } as const;
 };
 export type SettingsTheme = ReturnType<typeof getTheme>;
 
 export const createBotSettingsStyles = (t: SettingsTheme) => StyleSheet.create({
   screen: { flex: 1, backgroundColor: t.background },
-  header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 12, backgroundColor: t.surface, borderBottomWidth: 0.5, borderColor: t.border },
-  headerBackText: { fontSize: 18, color: t.textPrimary },
-  headerTitle: { ...Typography.bodySemiBold.medium, color: t.textPrimary },
 
-  content: { padding: Spacing['spacing-group-s'], paddingBottom: 24 },
+  // top actions bar (no full header)
+  topBar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: Spacing['spacing-group-s'], marginTop: Spacing['spacing-element-l'] },
+  leftGroup: { flexDirection: 'row', alignItems: 'center' },
+  rightGroup: { flexDirection: 'row', alignItems: 'center' },
+  backBtn: { padding: 8, borderRadius: 999 },
+  iconBtn: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center', marginLeft: 8 },
+  topIconText: { ...Typography.bodyRegular.medium, color: t.textPrimary },
 
-  identityRow: { flexDirection: 'row' },
-  avatar: { width: 72, height: 72, borderRadius: 36, backgroundColor: t.surfaceAlt, marginRight: 12 },
+  content: { padding: Spacing['spacing-group-s'], paddingTop: Spacing['spacing-group-m'] },
+
+  identityRow: { flexDirection: 'row', alignItems: 'center' },
+  avatar: { width: 96, height: 96, borderRadius: 48, backgroundColor: t.surfaceAlt, marginRight: 12 },
   title: { ...Typography.titleSemiBold.medium, color: t.textPrimary },
   byline: { ...Typography.bodyRegular.small, color: t.textSecondary },
   chipRow: { flexDirection: 'row', marginTop: 10 },
   statsText: { ...Typography.bodyRegular.small, color: t.textSecondary, marginTop: 8 },
 
-  toggleRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 8 },
+  // settings list
+  valueRowLabel: { ...Typography.bodyRegular.medium, color: t.textPrimary },
+  valueRowValue: { ...Typography.bodyRegular.medium, color: t.textPrimary, opacity: 0.85 },
+  valueRowChevron: { color: t.textPrimary, opacity: 0.6, marginLeft: 8 },
+  leadingIconWrap: { width: 28, height: 28, borderRadius: 14, alignItems: 'center', justifyContent: 'center', marginRight: 10, backgroundColor: t.surfaceAlt },
+  leadingIconText: { ...Typography.bodyRegular.small, color: t.textPrimary },
 
-  dangerButton: { alignItems: 'center', justifyContent: 'center', paddingVertical: 14, borderRadius: Radius.extraLarge, backgroundColor: Colors.semantic.error.normal },
-  dangerButtonText: { color: '#fff', fontWeight: '600' },
+  // destructive row
+  destructiveRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 12 },
+  destructiveLeft: { flexDirection: 'row', alignItems: 'center' },
+  destructiveIconWrap: { width: 28, height: 28, borderRadius: 14, alignItems: 'center', justifyContent: 'center', marginRight: 10, backgroundColor: t.surface },
+  destructiveIconText: { ...Typography.bodyRegular.small, color: t.danger.normal },
+  destructiveText: { ...Typography.bodyRegular.medium, color: t.danger.normal },
 
+  spacer12: { height: 12 },
   spacer16: { height: 16 },
 });
