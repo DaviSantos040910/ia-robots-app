@@ -6,6 +6,12 @@
  SignUp: undefined;
  Main: undefined;
  ForgotPassword: undefined;
- ChatScreen: { chatId: string; bootstrap: ChatBootstrap; initialMessages?: ChatMessage[] };
+ AllChats: undefined;
+ 
+Explore: undefined;
+Create: undefined;
+History: undefined;
+Me: undefined;
+ChatScreen: { chatId: string; bootstrap: ChatBootstrap; initialMessages?: ChatMessage[] };
  BotSettings: { botId: string };
   };

@@ -1,6 +1,17 @@
 
+// ChatScreen.tsx - always go to AllChats when tapping back arrow OR hardware back
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, FlatList, Platform, View,Text, Keyboard, EmitterSubscription, KeyboardAvoidingView } from 'react-native';
+import {
+  ActivityIndicator,
+  FlatList,
+  Platform,
+  Text,
+  View,
+  Keyboard,
+  EmitterSubscription,
+  KeyboardAvoidingView,
+  BackHandler,
+} from 'react-native';
 import { useColorScheme } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ChatHeader } from '../../components/chat/ChatHeader';
@@ -14,8 +25,9 @@ import * as Clipboard from 'expo-clipboard';
 import { ActionSheetMenu, type Anchor } from '../../components/chat/ActionSheetMenu';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../../types/navigation';
+import { CommonActions } from '@react-navigation/native';
 
-
+// NOTE: Comments are in English as requested.
 
 type Props = NativeStackScreenProps<RootStackParamList, 'ChatScreen'>;
 
@@ -31,15 +43,34 @@ const ChatScreen: React.FC<Props> = ({ route, navigation }) => {
   const [input, setInput] = useState('');
   const [showHeaderChips, setShowHeaderChips] = useState<boolean>(true);
 
-  // Menu state
+  // Overflow menu state
   const [menuOpen, setMenuOpen] = useState(false);
   const [menuAnchor, setMenuAnchor] = useState<Anchor>(null);
 
+  // Always go to AllChats (named route) regardless of history
+  const goToAllChats = useCallback(() => {
+    navigation.dispatch(
+      CommonActions.reset({ index: 0, routes: [{ name: 'AllChats' as never }] })
+    );
+    return true; // also serve as hardware back handler return
+  }, [navigation]);
+
+  // Hardware back => also go to AllChats
+  useEffect(() => {
+    const sub = BackHandler.addEventListener('hardwareBackPress', goToAllChats);
+    return () => sub.remove();
+  }, [goToAllChats]);
+
   const safeScrollToEnd = useCallback((animated = true) => {
+    // Multi-pass to avoid race conditions with keyboard/layout
     requestAnimationFrame(() => {
       listRef.current?.scrollToEnd({ animated });
-      setTimeout(() => listRef.current?.scrollToEnd({ animated }), 40);
-      setTimeout(() => listRef.current?.scrollToEnd({ animated }), 120);
+      const t1 = setTimeout(() => listRef.current?.scrollToEnd({ animated }), 40);
+      const t2 = setTimeout(() => listRef.current?.scrollToEnd({ animated }), 120);
+      return () => {
+        clearTimeout(t1 as any);
+        clearTimeout(t2 as any);
+      };
     });
   }, []);
 
@@ -132,7 +163,7 @@ const ChatScreen: React.FC<Props> = ({ route, navigation }) => {
         avatarUrl={bootstrap.bot.avatarUrl}
         title={bootstrap.bot.name}
         subtitle={`@${bootstrap.bot.handle}`}
-        onBack={() => navigation.goBack()}
+        onBack={goToAllChats}  // always go to AllChats
         onPhone={() => {}}
         onVolume={() => {}}
         onMorePress={openOverflow}
@@ -168,7 +199,7 @@ const ChatScreen: React.FC<Props> = ({ route, navigation }) => {
           onContentSizeChange={() => safeScrollToEnd(true)}
         />
 
-        {/* ChatInput at bottom */}
+        {/* Bottom input */}
         <ChatInput
           value={input}
           placeholder="Digite sua mensagem..."
