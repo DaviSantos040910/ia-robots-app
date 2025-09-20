@@ -12,6 +12,7 @@ import ChatScreen from '../screens/Chat/ChatScreen';
 import BotSettingsScreen from '../screens/BotSettings/BotSettingsScreen';
 import LoginScreen from '../screens/LoginScreen';
 import SignUpScreen from '../screens/SignUpScreen';
+import CreateBotScreen from '../screens/CreateBot/CreateBotScreen';
 
 // Temporary stubs (replace with real screens later)
 import { View, Text } from 'react-native';
@@ -38,7 +39,7 @@ const AppStackNavigator: React.FC = () => (
 
     {/* Extra routes (placeholders). Replace with your real screens when ready. */}
     <AppStack.Screen name="Explore" component={ExploreScreen} />
-    <AppStack.Screen name="Create" component={CreateScreen} />
+    <AppStack.Screen name="Create" component={CreateBotScreen} />
     <AppStack.Screen name="History" component={HistoryScreen} />
     <AppStack.Screen name="Me" component={MeScreen} />
   </AppStack.Navigator>

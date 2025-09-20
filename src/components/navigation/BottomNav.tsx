@@ -1,44 +1,74 @@
-
 import React from 'react';
-import { Pressable, Text, View } from 'react-native';
-import { useColorScheme } from 'react-native';
-import { createAllChatsStyles, getTheme } from '../../screens/AllChats/AllChats.styles';
+import { View, Text, TouchableOpacity, SafeAreaView, StyleSheet } from 'react-native';
 
-export type TabKey = 'Chat' | 'Explore' | 'Create' | 'History' | 'Me';
+export type TabKey = 'Chat' | 'Search' | 'Add' | 'Message' | 'Me';
 
-export const BottomNav: React.FC<{
-  active: TabKey;
-  onPress: (tab: TabKey) => void;
+interface Props {
+  active?: TabKey;
   meBadgeCount?: number;
-}> = ({ active, onPress, meBadgeCount = 0 }) => {
-  const scheme = useColorScheme();
-  const t = getTheme(scheme === 'dark');
-  const s = createAllChatsStyles(t);
+  onPress?: (tab: TabKey) => void;
+}
 
-  const items: { key: TabKey; label: string; glyph: string }[] = [
-    { key: 'Chat', label: 'Chat', glyph: '💬' },
-    { key: 'Explore', label: 'Explore', glyph: '🔎' },
-    { key: 'Create', label: 'Create', glyph: '✚' },
-    { key: 'History', label: 'History', glyph: '🕘' },
-    { key: 'Me', label: 'Me', glyph: '👤' },
+const BottomNav: React.FC<Props> = ({ active, meBadgeCount = 0, onPress }) => {
+  const tabs: { key: TabKey; label: string; icon: string; badge?: boolean }[] = [
+    { key: 'Chat', label: 'Chats', icon: '💬' },
+    { key: 'Search', label: 'Search', icon: '🔍' },
+    { key: 'Add', label: 'Add', icon: '➕' },
+    { key: 'Message', label: 'Message', icon: '🔔', badge: meBadgeCount > 0 },
+    { key: 'Me', label: 'Me', icon: '👤' },
   ];
 
   return (
-    <View style={s.bottomBar}>
-      {items.map(({ key, label, glyph }) => {
-        const isActive = active === key;
-        return (
-          <Pressable key={key} onPress={() => onPress(key)} style={s.navItem}>
-            <View style={s.navIconWrap}>
-              <Text style={isActive ? s.navIconActive : s.navIconText}>{glyph}</Text>
-              {key === 'Me' && meBadgeCount > 0 && (
-                <View style={s.badge}><Text style={s.badgeText}>{meBadgeCount}</Text></View>
-              )}
+    <SafeAreaView style={styles.container}>
+      <View style={styles.nav}>
+        {tabs.map((tab) => (
+          <TouchableOpacity key={tab.key} style={styles.tab} onPress={() => onPress?.(tab.key)}>
+            <View style={{ position: 'relative' }}>
+              <Text style={[styles.icon, active === tab.key && { color: '#6949FF' }]}>{tab.icon}</Text>
+              {tab.badge && <View style={styles.badge} />}
             </View>
-            <Text style={isActive ? s.navLabelActive : s.navLabel}>{label}</Text>
-          </Pressable>
-        );
-      })}
-    </View>
+            <Text style={styles.label}>{tab.label}</Text>
+          </TouchableOpacity>
+        ))}
+      </View>
+    </SafeAreaView>
   );
 };
+
+const styles = StyleSheet.create({
+  container: {
+    backgroundColor: '#FFFFFF',
+  },
+  nav: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    height: 60,
+    borderTopWidth: 0.5,
+    borderTopColor: '#E5E5EA',
+  },
+  tab: {
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  icon: {
+    fontSize: 28,
+    textAlign: 'center',
+    color: '#6E6E73',
+  },
+  label: {
+    fontSize: 11,
+    color: '#6E6E73',
+    marginTop: 2,
+  },
+  badge: {
+    position: 'absolute',
+    top: -2,
+    right: -8,
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#FF3B30',
+  },
+});
+
+export default BottomNav;
