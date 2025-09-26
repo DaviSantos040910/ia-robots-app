@@ -1,17 +1,6 @@
 
-// ChatScreen.tsx - always go to AllChats when tapping back arrow OR hardware back
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import {
-  ActivityIndicator,
-  FlatList,
-  Platform,
-  Text,
-  View,
-  Keyboard,
-  EmitterSubscription,
-  KeyboardAvoidingView,
-  BackHandler,
-} from 'react-native';
+import { ActivityIndicator, FlatList, Platform, View,Text, Keyboard, EmitterSubscription, KeyboardAvoidingView, Animated } from 'react-native';
 import { useColorScheme } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ChatHeader } from '../../components/chat/ChatHeader';
@@ -25,11 +14,46 @@ import * as Clipboard from 'expo-clipboard';
 import { ActionSheetMenu, type Anchor } from '../../components/chat/ActionSheetMenu';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../../types/navigation';
-import { CommonActions } from '@react-navigation/native';
-
-// NOTE: Comments are in English as requested.
+import { useFadeSlideIn, AnimatedPressable, useScaleOnPress, smoothLayout } from '../../components/shared/Motion';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'ChatScreen'>;
+
+const ChipAnimatedItem: React.FC<{ idx: number; label: string; onPress: (label: string) => void; style?: any }>
+= ({ idx, label, onPress, style }) => {
+  const anim = useFadeSlideIn({ delay: idx * 50, dy: 10, duration: 320 });
+  const press = useScaleOnPress();
+  return (
+    <Animated.View style={[style, anim]}>
+      <AnimatedPressable onPress={() => onPress(label)} onPressIn={press.onPressIn} onPressOut={press.onPressOut} style={press.style}>
+        <SuggestionChip label={label} onPress={() => onPress(label)} />
+      </AnimatedPressable>
+    </Animated.View>
+  );
+};
+
+const AnimatedBubble: React.FC<{ item: ChatMessage; onCopy: (m: ChatMessage) => void; onLike: () => void; onListen: () => void; onRewrite: () => void; onSuggestionPress: (id: string, label: string) => void }>
+= ({ item, onCopy, onLike, onListen, onRewrite, onSuggestionPress }) => {
+  const scale = useRef(new Animated.Value(0.98)).current;
+  const opacity = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    Animated.parallel([
+      Animated.spring(scale, { toValue: 1, useNativeDriver: true, friction: 7, tension: 90 }),
+      Animated.timing(opacity, { toValue: 1, duration: 220, useNativeDriver: true }),
+    ]).start();
+  }, [scale, opacity]);
+  return (
+    <Animated.View style={{ opacity, transform: [{ scale }] }}>
+      <MessageBubble
+        message={item}
+        onCopy={async (_) => { await Clipboard.setStringAsync(item.content); onCopy(item); }}
+        onLike={onLike}
+        onListen={onListen}
+        onRewrite={onRewrite}
+        onSuggestionPress={(label) => onSuggestionPress(item.id, label)}
+      />
+    </Animated.View>
+  );
+};
 
 const ChatScreen: React.FC<Props> = ({ route, navigation }) => {
   const { chatId, bootstrap, initialMessages } = route.params;
@@ -43,34 +67,17 @@ const ChatScreen: React.FC<Props> = ({ route, navigation }) => {
   const [input, setInput] = useState('');
   const [showHeaderChips, setShowHeaderChips] = useState<boolean>(true);
 
-  // Overflow menu state
+  // Menu state
   const [menuOpen, setMenuOpen] = useState(false);
   const [menuAnchor, setMenuAnchor] = useState<Anchor>(null);
 
-  // Always go to AllChats (named route) regardless of history
-  const goToAllChats = useCallback(() => {
-    navigation.dispatch(
-      CommonActions.reset({ index: 0, routes: [{ name: 'AllChats' as never }] })
-    );
-    return true; // also serve as hardware back handler return
-  }, [navigation]);
-
-  // Hardware back => also go to AllChats
-  useEffect(() => {
-    const sub = BackHandler.addEventListener('hardwareBackPress', goToAllChats);
-    return () => sub.remove();
-  }, [goToAllChats]);
+  const headerAnim = useFadeSlideIn({ dy: -8, duration: 260 });
 
   const safeScrollToEnd = useCallback((animated = true) => {
-    // Multi-pass to avoid race conditions with keyboard/layout
     requestAnimationFrame(() => {
       listRef.current?.scrollToEnd({ animated });
-      const t1 = setTimeout(() => listRef.current?.scrollToEnd({ animated }), 40);
-      const t2 = setTimeout(() => listRef.current?.scrollToEnd({ animated }), 120);
-      return () => {
-        clearTimeout(t1 as any);
-        clearTimeout(t2 as any);
-      };
+      setTimeout(() => listRef.current?.scrollToEnd({ animated }), 40);
+      setTimeout(() => listRef.current?.scrollToEnd({ animated }), 120);
     });
   }, []);
 
@@ -97,14 +104,14 @@ const ChatScreen: React.FC<Props> = ({ route, navigation }) => {
   const handleSend = () => {
     const value = input.trim();
     if (!value) return;
-    if (showHeaderChips) setShowHeaderChips(false);
+    if (showHeaderChips) { smoothLayout(); setShowHeaderChips(false); }
     sendMessage(value);
     setInput('');
     safeScrollToEnd(true);
   };
 
   const onHeaderChipPress = (label: string) => {
-    if (showHeaderChips) setShowHeaderChips(false);
+    if (showHeaderChips) { smoothLayout(); setShowHeaderChips(false); }
     sendMessage(label);
     safeScrollToEnd(true);
   };
@@ -115,9 +122,9 @@ const ChatScreen: React.FC<Props> = ({ route, navigation }) => {
   };
 
   const renderItem = ({ item }: { item: ChatMessage }) => (
-    <MessageBubble
-      message={item}
-      onCopy={async (m) => { await Clipboard.setStringAsync(m.content); }}
+    <AnimatedBubble
+      item={item}
+      onCopy={(m) => { /* já copiado acima; opcional mantido */ }}
       onLike={() => toggleLike(item.id)}
       onListen={() => speakMessage(item.id)}
       onRewrite={() => rewriteMessage(item.id)}
@@ -159,15 +166,17 @@ const ChatScreen: React.FC<Props> = ({ route, navigation }) => {
 
   return (
     <SafeAreaView style={s.screen} edges={['top','bottom']}>
-      <ChatHeader
-        avatarUrl={bootstrap.bot.avatarUrl}
-        title={bootstrap.bot.name}
-        subtitle={`@${bootstrap.bot.handle}`}
-        onBack={goToAllChats}  // always go to AllChats
-        onPhone={() => {}}
-        onVolume={() => {}}
-        onMorePress={openOverflow}
-      />
+      <Animated.View style={headerAnim}>
+        <ChatHeader
+          avatarUrl={bootstrap.bot.avatarUrl}
+          title={bootstrap.bot.name}
+          subtitle={`@${bootstrap.bot.handle}`}
+          onBack={() => navigation.goBack()}
+          onPhone={() => {}}
+          onVolume={() => {}}
+          onMorePress={openOverflow}
+        />
+      </Animated.View>
 
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={keyboardBehavior} keyboardVerticalOffset={keyboardOffset}>
         <FlatList
@@ -186,9 +195,7 @@ const ChatScreen: React.FC<Props> = ({ route, navigation }) => {
               {showHeaderChips && !!bootstrap.suggestions?.length && (
                 <View style={s.chipStack}>
                   {bootstrap.suggestions.map((label, idx) => (
-                    <View key={idx} style={s.chipItem}>
-                      <SuggestionChip label={label} onPress={() => onHeaderChipPress(label)} />
-                    </View>
+                    <ChipAnimatedItem key={idx} idx={idx} label={label} onPress={onHeaderChipPress} style={s.chipItem} />
                   ))}
                 </View>
               )}
@@ -199,7 +206,7 @@ const ChatScreen: React.FC<Props> = ({ route, navigation }) => {
           onContentSizeChange={() => safeScrollToEnd(true)}
         />
 
-        {/* Bottom input */}
+        {/* ChatInput at bottom */}
         <ChatInput
           value={input}
           placeholder="Digite sua mensagem..."
@@ -211,14 +218,15 @@ const ChatScreen: React.FC<Props> = ({ route, navigation }) => {
       </KeyboardAvoidingView>
 
       <ActionSheetMenu
-        visible={menuOpen}
-        onClose={() => setMenuOpen(false)}
-        anchor={menuAnchor}
-        items={[
-          { label: 'New chat', onPress: handleNewChat },
-          { label: 'Settings', onPress: handleOpenSettings },
-        ]}
-      />
+  visible={menuOpen}
+  onClose={() => setMenuOpen(false)}
+  anchor={menuAnchor}
+  items={[
+    { label: 'New chat', onPress: handleNewChat },
+    { label: 'Settings', onPress: handleOpenSettings },
+  ]}
+/>
+
     </SafeAreaView>
   );
 };

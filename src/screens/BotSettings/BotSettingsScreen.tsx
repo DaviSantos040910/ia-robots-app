@@ -1,6 +1,6 @@
 
 import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, ScrollView, Text, View, Pressable, Share, Alert } from 'react-native';
+import { ActivityIndicator, ScrollView, Text, View, Animated } from 'react-native';
 import { useColorScheme } from 'react-native';
 import { getTheme as getBotTheme, createBotSettingsStyles } from './BotSettings.styles';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
@@ -12,20 +12,27 @@ import { ValueRow } from '../../components/settings/ValueRow';
 import { LeadingIcon } from '../../components/shared/LeadingIcon';
 import { FloatingMenu, type Anchor } from '../../components/shared/FloatingMenu';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { Pressable, Share, Alert } from 'react-native';
+import { ScalePressable, useFadeSlideIn } from '../../components/shared/Motion';
 
-type Props = NativeStackScreenProps<RootStackParamList, 'BotSettings'>;
+ type Props = NativeStackScreenProps<RootStackParamList, 'BotSettings'>;
  type BotDetails = { id: string; name: string; handle: string; users: string; followers: string; voice: string; language: string; publicity: string; createdByMe: boolean };
 
-export const BotSettingsScreen: React.FC<Props> = ({ route, navigation }) => {
+const BotSettingsScreen: React.FC<Props> = ({ route, navigation }) => {
   const { botId } = route.params;
   const scheme = useColorScheme();
   const t = getBotTheme(scheme === 'dark');
   const s = createBotSettingsStyles(t);
 
+  // Animations
+  const topBarAnim = useFadeSlideIn({ dy: -8, duration: 280 });
+  const idAnim = useFadeSlideIn({ delay: 80, dy: 12 });
+  const settingsAnim = useFadeSlideIn({ delay: 140, dy: 12 });
+  const dangerAnim = useFadeSlideIn({ delay: 200, dy: 12 });
+
   const [loading, setLoading] = useState(true);
   const [bot, setBot] = useState<BotDetails | null>(null);
 
-  // publicity state + menu
   const [publicity, setPublicity] = useState<'Private' | 'Friends' | 'Public'>('Public');
   const [pubMenuOpen, setPubMenuOpen] = useState(false);
   const [pubAnchor, setPubAnchor] = useState<Anchor>(null);
@@ -33,10 +40,9 @@ export const BotSettingsScreen: React.FC<Props> = ({ route, navigation }) => {
   useEffect(() => {
     let mounted = true;
     setLoading(true);
-    // Mock fetch. Backend will inform if user is creator and the current publicity.
     setTimeout(() => {
       if (!mounted) return;
-      const createdByMe = true; // mock: treat as creator for now
+      const createdByMe = true; // mock
       const currentPublicity: 'Private' | 'Friends' | 'Public' = 'Public';
       setBot({
         id: botId,
@@ -64,33 +70,28 @@ export const BotSettingsScreen: React.FC<Props> = ({ route, navigation }) => {
   }
 
   const shareBot = async () => {
-    try {
-      await Share.share({ message: `Check this bot ${bot.name} ${bot.handle}` });
-    } catch {}
+    try { await Share.share({ message: `Check this bot ${bot.name} ${bot.handle}` }); } catch {}
   };
 
   const confirmDelete = () => {
-    Alert.alert("Delete bot", "This action will be handled by the backend.", [
-      { text: "Cancel", style: "cancel" },
-      { text: "Delete", style: "destructive", onPress: () => {} },
+    Alert.alert('Delete bot', 'This action will be handled by the backend.', [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Delete', style: 'destructive', onPress: () => {} },
     ]);
   };
 
   const confirmCleanUp = () => {
     Alert.alert(
-      "Clean up full text",
+      'Clean up full text',
       "This will clear the bot's full text (backend action).",
       [
-        { text: "Cancel", style: "cancel" },
-        { text: "Proceed", style: "destructive", onPress: () => {} },
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Proceed', style: 'destructive', onPress: () => {} },
       ]
     );
   };
 
-  const openPubMenu = (anchor: Anchor) => {
-    setPubAnchor(anchor);
-    setPubMenuOpen(true);
-  };
+  const openPubMenu = (anchor: Anchor) => { setPubAnchor(anchor); setPubMenuOpen(true); };
 
   const publicityOptions = [
     { label: 'Private', value: 'Private' },
@@ -100,73 +101,79 @@ export const BotSettingsScreen: React.FC<Props> = ({ route, navigation }) => {
 
   return (
     <SafeAreaView style={s.screen} edges={['top','bottom']}>
-      {/* Top bar: back (left), share + conditional trash (right) */}
-      <View style={s.topBar}>
+      {/* Top bar */}
+      <Animated.View style={[s.topBar, topBarAnim]}>
         <View style={s.leftGroup}>
-          <Pressable onPress={() => navigation.goBack()} hitSlop={10} style={s.backBtn}>
-            <Text style={s.topIconText}>{'‹'}</Text>
-          </Pressable>
+          <ScalePressable onPress={() => navigation.goBack()} hitSlop={10} style={s.backBtn}>
+            <Text style={s.topIconText}>{'\u2039'}</Text>
+          </ScalePressable>
         </View>
         <View style={s.rightGroup}>
-          <Pressable onPress={shareBot} hitSlop={10} style={s.iconBtn}>
-            <Text style={s.topIconText}>{'⤴︎'}</Text>
-          </Pressable>
+          <ScalePressable onPress={shareBot} hitSlop={10} style={s.iconBtn}>
+            <Text style={s.topIconText}>{'\u2934\uFE0F'}</Text>
+          </ScalePressable>
           {bot.createdByMe && (
-            <Pressable onPress={confirmDelete} hitSlop={10} style={s.iconBtn}>
-              <Text style={[s.topIconText, { color: t.danger.normal }]}>{'🗑️'}</Text>
-            </Pressable>
+            <ScalePressable onPress={confirmDelete} hitSlop={10} style={s.iconBtn}>
+              <Text style={[s.topIconText, { color: t.danger.normal }]}>{'\uD83D\uDDD1\uFE0F'}</Text>
+            </ScalePressable>
           )}
         </View>
-      </View>
+      </Animated.View>
 
       <ScrollView contentContainerStyle={s.content}>
         {/* Identity card */}
-        <SectionCard bg={t.surface} border={t.border} radius={12}>
-          <View style={s.identityRow}>
-            <View style={s.avatar} />
-            <View style={{ flex: 1 }}>
-              <Text style={s.title}>{bot.name}</Text>
-              <Text style={s.byline}>By {bot.handle}</Text>
-              <View style={s.chipRow}>
-                <Chip label="featured" bg={t.surfaceAlt} fg={t.textPrimary} />
-                <Chip label="Popular" bg={t.surfaceAlt} fg={t.textPrimary} />
+        <Animated.View style={idAnim}>
+          <SectionCard bg={t.surface} border={t.border} radius={12}>
+            <View style={s.identityRow}>
+              <View style={s.avatar} />
+              <View style={{ flex: 1 }}>
+                <Text style={s.title}>{bot.name}</Text>
+                <Text style={s.byline}>By {bot.handle}</Text>
+                <View style={s.chipRow}>
+                  <Chip label="featured" bg={t.surfaceAlt} fg={t.textPrimary} />
+                  <Chip label="Popular" bg={t.surfaceAlt} fg={t.textPrimary} />
+                </View>
+                <Text style={s.statsText}>{bot.users} · {bot.followers}</Text>
               </View>
-              <Text style={s.statsText}>{bot.users} · {bot.followers}</Text>
             </View>
-          </View>
-        </SectionCard>
+          </SectionCard>
+        </Animated.View>
 
         <View style={s.spacer16} />
 
-        {/* Settings list with leading icons */}
-        <SectionCard bg={t.surface} border={t.border} radius={12}>
-          <ValueRow label="Voice" value={bot.voice} color={t.textPrimary}
-            leftIcon={<LeadingIcon glyph={'🔊'} />} />
-          <Divider color={t.border} />
-          <ValueRow label="Language" value={bot.language} color={t.textPrimary}
-            leftIcon={<LeadingIcon glyph={'🌐'} />} />
-          <Divider color={t.border} />
-          <ValueRow
-            label="Publicity"
-            value={publicity}
-            color={t.textPrimary}
-            leftIcon={<LeadingIcon glyph={'👥'} />}
-            showChevronRight={bot.createdByMe}
-            onPressRight={bot.createdByMe ? openPubMenu : undefined}
-          />
-        </SectionCard>
+        {/* Settings list */}
+        <Animated.View style={settingsAnim}>
+          <SectionCard bg={t.surface} border={t.border} radius={12}>
+            <ValueRow label="Voice" value={bot.voice} color={t.textPrimary}
+              leftIcon={<LeadingIcon glyph={'\uD83D\uDD0A'} />} />
+            <Divider color={t.border} />
+            <ValueRow label="Language" value={bot.language} color={t.textPrimary}
+              leftIcon={<LeadingIcon glyph={'\uD83C\uDF10'} />} />
+            <Divider color={t.border} />
+            <ValueRow
+              label="Publicity"
+              value={publicity}
+              color={t.textPrimary}
+              leftIcon={<LeadingIcon glyph={'\uD83D\uDC65'} />}
+              showChevronRight={bot.createdByMe}
+              onPressRight={bot.createdByMe ? openPubMenu : undefined}
+            />
+          </SectionCard>
+        </Animated.View>
 
         <View style={s.spacer16} />
 
-        {/* Destructive label row (no chevron) */}
-        <SectionCard bg={t.surface} border={t.border} radius={12}>
-          <Pressable onPress={confirmCleanUp} style={s.destructiveRow}>
-            <View style={s.destructiveLeft}>
-              <View style={s.destructiveIconWrap}><Text style={s.destructiveIconText}>{'🧹'}</Text></View>
-              <Text style={s.destructiveText}>Clean up the full text</Text>
-            </View>
-          </Pressable>
-        </SectionCard>
+        {/* Destructive label row */}
+        <Animated.View style={dangerAnim}>
+          <SectionCard bg={t.surface} border={t.border} radius={12}>
+            <Pressable onPress={confirmCleanUp} style={s.destructiveRow}>
+              <View style={s.destructiveLeft}>
+                <View style={s.destructiveIconWrap}><Text style={s.destructiveIconText}>{'\uD83E\uDDF9'}</Text></View>
+                <Text style={s.destructiveText}>Clean up the full text</Text>
+              </View>
+            </Pressable>
+          </SectionCard>
+        </Animated.View>
       </ScrollView>
 
       {/* Floating menu for publicity */}
