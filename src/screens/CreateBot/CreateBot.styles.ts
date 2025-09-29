@@ -1,4 +1,4 @@
-
+// src/screens/CreateBot/CreateBot.styles.ts
 import { StyleSheet } from 'react-native';
 import { NeutralColors } from '../../theme/neutralColors';
 import { Colors } from '../../theme/colors';
@@ -13,20 +13,16 @@ export const getTheme = (isDark: boolean) => {
 
   const background = isDark ? NeutralColors.neutral.dark.gray1 : NeutralColors.neutral.light.gray1;
   const surface = isDark ? NeutralColors.neutral.dark.gray2 : NeutralColors.neutral.light.white1;
-  const surfaceAlt = isDark ? NeutralColors.neutral.dark.gray3 : NeutralColors.neutral.light.gray2;
-  const border = isDark ? NeutralColors.neutral.dark.gray3 : NeutralColors.neutral.light.gray3;
+  const border = isDark ? NeutralColors.neutral.dark.gray3 : NeutralColors.neutral.light.gray2;
 
   return {
     isDark,
     background,
     surface,
-    surfaceAlt,
     border,
     textPrimary: (font as any).primary,
     textSecondary: (font as any).secondary,
-    placeholder: (font as any).placeholder,
-    disabled: (font as any).disabled,
-    brand: { normal: Colors.brand.light.normal, surface: Colors.brand.light.surface },
+    brand: { normal: Colors.brand.light.normal },
     danger: { normal: Colors.semantic.error.normal },
   } as const;
 };
@@ -34,49 +30,99 @@ export type CreateBotTheme = ReturnType<typeof getTheme>;
 
 export const createCreateBotStyles = (t: CreateBotTheme) => StyleSheet.create({
   screen: { flex: 1, backgroundColor: t.background },
+  scrollViewContent: {
+    paddingHorizontal: Spacing['spacing-group-s'],
+    paddingBottom: Spacing['spacing-group-l'],
+  },
 
-  // Top bar with centered title, close on left
-  topBar: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingTop: 12, paddingBottom: 12 },
-  topLeft: { width: 48, alignItems: 'flex-start', justifyContent: 'center' },
-  topCenter: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  topRight: { width: 48 },
-  closeText: { ...Typography.titleSemiBold.medium, color: t.textPrimary },
-  titleText: { ...Typography.titleSemiBold.extraLarge, color: t.textPrimary },
+  // Top navigation bar
+  topBar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingHorizontal: Spacing['spacing-element-m'], height: 56 },
+  closeBtn: { position: 'absolute', left: Spacing['spacing-element-m'], width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
+  topBarTitle: { ...Typography.titleSemiBold.large, color: t.textPrimary, fontSize: 18 },
 
-  // Content
-  content: { paddingHorizontal: 16, paddingBottom: 24 },
+  // Avatar section
+  avatarContainer: { alignItems: 'center', marginVertical: Spacing['spacing-group-m'] },
+  avatarWrapper: { width: 120, height: 120, borderRadius: 60, backgroundColor: t.border, justifyContent: 'center', alignItems: 'center' },
+  avatarImage: { width: 120, height: 120, borderRadius: 60 },
+  editAvatarBtn: {
+    position: 'absolute',
+    bottom: 0,
+    right: 0,
+    backgroundColor: Colors.brand.light.normal,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: t.surface,
+  },
 
-  // Avatar block
-  avatarBlock: { alignItems: 'center', marginTop: 8, marginBottom: 16 },
+  // Form sections (cards)
+  formSection: {
+    backgroundColor: t.surface,
+    borderRadius: Radius.xLarge,
+    paddingVertical: Spacing['spacing-element-s'], // Adjusted padding
+    marginBottom: Spacing['spacing-group-m'],
+  },
 
-  // Fields
-  fieldBlock: { marginBottom: 14 },
-  labelText: { ...Typography.bodyMedium.medium, color: t.textSecondary, marginBottom: 8 },
-  inputBase: {
-    backgroundColor: t.surface, borderWidth: 0.5, borderColor: t.border,
-    borderRadius: Radius.extraLarge, paddingHorizontal: 14, paddingVertical: 12,
+  // Name Input styles
+  nameInputContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: Spacing['spacing-group-s'],
+    minHeight: 50, // Ensure consistent height
+  },
+  nameInputLabel: {
+    ...Typography.bodySemiBold.medium,
     color: t.textPrimary,
+    marginRight: Spacing['spacing-group-s'],
   },
-  inputMultiline: {
-    backgroundColor: t.surface, borderWidth: 0.5, borderColor: t.border,
-    borderRadius: Radius.extraLarge, paddingHorizontal: 14, paddingTop: 12, paddingBottom: 12,
-    minHeight: 120, textAlignVertical: 'top', color: t.textPrimary,
+  nameTextInput: {
+    ...Typography.bodyRegular.medium,
+    color: t.textPrimary,
+    flex: 1,
+    backgroundColor: 'transparent',
+    height: '100%',
   },
-  placeholder: { color: t.placeholder },
 
-  // Setting rows
-  card: { backgroundColor: t.surface, borderWidth: 0.5, borderColor: t.border, borderRadius: Radius.extraLarge, paddingHorizontal: 12, paddingVertical: 6 },
-  row: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 10 },
+  // Labeled TextInput styles (for Prompt)
+  labeledInputContainer: { paddingHorizontal: Spacing['spacing-group-s'] },
+  labeledInputLabel: { ...Typography.bodyMedium.medium, color: t.textPrimary, fontSize: 16, marginBottom: 4 },
+  labeledInputDescription: { ...Typography.bodyRegular.medium, color: t.textSecondary, marginBottom: Spacing['spacing-element-s'] },
+  textInput: {
+    ...Typography.bodyRegular.medium,
+    color: t.textPrimary,
+    // This base style has the gray background, which we override for the prompt.
+    backgroundColor: t.background,
+    borderRadius: Radius.medium,
+    paddingHorizontal: Spacing['spacing-element-m'],
+    paddingVertical: Spacing['spacing-element-m'],
+    minHeight: 50,
+  },
+  inputErrorText: { ...Typography.bodyRegular.small, color: t.danger.normal, marginTop: 4, paddingHorizontal: Spacing['spacing-group-s'] },
+
+  // Prompt specific text input
+  promptInput: {
+    minHeight: 120,
+    textAlignVertical: 'top',
+    // AJUSTE: Fundo transparente e padding zerado para o texto alinhar com o label.
+    backgroundColor: 'transparent',
+    paddingHorizontal: 0,
+    paddingVertical: 0,
+    paddingTop: 0, // paddingTop is handled by the container
+  },
+
+  // Settings rows
+  settingsCard: { paddingVertical: 0, marginTop: 0 },
+  settingRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 14, paddingHorizontal: Spacing['spacing-group-s'] },
   rowLeft: { flexDirection: 'row', alignItems: 'center' },
-  leadingIconWrap: { width: 28, height: 28, borderRadius: 14, alignItems: 'center', justifyContent: 'center', backgroundColor: t.surfaceAlt, marginRight: 10 },
-  leadingIconText: { ...Typography.bodyRegular.small, color: t.textPrimary },
-  rowLabel: { ...Typography.bodyRegular.medium, color: t.textPrimary },
-  rowValue: { ...Typography.bodyRegular.medium, color: t.textSecondary },
-  chevron: { ...Typography.bodyRegular.medium, color: t.textSecondary, marginLeft: 8 },
-  divider: { height: 0.5, backgroundColor: t.border, width: '100%' },
+  rowRight: { flexDirection: 'row', alignItems: 'center' },
+  settingIconWrapper: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center', marginRight: Spacing['spacing-element-l'] },
+  valueRowLabel: { ...Typography.bodyMedium.medium, color: t.textPrimary, fontSize: 16 },
+  valueRowValue: { ...Typography.bodyRegular.medium, color: t.textSecondary },
+  valueRowChevron: { color: t.textSecondary, opacity: 0.6, marginLeft: 8 },
 
-  // Create button footer
-  footer: { paddingHorizontal: 16, paddingTop: 6, paddingBottom: 16 },
-  cta: { alignItems: 'center', justifyContent: 'center', paddingVertical: 14, borderRadius: Radius.extraLarge, backgroundColor: t.brand.normal },
-  ctaText: { ...Typography.bodySemiBold.medium, color: '#fff' },
+  divider: { height: StyleSheet.hairlineWidth, backgroundColor: t.border, marginLeft: Spacing['spacing-group-s'] + 40 + Spacing['spacing-element-l'] },
+  createButtonContainer: { marginTop: Spacing['spacing-group-m'] },
 });

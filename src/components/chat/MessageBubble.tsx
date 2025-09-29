@@ -1,15 +1,11 @@
-
+// src/components/chat/MessageBubble.tsx
 import React from 'react';
 import { ActivityIndicator, Pressable, Text, View } from 'react-native';
 import { useColorScheme } from 'react-native';
+import { Feather } from '@expo/vector-icons';
 import { ChatMessage } from '../../types/chat';
 import { createChatStyles, getTheme } from '../../screens/Chat/Chat.styles';
 import { MiniSuggestionChip } from './MiniSuggestionChip';
-
-const CopyIcon = () => <Text>{'📋'}</Text>;
-const LikeIcon = () => <Text>{'👍'}</Text>;
-const SpeakerIcon = () => <Text>{'🔊'}</Text>;
-const RewriteIcon = () => <Text>{'🔁'}</Text>;
 
 export const MessageBubble: React.FC<{
   message: ChatMessage;
@@ -48,13 +44,13 @@ export const MessageBubble: React.FC<{
               <View style={s.actionRow}>
                 <View style={s.leftActions}>
                   <Pressable onPress={() => onCopy?.(message)} style={s.actionButton}>
-                    <Text style={s.actionIcon}><CopyIcon /></Text>
+                    <Feather name="copy" size={16} style={s.actionIcon} />
                   </Pressable>
                   <Pressable onPress={() => onLike?.(message)} style={message.liked ? s.actionButtonFilled : s.actionButton}>
-                    <Text style={message.liked ? s.actionIconFilled : s.actionIcon}><LikeIcon /></Text>
+                    <Feather name="thumbs-up" size={16} style={message.liked ? s.actionIconFilled : s.actionIcon} />
                   </Pressable>
                   <Pressable onPress={() => onListen?.(message)} style={s.actionButton}>
-                    <Text style={s.actionIcon}><SpeakerIcon /></Text>
+                    <Feather name="mic" size={16} style={s.actionIcon} />
                   </Pressable>
                 </View>
                 <View style={s.rightActions}>
@@ -62,7 +58,7 @@ export const MessageBubble: React.FC<{
                     {message.rewriting ? (
                       <ActivityIndicator size="small" color={theme.brand.normal} />
                     ) : (
-                      <Text style={s.actionIcon}><RewriteIcon /></Text>
+                      <Feather name="refresh-cw" size={16} style={s.actionIcon} />
                     )}
                   </Pressable>
                 </View>

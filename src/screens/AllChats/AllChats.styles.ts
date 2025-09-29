@@ -1,4 +1,4 @@
-
+// src/screens/AllChats/AllChats.styles.ts
 import { StyleSheet } from 'react-native';
 import { NeutralColors } from '../../theme/neutralColors';
 import { Colors } from '../../theme/colors';
@@ -12,14 +12,14 @@ export const getTheme = (isDark: boolean) => {
     ? { primary: NeutralColors.fontAndIcon.dark.wh1, secondary: NeutralColors.fontAndIcon.dark.wh2, placeholder: NeutralColors.fontAndIcon.dark.wh3, disabled: NeutralColors.fontAndIcon.dark.wh4 }
     : (NeutralColors.fontAndIcon as any).light;
 
-  const background = isDark ? NeutralColors.neutral.dark.gray1 : NeutralColors.neutral.light.gray1;
-  const surface = isDark ? NeutralColors.neutral.dark.gray2 : NeutralColors.neutral.light.white1;
+  const background = isDark ? NeutralColors.neutral.dark.gray1 : NeutralColors.neutral.light.white1;
+  const surface = isDark ? NeutralColors.neutral.dark.gray2 : '#FFFFFF';
   const surfaceAlt = isDark ? NeutralColors.neutral.dark.gray3 : NeutralColors.neutral.light.gray2;
   const border = isDark ? NeutralColors.neutral.dark.gray3 : NeutralColors.neutral.light.gray3;
 
   return {
     isDark,
-    background,
+    background: surface,
     surface,
     surfaceAlt,
     border,
@@ -36,26 +36,31 @@ export const createAllChatsStyles = (t: AllChatsTheme) => StyleSheet.create({
   screen: { flex: 1, backgroundColor: t.background },
 
   // Header
-  header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: Spacing['spacing-group-s'], paddingTop: Spacing['spacing-group-s'], paddingBottom: Spacing['spacing-group-s'] },
-  headerSide: { width: 40, alignItems: 'flex-end' },
-  headerCenter: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  headerTitle: { ...Typography.titleSemiBold.extraLarge, color: t.textPrimary },
-  plusBtn: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
-  plusText: { ...Typography.titleSemiBold.medium, color: t.textPrimary },
-
-  // Grouped list
-  groupWrap: { paddingHorizontal: Spacing['spacing-group-s'] },
-  group: { backgroundColor: t.surface, borderRadius: ListTokens.groupRadius, borderWidth: 0.5, borderColor: t.border, overflow: 'hidden' },
-  rowPress: { },
-  row: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: ListTokens.rowPaddingH, paddingVertical: ListTokens.rowPaddingV },
-  avatar: { width: ListTokens.avatar, height: ListTokens.avatar, borderRadius: ListTokens.avatar / 2, backgroundColor: t.surfaceAlt, marginRight: 12 },
+  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingHorizontal: Spacing['spacing-group-s'], paddingTop: Spacing['spacing-group-s'], paddingBottom: Spacing['spacing-group-m'] },
+  // AJUSTE: Tamanho e peso da fonte ajustados para corresponder ao design.
+  headerTitle: { ...Typography.titleSemiBold.extraLarge, color: t.textPrimary, fontSize: 26, fontFamily: 'Inter_700Bold' },
+  plusBtn: { position: 'absolute', right: Spacing['spacing-group-s'], top: Spacing['spacing-group-s'], width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center', backgroundColor: t.surfaceAlt },
+  
+  // List Row Item
+  rowPress: {},
+  row: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: Spacing['spacing-group-s'], paddingVertical: 10 },
+  avatar: { width: 52, height: 52, borderRadius: 26, backgroundColor: t.surfaceAlt, marginRight: 14 },
   body: { flex: 1 },
   titleRow: { flexDirection: 'row', alignItems: 'center', flexWrap: 'nowrap' },
   title: { ...Typography.titleSemiBold.medium, color: t.textPrimary },
   officialBadge: { marginLeft: 8, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 999, backgroundColor: t.brand.surface },
-  officialText: { ...Typography.bodyRegular.small, color: t.brand.normal },
-  desc: { ...Typography.bodyRegular.small, color: t.textSecondary, marginTop: 4 },
-  divider: { height: ListTokens.dividerThickness, backgroundColor: t.border, marginLeft: ListTokens.rowPaddingH + ListTokens.avatar + 12 },
+  officialText: { ...Typography.bodyRegular.small, color: t.brand.normal, fontFamily: 'Inter_500Medium' },
+  desc: { ...Typography.bodyRegular.medium, color: t.textSecondary, marginTop: 2 },
+  
+  // AJUSTE: Adicionada `marginRight` para criar o recuo em ambas as extremidades.
+  divider: {
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: t.border,
+    // The left margin aligns the divider with the start of the text content.
+    marginLeft: Spacing['spacing-group-s'] + 52 + 14,
+    // The right margin provides padding on the other side.
+    marginRight: Spacing['spacing-group-s'],
+  },
 
   // Empty state
   emptyWrap: { paddingHorizontal: Spacing['spacing-group-s'] },
@@ -68,5 +73,4 @@ export const createAllChatsStyles = (t: AllChatsTheme) => StyleSheet.create({
 
   // Skeleton group
   skWrap: { paddingHorizontal: Spacing['spacing-group-s'] },
-  skGroup: { backgroundColor: t.surface, borderRadius: ListTokens.groupRadius, borderWidth: 0.5, borderColor: t.border, overflow: 'hidden', paddingTop: 4, paddingBottom: 4 },
 });

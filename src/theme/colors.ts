@@ -1,3 +1,4 @@
+// src/theme/colors.ts
 // colors.ts - Figma color palette
 export const Colors = {
   semantic: {
@@ -28,11 +29,15 @@ export const Colors = {
       surface: '#E5E5FF',
       background: '#FFFFFF',
       light: '#44466A',
+      // AJUSTE: Adicionada a cor 'dark' para o gradiente.
+      dark: '#5D3FD3', // A slightly darker purple for the gradient end.
     },
     dark: {
       normal: '#7C57FF',
       surface: '#7572AC',
       light: '#44466A',
+      // AJUSTE: Adicionada a cor 'dark' para o gradiente.
+      dark: '#6A4DFF', // A slightly lighter purple for the gradient end in dark mode.
     },
   },
   secondary: {
@@ -47,6 +52,7 @@ export const Colors = {
       background: '#00959F',
     },
   },
+  // ... remaining colors
   noEmotion: {
     light: [
       '#ECF3FE',

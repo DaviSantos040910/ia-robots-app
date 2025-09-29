@@ -1,12 +1,13 @@
-
+// src/components/chat/ChatInput.tsx
 import React, { useEffect, useState } from 'react';
 import { Pressable, Text, TextInput, View, LayoutChangeEvent, Platform, NativeSyntheticEvent, TextInputContentSizeChangeEventData } from 'react-native';
+import { useTranslation } from 'react-i18next';
 import { createChatStyles, getTheme } from '../../screens/Chat/Chat.styles';
 import { useColorScheme } from 'react-native';
+import { Feather } from '@expo/vector-icons';
 
 type Props = {
   value: string;
-  placeholder: string;
   onChangeText: (v: string) => void;
   onSend: () => void;
   onMic: () => void;
@@ -14,17 +15,15 @@ type Props = {
   onHeightChange?: (h: number) => void; // opcional
 };
 
-const MicIcon = () => <Text>{'🎙️'}</Text>;
-const PlusIcon = () => <Text>{'＋'}</Text>;
-const SendIcon = () => <Text>{'➤'}</Text>;
-
-const LINE_HEIGHT = 22;
-const MAX_LINES = 4;
+// CORREÇÃO: Adicionado um `default` para evitar que o valor seja `undefined` em outras plataformas.
+const LINE_HEIGHT = Platform.select({ ios: 20, android: 22, default: 20 });
+const MAX_LINES = 5;
 const MIN_LINES = 1;
 const MAX_INPUT_HEIGHT = LINE_HEIGHT * MAX_LINES;
 const MIN_INPUT_HEIGHT = LINE_HEIGHT * MIN_LINES;
 
-export const ChatInput: React.FC<Props> = ({ value, placeholder, onChangeText, onSend, onMic, onPlus, onHeightChange }) => {
+export const ChatInput: React.FC<Props> = ({ value, onChangeText, onSend, onMic, onPlus, onHeightChange }) => {
+  const { t } = useTranslation();
   const scheme = useColorScheme();
   const theme = getTheme(scheme === 'dark');
   const s = createChatStyles(theme);
@@ -32,14 +31,13 @@ export const ChatInput: React.FC<Props> = ({ value, placeholder, onChangeText, o
   const [contentHeight, setContentHeight] = useState<number>(MIN_INPUT_HEIGHT);
 
   useEffect(() => {
-    if (!value || value.trim().length === 0) {
+    if (!value?.trim()) {
       setContentHeight(MIN_INPUT_HEIGHT);
     }
   }, [value]);
 
   const handleLayout = (e: LayoutChangeEvent) => {
-    const h = e.nativeEvent.layout.height;
-    onHeightChange?.(h);
+    onHeightChange?.(e.nativeEvent.layout.height);
   };
 
   const onContentSizeChange = (e: NativeSyntheticEvent<TextInputContentSizeChangeEventData>) => {
@@ -52,34 +50,34 @@ export const ChatInput: React.FC<Props> = ({ value, placeholder, onChangeText, o
   const enableScroll = contentHeight > MAX_INPUT_HEIGHT;
 
   return (
-    <View style={[s.inputWrap, { backgroundColor: 'transparent' }]} onLayout={handleLayout}>
-      <View style={[s.inputContainer, { backgroundColor: theme.surface, overflow: 'hidden' }] }>
+    <View style={s.inputWrap} onLayout={handleLayout}>
+      <View style={s.inputContainer}>
+        <Pressable onPress={onPlus} hitSlop={8} accessibilityLabel="Mais ações">
+            <Feather name="plus" size={24} color={theme.textSecondary} />
+        </Pressable>
         <TextInput
           value={value}
           onChangeText={onChangeText}
-          placeholder={placeholder}
+          placeholder={t('chat.inputPlaceholder')}
           placeholderTextColor={theme.placeholder}
-          style={[s.textInput, { height: inputHeight, lineHeight: LINE_HEIGHT }]}
+          style={[s.textInput, { height: inputHeight }]}
           multiline
           scrollEnabled={enableScroll}
           onContentSizeChange={onContentSizeChange}
-          textAlignVertical={Platform.OS === 'android' ? 'top' : 'auto'}
-          returnKeyType={'default'}
+          textAlignVertical="top"
+          returnKeyType="default"
           blurOnSubmit={false}
         />
         <View style={s.inputIcons}>
           {canSend ? (
             <Pressable onPress={onSend} style={{ padding: 8 }} hitSlop={8} accessibilityLabel="Enviar mensagem">
-              <SendIcon />
+              <Feather name="send" size={22} color={theme.brand.normal} />
             </Pressable>
           ) : (
             <Pressable onPress={onMic} style={{ padding: 8 }} hitSlop={8} accessibilityLabel="Gravar áudio">
-              <MicIcon />
+              <Feather name="mic" size={22} color={theme.textSecondary} />
             </Pressable>
           )}
-          <Pressable onPress={onPlus} style={[s.plusButton, { marginLeft: 12 }]} hitSlop={8} accessibilityLabel="Mais ações">
-            <PlusIcon />
-          </Pressable>
         </View>
       </View>
     </View>

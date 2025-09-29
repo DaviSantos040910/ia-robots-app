@@ -1,68 +1,45 @@
+
 {
   "common": {
     "show": "Show",
-    "hide": "Hide"
+    "hide": "Hide",
+    "cancel": "Cancel"
   },
-  "errors": {
-    "generic": "An error occurred. Please try again."
+  "chat": {
+    "menuSettings": "Settings",
+    "menuNewChat": "New Chat",
+    "inputPlaceholder": "Send message..."
   },
-  "validation": {
-    "required": "{{field}} is required.",
-    "name": {
-      "minLength": "Name must be at least 3 characters long."
-    },
-    "email": {
-      "invalid": "Please enter a valid email address."
-    },
-    "password": {
-      "minLength": "Password must be at least 8 characters long.",
-      "complexity": "Password must include uppercase, lowercase, numbers, and special characters.",
-      "mismatch": "Passwords do not match"
-    }
+  "botSettings": {
+    "by": "By",
+    "monthlyUsers": "{{value}} monthly users",
+    "followers": "{{value}} followers",
+    "voice": "Voice",
+    "language": "Language",
+    "publicity": "Publicity",
+    "cleanup": "Clean up the full text",
+    "deleteTitle": "Delete Bot",
+    "deleteMessage": "Are you sure you want to delete this bot? This action cannot be undone.",
+    "cleanupTitle": "Clean Up Text",
+    "cleanupMessage": "This will clear the bot's context. Are you sure?",
+    "delete": "Delete",
+    "proceed": "Proceed",
+    "publicityPrivate": "Private",
+    "publicityGuests": "Guests",
+    "publicityPublic": "Public"
   },
-  "accessibility": {
-    "avatar": "Avatar image",
-    "enterEmailOrUsername": "Enter your email or username",
-    "enterPassword": "Enter your password",
-    "showPassword": "Show password",
-    "hidePassword": "Hide password"
-  },
-  "login": {
-    "invalidPasswordTitle": "Invalid password",
-    "invalidPasswordMessage": "Your password must be at least 8 characters and include an uppercase letter, a lowercase letter, a number, and a special character.",
-    "successTitle": "Login successful!",
-    "welcome": "Welcome",
-    "failedTitle": "Login failed",
-    "failedMessage": "Check your credentials and try again.",
-    "greeting": "Hello",
-    "subtitle": "This is the StarryAI bot",
-    "description": "Your personal conversation companion",
-    "emailOrUsername": "Email or username",
-    "password": "Password",
-    "signIn": "Sign in",
-    "continueWithGoogle": "Continue with Google",
-    "continueWithApple": "Continue with Apple",
-    "forgotPassword": "Forgot your password?",
-    "disclaimer": {
-      "part1": "By continuing, you agree to our",
-      "userAgreement": "User Agreement",
-      "and": "and",
-      "privacyPolicy": "Privacy Policy"
-    }
-  },
-  "signup": {
-    "title": "Create Account",
-    "subtitle": "Sign up to get started",
-    "name": "Full Name",
-    "namePlaceholder": "Enter your full name",
-    "email": "Email",
-    "emailPlaceholder": "Enter your email",
-    "password": "Password",
-    "passwordPlaceholder": "Create a password",
-    "confirmPassword": "Confirm Password",
-    "confirmPasswordPlaceholder": "Re-enter your password",
-    "button": "Sign Up",
-    "haveAccount": "Already have an account?",
-    "signIn": "Sign In"
+  "createBot": {
+    "title": "Create a bot",
+    "nameLabel": "Name",
+    "promptLabel": "Prompt",
+    "promptPlaceholder": "You are a space traveler. You are familiar with the customization of global travel plans and the planning of tourist destinations.",
+    "createButton": "Create bot",
+    "nameRequired": "Bot name is required.",
+    "promptRequired": "Prompt is required.",
+    "creationSuccess": "Bot created successfully!",
+    "creationError": "Failed to create bot. Please try again.",
+    "avatarActionSheetTitle": "This image will be used for the bot avatar.",
+    "takeNewPhoto": "Take a new photo",
+    "chooseFromGallery": "Choose from Gallery"
   }
 }

@@ -1,9 +1,8 @@
-
+// src/components/chat/ChatHeader.tsx
 import React, { useRef } from 'react';
 import { View, Text, Pressable, Image, useColorScheme, UIManager, findNodeHandle } from 'react-native';
 import { getTheme } from '../../screens/Chat/Chat.styles';
-import { Spacing } from '../../theme/spacing';
-import { Radius } from '../../theme/radius';
+import { Feather } from '@expo/vector-icons';
 import { Typography } from '../../theme/typography';
 import type { Anchor } from './ActionSheetMenu';
 
@@ -34,7 +33,7 @@ export const ChatHeader: React.FC<{
   return (
     <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, paddingVertical: 10, backgroundColor: t.surface, borderBottomWidth: 0.5, borderColor: t.border }}>
       <Pressable onPress={onBack} hitSlop={10} style={{ padding: 6, marginRight: 8 }}>
-        <Text style={{ fontSize: 18, color: t.textPrimary }}>{'‹'}</Text>
+        <Feather name="chevron-left" size={24} color={t.textPrimary} />
       </Pressable>
 
       {/* Avatar */}
@@ -52,13 +51,13 @@ export const ChatHeader: React.FC<{
 
       {/* Actions */}
       <Pressable onPress={onPhone} hitSlop={10} style={{ padding: 6, marginHorizontal: 4 }}>
-        <Text style={{ color: t.textPrimary }}>📞</Text>
+        <Feather name="phone" size={20} color={t.textPrimary} />
       </Pressable>
       <Pressable onPress={onVolume} hitSlop={10} style={{ padding: 6, marginHorizontal: 4 }}>
-        <Text style={{ color: t.textPrimary }}>🔊</Text>
+        <Feather name="volume-2" size={20} color={t.textPrimary} />
       </Pressable>
       <Pressable ref={moreRef} onPress={openMenu} hitSlop={10} style={{ padding: 6, marginLeft: 4 }}>
-        <Text style={{ color: t.textPrimary }}>⋮</Text>
+        <Feather name="more-vertical" size={22} color={t.textPrimary} />
       </Pressable>
     </View>
   );

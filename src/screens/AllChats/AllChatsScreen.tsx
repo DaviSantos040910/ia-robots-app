@@ -1,7 +1,9 @@
+// src/screens/AllChats/AllChatsScreen.tsx
 import React, { useEffect, useState, useCallback } from 'react';
-import { FlatList, Pressable, Text, View, Animated, StyleSheet } from 'react-native';
-import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { FlatList, Pressable, Text, View, Animated } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useColorScheme } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { createAllChatsStyles, getTheme } from './AllChats.styles';
 import { ChatRow, type BotItem } from '../../components/allchats/ChatRow';
 import { AllChatsSkeletonGroup } from '../../components/allchats/AllChatsSkeletonGroup';
@@ -9,103 +11,92 @@ import { AllChatsEmptyState } from '../../components/allchats/AllChatsEmptyState
 import { useNavigation } from '@react-navigation/native';
 import { useFadeSlideIn, smoothLayout } from '../../components/shared/Motion';
 import BottomNav, { type TabKey } from '../../components/navigation/BottomNav';
+import { allChatsService } from '../../services/allChatsService';
 
-const BOTTOM_NAV_HEIGHT = 84; // ajuste se seu BottomNav tiver outra altura
+// Animated wrapper for list items to create a staggered entrance animation.
+const AnimatedChatRow: React.FC<{ item: BotItem; index: number; onPress: (it: BotItem) => void }> = ({ item, index, onPress }) => {
+  const anim = useFadeSlideIn({ delay: index * 60, dy: 12, duration: 350 });
+  return (
+    <Animated.View style={anim}>
+      <ChatRow item={item} onPress={onPress} />
+    </Animated.View>
+  );
+};
 
 const AllChatsScreen: React.FC = () => {
   const scheme = useColorScheme();
   const t = getTheme(scheme === 'dark');
   const s = createAllChatsStyles(t);
   const navigation = useNavigation<any>();
-  const insets = useSafeAreaInsets();
 
   const [loading, setLoading] = useState(true);
   const [bots, setBots] = useState<BotItem[]>([]);
   const [meBadge, setMeBadge] = useState<number>(1);
 
   useEffect(() => {
-    setLoading(true);
-    const timer = setTimeout(() => {
-      const initial: BotItem[] = [
-        { id: 'starry', name: 'StarryAI bot', description: 'Psychologist that always here for you.', createdByMe: true },
-        { id: 'space', name: 'Space traveler', description: "Hello. I'm your new friend, Space" },
-      ];
-      smoothLayout();
-      setBots(initial);
-      setLoading(false);
-    }, 600);
-    return () => clearTimeout(timer);
+    const fetchChats = async () => {
+      try {
+        const chatList = await allChatsService.getChats();
+        smoothLayout();
+        setBots(chatList);
+      } catch (error) {
+        console.error("Failed to fetch chats:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchChats();
   }, []);
 
   const headerAnim = useFadeSlideIn({ dy: -8, duration: 300 });
 
   const onPlus = () => { navigation.navigate('Create'); };
   const openChat = useCallback((bot: BotItem) => {
-    navigation.navigate('ChatScreen', { chatId: bot.id, bootstrap: { bot: { name: bot.name, handle: bot.id, avatarUrl: null } } });
+    navigation.navigate('ChatScreen', { chatId: bot.id });
   }, [navigation]);
-
-  const contentBottomSpacer = BOTTOM_NAV_HEIGHT + insets.bottom;
+  
+  const ItemSeparator = () => <View style={s.divider} />;
 
   return (
     <SafeAreaView style={s.screen} edges={['top']}>
-      <Animated.View style={[s.header, headerAnim]}>
-        <View style={s.headerCenter}><Text style={s.headerTitle}>All chats</Text></View>
-        <View style={s.headerSide}>
-          <Pressable onPress={onPlus} hitSlop={10} style={s.plusBtn}>
-            <Text style={s.plusText}>+</Text>
-          </Pressable>
-        </View>
-      </Animated.View>
-
       <View style={{ flex: 1 }}>
-        {loading ? (
-          <View style={{ flex: 1 }}>
-            <AllChatsSkeletonGroup count={6} />
-            <View style={{ height: contentBottomSpacer }} />
-          </View>
-        ) : bots.length === 0 ? (
-          <View style={{ flex: 1 }}>
-            <AllChatsEmptyState onCreate={onPlus} />
-            <View style={{ height: contentBottomSpacer }} />
-          </View>
-        ) : (
-          <View style={[s.groupWrap, { paddingBottom: contentBottomSpacer + 12 }]}>
-            <View style={s.group}>
-              <FlatList
-                data={bots}
-                keyExtractor={(item) => item.id}
-                renderItem={({ item, index }) => (
-                  <ChatRow item={item} isLast={index === bots.length - 1} onPress={openChat} />
-                )}
-                showsVerticalScrollIndicator={false}
-              />
-            </View>
-          </View>
-        )}
+        <FlatList
+          data={loading ? [] : bots}
+          keyExtractor={(item) => item.id}
+          renderItem={({ item, index }) => (
+            <AnimatedChatRow item={item} index={index} onPress={openChat} />
+          )}
+          ListHeaderComponent={
+            <Animated.View style={[s.header, headerAnim]}>
+              <Text style={s.headerTitle}>All chats</Text>
+              <Pressable onPress={onPlus} hitSlop={10} style={s.plusBtn}>
+                {/* AJUSTE: Tamanho do ícone sutilmente reduzido. */}
+                <Ionicons name="add" size={26} color={t.textPrimary} />
+              </Pressable>
+            </Animated.View>
+          }
+          ListEmptyComponent={
+            !loading ? <AllChatsEmptyState onCreate={onPlus} /> : null
+          }
+          ListFooterComponent={
+            loading ? <AllChatsSkeletonGroup count={8} /> : <View style={{ height: 100 }} />
+          }
+          ItemSeparatorComponent={ItemSeparator}
+          contentContainerStyle={{ paddingTop: 12 }}
+          showsVerticalScrollIndicator={false}
+        />
 
-        <View style={[styles.bottomNavWrap, { height: BOTTOM_NAV_HEIGHT + insets.bottom, paddingBottom: insets.bottom }]}>
-          <BottomNav
-            active={'Chat'}
-            meBadgeCount={meBadge}
-            onPress={(tab: TabKey) => {
-              if (tab === 'Chat') return;
-              if (navigation?.navigate) navigation.navigate(tab as any);
-            }}
-          />
-        </View>
+        <BottomNav
+          active={'Chat'}
+          meBadgeCount={meBadge}
+          onPress={(tab: TabKey) => {
+            if (tab === 'Chat') return;
+            if (navigation?.navigate) navigation.navigate(tab as any);
+          }}
+        />
       </View>
     </SafeAreaView>
   );
 };
-
-const styles = StyleSheet.create({
-  bottomNavWrap: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: 'transparent',
-  },
-});
 
 export default AllChatsScreen;

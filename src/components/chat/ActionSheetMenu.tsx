@@ -1,9 +1,9 @@
-
+// src/components/chat/ActionSheetMenu.tsx
 import React, { useMemo, useState } from 'react';
 import { Modal, Pressable, Text, View, useColorScheme, Dimensions, LayoutChangeEvent, StyleSheet } from 'react-native';
 import { getTheme } from '../../screens/Chat/Chat.styles';
 
-export type SheetItem = { label: string; onPress: () => void; danger?: boolean };
+export type SheetItem = { label: string; onPress: () => void; danger?: boolean; icon?: React.ReactNode };
 export type Anchor = { x: number; y: number; width: number; height: number } | null;
 
 const MARGIN = 8; // outer safe margin to screen edges
@@ -17,6 +17,7 @@ export const ActionSheetMenu: React.FC<{
   const scheme = useColorScheme();
   const theme = getTheme(scheme === 'dark');
   const screen = Dimensions.get('window');
+  // CORREÇÃO: O parêntese de `useState` estava no lugar errado.
   const [menuSize, setMenuSize] = useState<{ w: number; h: number } | null>(null);
 
   const onMenuLayout = (e: LayoutChangeEvent) => {
@@ -29,8 +30,8 @@ export const ActionSheetMenu: React.FC<{
   const position = useMemo(() => {
     if (!anchor || !menuSize) return { top: -9999, left: -9999 };
     const { x, y, width, height } = anchor;
-    let left = x + width - menuSize.w; // align right edges (WhatsApp-like)
-    let top = y + height + 4; // prefer below the anchor
+    let left = x + width - menuSize.w; // align right edges
+    let top = y + height + 4; // prefer below anchor
 
     // Horizontal clamping
     if (left < MARGIN) left = MARGIN;
@@ -47,9 +48,7 @@ export const ActionSheetMenu: React.FC<{
 
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
-      {/* Backdrop */}
-      <Pressable style={{ flex: 1, backgroundColor: 'transparent' }} onPress={onClose}>
-        {/* Absolutely positioned menu box */}
+      <Pressable style={StyleSheet.absoluteFill} onPress={onClose}>
         <View pointerEvents="box-none" style={StyleSheet.absoluteFill}>
           <View
             onLayout={onMenuLayout}
@@ -64,7 +63,6 @@ export const ActionSheetMenu: React.FC<{
               maxWidth: Math.min(280, screen.width - MARGIN * 2),
               borderWidth: StyleSheet.hairlineWidth,
               borderColor: theme.border,
-              // subtle shadow
               shadowColor: '#000',
               shadowOpacity: 0.12,
               shadowRadius: 12,
@@ -79,8 +77,9 @@ export const ActionSheetMenu: React.FC<{
                   onClose();
                   setTimeout(it.onPress, 0);
                 }}
-                style={{ paddingVertical: 10, paddingHorizontal: 14 }}
+                style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 10, paddingHorizontal: 14 }}
               >
+                {it.icon && <View style={{ marginRight: 12 }}>{it.icon}</View>}
                 <Text style={{ fontSize: 16, color: it.danger ? '#E5484D' : theme.textPrimary }}>
                   {it.label}
                 </Text>

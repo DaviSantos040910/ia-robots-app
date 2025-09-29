@@ -1,4 +1,4 @@
-
+// src/screens/BotSettings/BotSettings.styles.ts
 import { StyleSheet } from 'react-native';
 import { NeutralColors } from '../../theme/neutralColors';
 import { Colors } from '../../theme/colors';
@@ -13,59 +13,68 @@ export const getTheme = (isDark: boolean) => {
 
   const background = isDark ? NeutralColors.neutral.dark.gray1 : NeutralColors.neutral.light.gray1;
   const surface = isDark ? NeutralColors.neutral.dark.gray2 : NeutralColors.neutral.light.white1;
-  const surfaceAlt = isDark ? NeutralColors.neutral.dark.gray3 : NeutralColors.neutral.light.gray2;
-  const border = isDark ? NeutralColors.neutral.dark.gray3 : NeutralColors.neutral.light.gray3;
+  const border = isDark ? NeutralColors.neutral.dark.gray3 : NeutralColors.neutral.light.gray2;
 
   return {
     isDark,
     background,
     surface,
-    surfaceAlt,
     border,
     textPrimary: (font as any).primary,
     textSecondary: (font as any).secondary,
-    placeholder: (font as any).placeholder,
-    disabled: (font as any).disabled,
-    brand: { normal: Colors.brand.light.normal, surface: Colors.brand.light.surface },
-    danger: { normal: Colors.semantic.error.normal },
+    brand: { normal: Colors.brand.light.normal },
+    danger: { normal: Colors.semantic.error.normal, light: Colors.semantic.error.light },
   } as const;
 };
 export type SettingsTheme = ReturnType<typeof getTheme>;
 
 export const createBotSettingsStyles = (t: SettingsTheme) => StyleSheet.create({
   screen: { flex: 1, backgroundColor: t.background },
+  content: { padding: Spacing['spacing-group-s'] },
 
-  // top actions bar (no full header)
-  topBar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: Spacing['spacing-group-s'], marginTop: Spacing['spacing-element-l'] },
-  leftGroup: { flexDirection: 'row', alignItems: 'center' },
+  // Top navigation bar
+  topBar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: Spacing['spacing-element-m'], height: 56 },
+  iconBtn: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
   rightGroup: { flexDirection: 'row', alignItems: 'center' },
-  backBtn: { padding: 8, borderRadius: 999 },
-  iconBtn: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center', marginLeft: 8 },
-  topIconText: { ...Typography.bodyRegular.medium, color: t.textPrimary },
 
-  content: { padding: Spacing['spacing-group-s'], paddingTop: Spacing['spacing-group-m'] },
+  // Main identity card
+  identityCard: { backgroundColor: t.surface, borderRadius: Radius.xLarge, padding: Spacing['spacing-group-m'], alignItems: 'center' },
+  avatar: { width: 96, height: 96, borderRadius: 48, backgroundColor: t.border, marginBottom: Spacing['spacing-element-l'] },
+  title: { ...Typography.titleSemiBold.extraLarge, color: t.textPrimary, fontSize: 24, marginBottom: 2 },
+  byline: { ...Typography.bodyRegular.medium, color: t.textSecondary, marginBottom: Spacing['spacing-element-l'] },
+  chipRow: { flexDirection: 'row', marginBottom: Spacing['spacing-element-l'] },
+  statsText: { ...Typography.bodyRegular.medium, color: t.textSecondary },
 
-  identityRow: { flexDirection: 'row', alignItems: 'center' },
-  avatar: { width: 96, height: 96, borderRadius: 48, backgroundColor: t.surfaceAlt, marginRight: 12 },
-  title: { ...Typography.titleSemiBold.medium, color: t.textPrimary },
-  byline: { ...Typography.bodyRegular.small, color: t.textSecondary },
-  chipRow: { flexDirection: 'row', marginTop: 10 },
-  statsText: { ...Typography.bodyRegular.small, color: t.textSecondary, marginTop: 8 },
+  // Settings section
+  settingsCard: { backgroundColor: t.surface, borderRadius: Radius.xLarge, marginTop: Spacing['spacing-group-m'] },
+  settingRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 14, paddingHorizontal: Spacing['spacing-group-s'] },
+  rowLeft: { flexDirection: 'row', alignItems: 'center' },
+  rowRight: { flexDirection: 'row', alignItems: 'center' },
+  settingIconWrapper: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center', marginRight: Spacing['spacing-element-l'] },
+  valueRowLabel: { ...Typography.bodyMedium.medium, color: t.textPrimary, fontSize: 16 },
+  valueRowValue: { ...Typography.bodyRegular.medium, color: t.textSecondary },
+  valueRowChevron: { color: t.textSecondary, opacity: 0.6, marginLeft: 8 },
 
-  // settings list
-  valueRowLabel: { ...Typography.bodyRegular.medium, color: t.textPrimary },
-  valueRowValue: { ...Typography.bodyRegular.medium, color: t.textPrimary, opacity: 0.85 },
-  valueRowChevron: { color: t.textPrimary, opacity: 0.6, marginLeft: 8 },
-  leadingIconWrap: { width: 28, height: 28, borderRadius: 14, alignItems: 'center', justifyContent: 'center', marginRight: 10, backgroundColor: t.surfaceAlt },
-  leadingIconText: { ...Typography.bodyRegular.small, color: t.textPrimary },
-
-  // destructive row
-  destructiveRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 12 },
-  destructiveLeft: { flexDirection: 'row', alignItems: 'center' },
-  destructiveIconWrap: { width: 28, height: 28, borderRadius: 14, alignItems: 'center', justifyContent: 'center', marginRight: 10, backgroundColor: t.surface },
-  destructiveIconText: { ...Typography.bodyRegular.small, color: t.danger.normal },
-  destructiveText: { ...Typography.bodyRegular.medium, color: t.danger.normal },
-
-  spacer12: { height: 12 },
+  // Cleanup section
+  cleanupCard: { backgroundColor: t.surface, borderRadius: Radius.xLarge, marginTop: Spacing['spacing-group-m'], overflow: 'hidden' },
+  // AJUSTE: Garantido que `flexDirection` seja 'row' para alinhar itens lado a lado.
+  destructiveRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 14,
+    paddingHorizontal: Spacing['spacing-group-s'],
+  },
+  destructiveIconWrapper: {
+    width: 32,
+    height: 32,
+    borderRadius: Radius.round,
+    backgroundColor: t.danger.light,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
+  },
+  destructiveText: { ...Typography.bodyMedium.medium, color: t.danger.normal, fontSize: 16 },
+  
+  divider: { height: StyleSheet.hairlineWidth, backgroundColor: t.border, marginLeft: Spacing['spacing-group-s'] + 40 + Spacing['spacing-element-l'] },
   spacer16: { height: 16 },
 });
