@@ -7,6 +7,8 @@ import { View } from 'react-native';
 import './src/i18n/config';
 import RootNavigator from './src/navigation/RootNavigator';
 import { ChatProvider } from './src/contexts/chat/ChatProvider';
+import { AuthProvider } from './src/contexts/auth/AuthProvider'; // Importe o provider
+
 
 export default function App() {
   const [fontsLoaded] = useFonts({
@@ -31,11 +33,13 @@ export default function App() {
   if (!fontsLoaded) return null;
 
   return (
+    <AuthProvider>
     <ChatProvider>
       <View style={{ flex: 1 }} onLayout={onLayoutRootView}>
         <RootNavigator />
         <StatusBar style="auto" />
       </View>
     </ChatProvider>
+    </AuthProvider>
   );
 }

@@ -1,4 +1,4 @@
-// LoginScreen.tsx
+// src/screens/LoginScreen.tsx
 import React, { useState, useMemo } from 'react';
 import {
   View,
@@ -18,15 +18,13 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useTranslation } from 'react-i18next';
 import * as yup from 'yup';
 import api from '../services/api';
-import * as SecureStore from 'expo-secure-store';
 import { styles } from './LoginScreen.styles';
 import { Spacing } from '../theme/spacing';
 import { AntDesign } from '@expo/vector-icons';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { AxiosResponse } from 'axios';
-import { ChatBootstrap, ChatMessage } from '../types/chat'; // ajuste o caminho se necessário
 import type { RootStackParamList } from '../types/navigation';
-
+import { useAuth } from '../contexts/auth/AuthProvider'; // 1. Importe o hook useAuth
 
 type LoginScreenProps = NativeStackScreenProps<RootStackParamList, 'Login'>;
 
@@ -37,6 +35,8 @@ type FormErrors = {
 
 const LoginScreen: React.FC<LoginScreenProps> = ({ navigation }) => {
   const { t } = useTranslation();
+  const { login } = useAuth(); // 2. Obtenha a função de login do context
+
   const [formData, setFormData] = useState({
     emailOrUsername: '',
     password: '',
@@ -49,7 +49,7 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ navigation }) => {
   const { width, height } = useWindowDimensions();
 
   const navigateToSignUp = () => {
-    navigation.navigate('SignUp' as never);
+    navigation.navigate('SignUp');
   };
 
   const avatarSize = useMemo(
@@ -71,11 +71,6 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ navigation }) => {
       .required(t('validation.required', { field: t('login.emailOrUsername') })),
     password: yup
       .string()
-      .min(8, t('validation.password.minLength'))
-      .matches(
-        /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[\W_]).{8,}$/,
-        t('validation.password.complexity')
-      )
       .required(t('validation.required', { field: t('login.password') })),
   });
 
@@ -120,42 +115,19 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ navigation }) => {
       });
 
       if (response?.token) {
-        await SecureStore.setItemAsync('authToken', response.token);
-        if (response.refresh) {
-          await SecureStore.setItemAsync('refreshToken', response.refresh);
-        }
-
-        // Exemplo de bootstrap e messages para ChatScreen
-        const bootstrapExample: ChatBootstrap = {
-          conversationId: '123',
-          bot: { name: 'Robo', handle: 'robo', avatarUrl: '' },
-          welcome: 'Olá! Como posso ajudar?',
-          suggestions: ['Oi', 'Como você está?', 'Me conte uma piada'],
-        };
-        const messagesExample: ChatMessage[] = [];
-
-        navigation.reset({
-          index: 0,
-          routes: [
-            {
-              name: 'ChatScreen',
-              params: {
-                bootstrap: bootstrapExample,
-                messages: messagesExample,
-                onSendMessage: (text: string) => {
-                  console.log('Mensagem enviada:', text);
-                  // integração com backend aqui
-                },
-              },
-            },
-          ],
-        });
+        // 3. Chame a função de login do context.
+        // Ela cuidará de salvar o token e atualizar o estado de autenticação.
+        await login(response.token, response.refresh);
+        
+        // A navegação agora é tratada automaticamente pelo RootNavigator.
+        // Não precisamos mais navegar manualmente aqui.
       } else {
-        setErrors({ ...errors, password: t('errors.generic') });
+        // Esta parte pode nunca ser alcançada se a API sempre retornar um erro
+        Alert.alert('Error', t('errors.generic'));
       }
     } catch (error: any) {
       const errorMessage = error.response?.data?.detail ?? t('errors.generic');
-      setErrors({ ...errors, password: errorMessage });
+      Alert.alert('Login Failed', errorMessage);
     } finally {
       setIsLoading(false);
     }

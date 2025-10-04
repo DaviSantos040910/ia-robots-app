@@ -5,7 +5,7 @@ import { ChatBootstrap } from '../types/chat';
 // --- Configuration ---
 // Switch this flag to `false` to use the real API implementation.
 // When `true`, the service will return mock data without making network requests.
-const USE_MOCK_API = true;
+const USE_MOCK_API = false;
 
 // Utility to simulate network latency.
 const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -51,16 +51,10 @@ const mockBotService = {
  * This service makes actual HTTP requests to the backend API.
  */
 const realBotService = {
-  /**
-   * Fetches the bootstrap data for a specific chat from the backend.
-   * @param chatId - The unique identifier for the chat.
-   * @returns A promise that resolves with the `ChatBootstrap` data from the API.
-   */
-  async getChatBootstrap(chatId: string): Promise<ChatBootstrap> {
-    console.log(`[API] Fetching bootstrap data for chatId: "${chatId}"`);
-    // This endpoint should return the ChatBootstrap object for the given chat.
-    // The actual URL should be adjusted to match your API's routing structure.
-    const response = await api.get<ChatBootstrap>(`/v1/chats/${chatId}/bootstrap`);
+  async getChatBootstrap(botId: string): Promise<ChatBootstrap> { // Changed param to botId
+    console.log(`[API] Fetching bootstrap data for botId: "${botId}"`);
+    // Use the new bootstrap endpoint
+    const response = await api.get<ChatBootstrap>(`/api/v1/chats/bootstrap/bot/${botId}/`);
     return response;
   },
 };

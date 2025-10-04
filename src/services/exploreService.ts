@@ -5,7 +5,7 @@ import { BotItem } from '../components/allchats/ChatRow';
 export type ExploreBotItem = BotItem & { followed?: boolean };
 export type Category = { id: string; name: string; };
 
-const USE_MOCK_API = true;
+const USE_MOCK_API = false;
 const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 const allMockBots: ExploreBotItem[] = [
@@ -47,16 +47,15 @@ const mockExploreService = {
 
 const realExploreService = {
   async getCategories(): Promise<Category[]> {
-    const response = await api.get<Category[]>('/v1/explore/categories');
+    const response = await api.get<Category[]>('/api/v1/explore/categories/');
     return response;
   },
   async getBots(categoryId: string): Promise<ExploreBotItem[]> {
-    const response = await api.get<ExploreBotItem[]>(`/v1/explore/bots?category=${categoryId}`);
+    const response = await api.get<ExploreBotItem[]>(`/api/v1/explore/bots/?category_id=${categoryId}`);
     return response;
   },
-  // In a real app, this would make a request to your search endpoint.
   async searchBots(query: string): Promise<ExploreBotItem[]> {
-    const response = await api.get<ExploreBotItem[]>(`/v1/explore/search?q=${encodeURIComponent(query)}`);
+    const response = await api.get<ExploreBotItem[]>(`/api/v1/explore/bots/?q=${encodeURIComponent(query)}`);
     return response;
   },
 };

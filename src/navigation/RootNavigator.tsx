@@ -4,32 +4,33 @@ import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../types/navigation';
 
-// Import the new MainTabNavigator
+// Importe suas telas e navegadores
 import { MainTabNavigator } from './MainTabNavigator';
-
-// Screens
 import ChatScreen from '../screens/Chat/ChatScreen';
 import BotSettingsScreen from '../screens/BotSettings/BotSettingsScreen';
 import LoginScreen from '../screens/LoginScreen';
 import SignUpScreen from '../screens/SignUpScreen';
-// AJUSTE: Importada a CreateBotScreen para ser usada no StackNavigator.
 import CreateBotScreen from '../screens/CreateBot/CreateBotScreen';
+
+// Importe o hook de autenticação
+import { useAuth } from '../contexts/auth/AuthProvider';
 
 const AppStack = createNativeStackNavigator<RootStackParamList>();
 const AuthStack = createNativeStackNavigator<RootStackParamList>();
 
+// --- DEFINIÇÃO RESTAURADA ---
+// Este é o navegador para quando o usuário ESTÁ autenticado.
 const AppStackNavigator: React.FC = () => (
-  // The main stack now contains the entire Tab Navigator as a single screen.
-  // Other screens like ChatScreen are pushed on top of the tabs.
   <AppStack.Navigator initialRouteName="Main" screenOptions={{ headerShown: false }}>
     <AppStack.Screen name="Main" component={MainTabNavigator} />
     <AppStack.Screen name="ChatScreen" component={ChatScreen} />
     <AppStack.Screen name="BotSettings" component={BotSettingsScreen} />
-    {/* AJUSTE: CreateBotScreen agora é uma tela do StackNavigator principal. */}
     <AppStack.Screen name="Create" component={CreateBotScreen} />
   </AppStack.Navigator>
 );
 
+// --- DEFINIÇÃO RESTAURADA ---
+// Este é o navegador para quando o usuário NÃO ESTÁ autenticado.
 const AuthStackNavigator: React.FC = () => (
   <AuthStack.Navigator initialRouteName="Login" screenOptions={{ headerShown: false }}>
     <AuthStack.Screen name="Login" component={LoginScreen} />
@@ -38,11 +39,14 @@ const AuthStackNavigator: React.FC = () => (
 );
 
 const RootNavigator: React.FC = () => {
-  // TODO: Replace with your real auth selector
-  const [isAuthenticated] = React.useState<boolean>(true);
+  // A lógica para verificar se o usuário está autenticado permanece a mesma
+  const { isAuthenticated } = useAuth();
 
   return (
     <NavigationContainer>
+      {/* Agora, o React consegue encontrar os componentes AppStackNavigator e AuthStackNavigator
+        porque eles estão definidos neste mesmo arquivo.
+      */}
       {isAuthenticated ? <AppStackNavigator /> : <AuthStackNavigator />}
     </NavigationContainer>
   );

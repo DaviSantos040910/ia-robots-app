@@ -22,7 +22,7 @@ export type BotDetails = {
 };
 
 // --- Configuration ---
-const USE_MOCK_API = true;
+const USE_MOCK_API = false;
 const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 /**
@@ -59,7 +59,8 @@ const mockBotSettingsService = {
 const realBotSettingsService = {
   async getBotDetails(botId: string): Promise<BotDetails> {
     console.log(`[API] Fetching details for botId: "${botId}"`);
-    const response = await api.get<BotDetails>(`/v1/bots/${botId}/details`);
+    // Update the URL to the standard RESTful detail endpoint
+    const response = await api.get<BotDetails>(`/api/v1/bots/${botId}/`);
     return response;
   },
 };

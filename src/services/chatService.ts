@@ -5,7 +5,7 @@ import { ChatMessage } from '../types/chat';
 // --- Configuration ---
 // Flag to toggle between mock data and real API calls.
 // Set this to `false` when you want to connect to the actual backend.
-const USE_MOCK_API = true;
+const USE_MOCK_API = false;
 
 // Utility to simulate network latency.
 const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -79,8 +79,8 @@ const realChatService = {
    * @returns A promise that resolves with the assistant's `ChatMessage` from the API.
    */
   async sendMessage(chatId: string, content: string): Promise<ChatMessage> {
-    // The backend is expected to return a complete ChatMessage object for the assistant's reply.
-    const response = await api.post<ChatMessage>(`/v1/chats/${chatId}/messages`, { content });
+    // Update the URL to match the backend
+    const response = await api.post<ChatMessage>(`/api/v1/chats/${chatId}/messages/`, { content });
     return response;
   },
 

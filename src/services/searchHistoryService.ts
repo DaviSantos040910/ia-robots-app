@@ -1,66 +1,90 @@
 // src/services/searchHistoryService.ts
-import AsyncStorage from '@react-native-async-storage/async-storage';
-
-const HISTORY_STORAGE_KEY = '@SearchHistory';
-const MAX_HISTORY_ITEMS = 3;
-// This flag allows us to show mock data during development without affecting production logic.
-const USE_MOCK_HISTORY = true;
+import api from './api';
 
 export type SearchHistoryItem = {
   id: string;
   term: string;
 };
 
-// Mock data to be returned when USE_MOCK_HISTORY is true.
-const mockHistory: SearchHistoryItem[] = [
-  { id: '1', term: 'Goodnight stories' },
-  { id: '2', term: "Summary of this month's work" },
-  { id: '3', term: 'Healthy Eating Pairing' },
-];
-
-const searchHistoryService = {
+// This is the real service that interacts with your Django backend API.
+const realSearchHistoryService = {
+  /**
+   * Fetches the user's search history from the server.
+   * @returns A promise that resolves with an array of search history items.
+   */
   async getHistory(): Promise<SearchHistoryItem[]> {
-    if (USE_MOCK_HISTORY) {
-      return mockHistory;
-    }
     try {
-      const jsonValue = await AsyncStorage.getItem(HISTORY_STORAGE_KEY);
-      return jsonValue != null ? JSON.parse(jsonValue) : [];
+      const history = await api.get<SearchHistoryItem[]>('/api/v1/explore/history/');
+      return history;
     } catch (e) {
       console.error('Failed to fetch search history.', e);
       return [];
     }
   },
 
+  /**
+   * Adds a new search term to the user's history on the server.
+   * @param term - The search term to add.
+   * @returns A promise that resolves with the updated list of search history items.
+   */
   async addSearchTerm(term: string): Promise<SearchHistoryItem[]> {
     if (!term.trim()) return await this.getHistory();
-    if (USE_MOCK_HISTORY) {
-        console.log(`[MOCK] Would add term: ${term}`);
-        // Here you could manipulate the mockHistory array if needed for testing.
-        return mockHistory;
-    }
     try {
-      const currentHistory = await this.getHistory();
-      const filteredHistory = currentHistory.filter(item => item.term.toLowerCase() !== term.toLowerCase());
-      const newHistory = [{ id: Date.now().toString(), term }, ...filteredHistory];
-      const limitedHistory = newHistory.slice(0, MAX_HISTORY_ITEMS);
-      const jsonValue = JSON.stringify(limitedHistory);
-      await AsyncStorage.setItem(HISTORY_STORAGE_KEY, jsonValue);
-      return limitedHistory;
+      // The backend will handle creating a new entry or updating the timestamp of an existing one.
+      await api.post('/api/v1/explore/history/', { term });
+      return await this.getHistory();
     } catch (e) {
       console.error('Failed to save search term.', e);
+      // Return the existing history on failure
       return await this.getHistory();
     }
   },
 
+  /**
+   * Removes a specific search term from the user's history on the server.
+   * @param id - The ID of the history item to remove.
+   * @returns A promise that resolves with the updated list of search history items.
+   */
   async removeSearchTerm(id: string): Promise<SearchHistoryItem[]> {
-    // ... (implementation unchanged)
-    return [];
+    try {
+        await api.delete(`/api/v1/explore/history/${id}/`);
+        return await this.getHistory();
+    } catch(e) {
+        console.error('Failed to remove search term', e);
+        return await this.getHistory();
+    }
   },
 
+  /**
+   * Clears the entire search history for the user on the server.
+   */
   async clearHistory(): Promise<void> {
-    // ... (implementation unchanged)
+    try {
+        await api.delete('/api/v1/explore/history/');
+    } catch(e) {
+        console.error('Failed to clear history', e);
+    }
   },
 };
+
+// --- Mock Service (Kept for testing purposes if needed) ---
+const mockHistory: SearchHistoryItem[] = [
+    { id: '1', term: 'Goodnight stories' },
+    { id: '2', term: "Summary of this month's work" },
+    { id: '3', term: 'Healthy Eating Pairing' },
+];
+
+const mockSearchHistoryService = {
+    getHistory: async () => mockHistory,
+    addSearchTerm: async (term: string) => { console.log(`[MOCK] Add: ${term}`); return mockHistory; },
+    removeSearchTerm: async (id: string) => { console.log(`[MOCK] Remove: ${id}`); return mockHistory; },
+    clearHistory: async () => { console.log(`[MOCK] Clear all`); },
+};
+
+// This flag allows you to easily switch between the real API and mock data during development.
+// It should be set to `false` for the application to work with the backend.
+const USE_MOCK_API = false;
+
+const searchHistoryService = USE_MOCK_API ? mockSearchHistoryService : realSearchHistoryService;
 
 export default searchHistoryService;
