@@ -37,12 +37,12 @@ export const createAllChatsStyles = (t: AllChatsTheme) => StyleSheet.create({
 
   // Header
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingHorizontal: Spacing['spacing-group-s'], paddingTop: Spacing['spacing-group-s'], paddingBottom: Spacing['spacing-group-m'] },
-  // AJUSTE: Tamanho e peso da fonte ajustados para corresponder ao design.
   headerTitle: { ...Typography.titleSemiBold.extraLarge, color: t.textPrimary, fontSize: 26, fontFamily: 'Inter_700Bold' },
   plusBtn: { position: 'absolute', right: Spacing['spacing-group-s'], top: Spacing['spacing-group-s'], width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center', backgroundColor: t.surfaceAlt },
   
   // List Row Item
   rowPress: {},
+  // AJUSTE: `paddingVertical` restaurado para o valor original para um espaçamento menor.
   row: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: Spacing['spacing-group-s'], paddingVertical: 10 },
   avatar: { width: 52, height: 52, borderRadius: 26, backgroundColor: t.surfaceAlt, marginRight: 14 },
   body: { flex: 1 },
@@ -52,13 +52,11 @@ export const createAllChatsStyles = (t: AllChatsTheme) => StyleSheet.create({
   officialText: { ...Typography.bodyRegular.small, color: t.brand.normal, fontFamily: 'Inter_500Medium' },
   desc: { ...Typography.bodyRegular.medium, color: t.textSecondary, marginTop: 2 },
   
-  // AJUSTE: Adicionada `marginRight` para criar o recuo em ambas as extremidades.
+  // AJUSTE: Estilo do divisor para ser usado no ItemSeparatorComponent.
   divider: {
     height: StyleSheet.hairlineWidth,
     backgroundColor: t.border,
-    // The left margin aligns the divider with the start of the text content.
     marginLeft: Spacing['spacing-group-s'] + 52 + 14,
-    // The right margin provides padding on the other side.
     marginRight: Spacing['spacing-group-s'],
   },
 

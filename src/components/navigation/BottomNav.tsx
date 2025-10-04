@@ -5,45 +5,62 @@ import { Ionicons } from '@expo/vector-icons';
 import { getTheme } from '../../screens/AllChats/AllChats.styles';
 import { createBottomNavStyles } from './BottomNav.styles';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import type { BottomTabBarProps } from '@react-navigation/bottom-tabs';
 
-export type TabKey = 'Chat' | 'Explore' | 'Create' | 'Message' | 'Me';
+const ICONS: Record<string, keyof typeof Ionicons.glyphMap> = {
+  Chat: 'chatbubble-outline',
+  Explore: 'search-outline',
+  Create: 'add-circle-outline',
+  Message: 'notifications-outline',
+  Me: 'person-outline',
+};
 
-interface Props {
-  active?: TabKey;
-  meBadgeCount?: number;
-  onPress?: (tab: TabKey) => void;
-}
-
-const BottomNav: React.FC<Props> = ({ active, meBadgeCount = 0, onPress }) => {
+export const BottomNav: React.FC<BottomTabBarProps> = ({ state, descriptors, navigation }) => {
   const scheme = useColorScheme();
   const t = getTheme(scheme === 'dark');
   const s = createBottomNavStyles(t);
   const insets = useSafeAreaInsets();
 
-  const tabs: { key: TabKey; label: string; icon: keyof typeof Ionicons.glyphMap; badge?: boolean }[] = [
-    { key: 'Chat', label: 'Chat', icon: 'chatbubble-outline' },
-    { key: 'Explore', label: 'Explore', icon: 'search-outline' },
-    { key: 'Create', label: 'Create', icon: 'add-circle-outline' },
-    { key: 'Message', label: 'Message', icon: 'notifications-outline', badge: meBadgeCount > 0 },
-    { key: 'Me', label: 'Me', icon: 'person-outline' },
-  ];
-
   return (
     <View style={[s.container, { paddingBottom: insets.bottom || 8 }]}>
       <View style={s.nav}>
-        {tabs.map((tab) => {
-          const isActive = active === tab.key;
+        {state.routes.map((route, index) => {
+          const { options } = descriptors[route.key];
+          const label = options.tabBarLabel?.toString() ?? options.title ?? route.name;
+          const isFocused = state.index === index;
+
+          const onPress = () => {
+            const event = navigation.emit({
+              type: 'tabPress',
+              target: route.key,
+              canPreventDefault: true,
+            });
+
+            if (!isFocused && !event.defaultPrevented) {
+              navigation.navigate(route.name, route.params);
+            }
+          };
+
           return (
-            <TouchableOpacity key={tab.key} style={s.tab} onPress={() => onPress?.(tab.key)}>
+            <TouchableOpacity
+              key={route.key}
+              accessibilityRole="button"
+              accessibilityState={isFocused ? { selected: true } : {}}
+              accessibilityLabel={options.tabBarAccessibilityLabel}
+              // AJUSTE: Removida a propriedade 'testID' que estava causando o erro de tipo.
+              // testID={options.tabBarTestID}
+              onPress={onPress}
+              style={s.tab}
+            >
               <View>
                 <Ionicons
-                  name={tab.icon}
+                  name={ICONS[route.name] || 'ellipse-outline'}
                   size={26}
-                  style={isActive ? s.iconActive : s.icon}
+                  style={isFocused ? s.iconActive : s.icon}
                 />
-                {tab.badge && <View style={s.badge} />}
+                {/* Badge logic can be added here if needed */}
               </View>
-              <Text style={[s.label, isActive && s.labelActive]}>{tab.label}</Text>
+              <Text style={[s.label, isFocused && s.labelActive]}>{label}</Text>
             </TouchableOpacity>
           );
         })}

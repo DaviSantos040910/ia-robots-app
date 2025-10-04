@@ -41,5 +41,10 @@
     "avatarActionSheetTitle": "This image will be used for the bot avatar.",
     "takeNewPhoto": "Take a new photo",
     "chooseFromGallery": "Choose from Gallery"
+  },
+  "explore": {
+    "searchPlaceholder": "Search for bots or people",
+    "clearHistory": "Clear all search history"
+
   }
 }

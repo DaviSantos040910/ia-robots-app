@@ -10,10 +10,8 @@ import { AllChatsSkeletonGroup } from '../../components/allchats/AllChatsSkeleto
 import { AllChatsEmptyState } from '../../components/allchats/AllChatsEmptyState';
 import { useNavigation } from '@react-navigation/native';
 import { useFadeSlideIn, smoothLayout } from '../../components/shared/Motion';
-import BottomNav, { type TabKey } from '../../components/navigation/BottomNav';
 import { allChatsService } from '../../services/allChatsService';
 
-// Animated wrapper for list items to create a staggered entrance animation.
 const AnimatedChatRow: React.FC<{ item: BotItem; index: number; onPress: (it: BotItem) => void }> = ({ item, index, onPress }) => {
   const anim = useFadeSlideIn({ delay: index * 60, dy: 12, duration: 350 });
   return (
@@ -31,7 +29,6 @@ const AllChatsScreen: React.FC = () => {
 
   const [loading, setLoading] = useState(true);
   const [bots, setBots] = useState<BotItem[]>([]);
-  const [meBadge, setMeBadge] = useState<number>(1);
 
   useEffect(() => {
     const fetchChats = async () => {
@@ -54,47 +51,37 @@ const AllChatsScreen: React.FC = () => {
   const openChat = useCallback((bot: BotItem) => {
     navigation.navigate('ChatScreen', { chatId: bot.id });
   }, [navigation]);
-  
+
+  // AJUSTE: O componente separador agora renderiza a linha divisória estilizada.
   const ItemSeparator = () => <View style={s.divider} />;
 
   return (
     <SafeAreaView style={s.screen} edges={['top']}>
-      <View style={{ flex: 1 }}>
-        <FlatList
-          data={loading ? [] : bots}
-          keyExtractor={(item) => item.id}
-          renderItem={({ item, index }) => (
-            <AnimatedChatRow item={item} index={index} onPress={openChat} />
-          )}
-          ListHeaderComponent={
-            <Animated.View style={[s.header, headerAnim]}>
-              <Text style={s.headerTitle}>All chats</Text>
-              <Pressable onPress={onPlus} hitSlop={10} style={s.plusBtn}>
-                {/* AJUSTE: Tamanho do ícone sutilmente reduzido. */}
-                <Ionicons name="add" size={26} color={t.textPrimary} />
-              </Pressable>
-            </Animated.View>
-          }
-          ListEmptyComponent={
-            !loading ? <AllChatsEmptyState onCreate={onPlus} /> : null
-          }
-          ListFooterComponent={
-            loading ? <AllChatsSkeletonGroup count={8} /> : <View style={{ height: 100 }} />
-          }
-          ItemSeparatorComponent={ItemSeparator}
-          contentContainerStyle={{ paddingTop: 12 }}
-          showsVerticalScrollIndicator={false}
-        />
-
-        <BottomNav
-          active={'Chat'}
-          meBadgeCount={meBadge}
-          onPress={(tab: TabKey) => {
-            if (tab === 'Chat') return;
-            if (navigation?.navigate) navigation.navigate(tab as any);
-          }}
-        />
-      </View>
+      <FlatList
+        data={loading ? [] : bots}
+        keyExtractor={(item) => item.id}
+        renderItem={({ item, index }) => (
+          <AnimatedChatRow item={item} index={index} onPress={openChat} />
+        )}
+        ListHeaderComponent={
+          <Animated.View style={[s.header, headerAnim]}>
+            <Text style={s.headerTitle}>All chats</Text>
+            <Pressable onPress={onPlus} hitSlop={10} style={s.plusBtn}>
+              <Ionicons name="add" size={26} color={t.textPrimary} />
+            </Pressable>
+          </Animated.View>
+        }
+        ListEmptyComponent={
+          !loading ? <AllChatsEmptyState onCreate={onPlus} /> : null
+        }
+        ListFooterComponent={
+          loading ? <AllChatsSkeletonGroup count={8} /> : null
+        }
+        // AJUSTE: `ItemSeparatorComponent` restaurado para exibir a linha.
+        ItemSeparatorComponent={ItemSeparator}
+        contentContainerStyle={{ paddingTop: 12, paddingBottom: 100 }}
+        showsVerticalScrollIndicator={false}
+      />
     </SafeAreaView>
   );
 };
