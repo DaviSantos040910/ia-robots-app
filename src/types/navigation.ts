@@ -1,21 +1,28 @@
 // src/types/navigation.ts
-import type { ChatMessage, ChatBootstrap } from '../types/chat';
+import type { ChatMessage, ChatBootstrap, ChatListItem } from '../types/chat';
 
 export type RootStackParamList = {
   Login: undefined;
   SignUp: undefined;
   Main: undefined;
-  ForgotPassword: undefined;
-  AllChats: undefined;
   
+  // Tab Navigator Screens
+  Chat: undefined; // Renamed from AllChats
   Explore: undefined;
   Create: undefined;
-  History: undefined;
+  Bots: undefined; // New Screen
   Me: undefined;
   
-  // The `bootstrap` prop is removed, as this data will now be fetched inside the screen.
-  // We only need the `chatId` to know which chat to load.
-  ChatScreen: { chatId: string; initialMessages?: ChatMessage[] };
+  // Stack Screens
+  ChatScreen: { 
+    chatId: string;
+    botName: string; // Pass bot name for the header
+    botHandle: string; // Pass bot handle for the header
+    botAvatarUrl?: string | null; // Pass avatar for the header
+  };
   
   BotSettings: { botId: string };
+
+  // New Screen for archived conversations
+  ArchivedChats: { botId: string }; 
 };

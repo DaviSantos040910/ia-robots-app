@@ -1,115 +1,53 @@
 // src/services/chatService.ts
 import api from './api';
-import { ChatMessage } from '../types/chat';
+import { ChatMessage, PaginatedMessages } from '../types/chat'; // Import PaginatedMessages type
 
-// --- Configuration ---
-// Flag to toggle between mock data and real API calls.
-// Set this to `false` when you want to connect to the actual backend.
-const USE_MOCK_API = false;
-
-// Utility to simulate network latency.
-const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
-
-/**
- * Mock implementation for the chat service.
- * Simulates API calls with a delay to mimic real network conditions.
- * This is ideal for frontend development and testing without a backend dependency.
- */
-const mockChatService = {
-  /**
-   * Simulates sending a message and receiving a reply from the bot.
-   * @param chatId - The ID of the conversation.
-   * @param content - The text content of the user's message.
-   * @returns A promise that resolves with a mocked assistant `ChatMessage`.
-   */
-  async sendMessage(chatId: string, content: string): Promise<ChatMessage> {
-    await delay(450);
-    console.log(`[MOCK] Sending message to ${chatId}: "${content}"`);
-
-    // Generate dynamic suggestions based on message length for more realistic mocks.
-    const suggestions = content.trim().length > 18
-      ? ['Explain it better.', 'Give me some examples.']
-      : ['Tell me more.', 'And then?'];
-
-    return {
-      id: String(Date.now()),
-      role: 'assistant',
-      content: `You said: "${content}". This is a mocked response.`,
-      suggestions,
-    };
-  },
-
-  /**
-   * Simulates rewriting a message.
-   * @param chatId - The ID of the conversation.
-   * @param messageId - The ID of the message to rewrite.
-   * @param content - The original content of the message.
-   * @returns A promise that resolves with the rewritten message content.
-   */
-  async rewriteMessage(chatId: string, messageId: string, content: string): Promise<string> {
-    await delay(600);
-    console.log(`[MOCK] Rewriting message ${messageId} in chat ${chatId}`);
-    return `This is a rewritten version of: "${content}"`;
-  },
-
-  /**
-   * Simulates synthesizing speech for a message.
-   * @param chatId - The ID of the conversation.
-   * @param messageId - The ID of the message to convert to speech.
-   * @param content - The text content to synthesize.
-   * @returns A promise that resolves with a mock URL to an audio file.
-   */
-  async synthesizeSpeech(chatId: string, messageId: string, content: string): Promise<string> {
-    await delay(300);
-    console.log(`[MOCK] Synthesizing speech for message ${messageId}`);
-    // In a real implementation, this would be a URL to an audio file (e.g., mp3).
-    return 'https://example.com/mock-audio.mp3';
-  },
-};
-
-/**
- * Real API implementation for the chat service.
- * This service makes actual HTTP requests to the backend API endpoints.
- */
 const realChatService = {
   /**
-   * Sends a user message to the backend and gets the bot's reply.
+   * Fetches a specific page of messages for a given chat.
    * @param chatId - The ID of the conversation.
-   * @param content - The text content of the user's message.
-   * @returns A promise that resolves with the assistant's `ChatMessage` from the API.
+   * @param page - The page number to fetch.
+   * @returns A promise that resolves with a paginated list of ChatMessage objects.
    */
-  async sendMessage(chatId: string, content: string): Promise<ChatMessage> {
-    // Update the URL to match the backend
-    const response = await api.post<ChatMessage>(`/api/v1/chats/${chatId}/messages/`, { content });
+  async getMessages(chatId: string, page: number): Promise<PaginatedMessages> {
+    console.log(`[API] Fetching messages for chat ${chatId}, page ${page}`);
+    const response = await api.get<PaginatedMessages>(`/api/v1/chats/${chatId}/messages/?page=${page}`);
     return response;
   },
 
   /**
-   * Requests the backend to rewrite a specific message.
+   * Sends a user message to the backend and gets the bot's reply.
    * @param chatId - The ID of the conversation.
-   * @param messageId - The ID of the message to rewrite.
-   * @param content - The original content, passed for context if needed by the API.
-   * @returns A promise that resolves with the new message content.
+   * @param content - The text content of the user's message.
+   * @returns A promise that resolves with the assistant's ChatMessage from the API.
    */
-  async rewriteMessage(chatId: string, messageId: string, content: string): Promise<string> {
-    // The backend should return an object like { newContent: "..." }.
-    const response = await api.post<{ newContent: string }>(`/v1/chats/${chatId}/messages/${messageId}/rewrite`);
-    return response.newContent;
+  async sendMessage(chatId: string, content: string): Promise<ChatMessage> {
+    const response = await api.post<ChatMessage>(`/api/v1/chats/${chatId}/messages/`, { content });
+    return response;
+  },
+  
+  /**
+   * Archives the current chat and creates a new active one.
+   * @param chatId - The ID of the chat to archive.
+   * @returns A promise that resolves with the ID of the new active chat.
+   */
+  async archiveAndCreateNewChat(chatId: string): Promise<{ new_chat_id: string }> {
+    console.log(`[API] Archiving chat ${chatId}`);
+    const response = await api.post<{ new_chat_id: string }>(`/api/v1/chats/${chatId}/archive/`);
+    return response;
   },
 
-  /**
-   * Requests the backend to generate a text-to-speech audio URL for a message.
-   * @param chatId - The ID of the conversation.
-   * @param messageId - The ID of the message to synthesize.
-   * @param content - The text content to synthesize.
-   * @returns A promise that resolves with the URL of the generated audio file.
-   */
-  async synthesizeSpeech(chatId: string, messageId: string, content: string): Promise<string> {
-    // The backend should return an object like { audioUrl: "..." }.
-    const response = await api.get<{ audioUrl: string }>(`/v1/chats/${chatId}/messages/${messageId}/tts`);
-    return response.audioUrl;
-  },
+  // Other functions like rewriteMessage or synthesizeSpeech would go here if needed.
 };
 
-// Export the appropriate service implementation based on the `USE_MOCK_API` flag.
+// Mocks for development
+const mockChatService = {
+  async getMessages(chatId: string, page: number): Promise<PaginatedMessages> { return { count: 0, next: null, previous: null, results: [] }; },
+  async sendMessage(chatId: string, content: string): Promise<ChatMessage> { 
+    return { id: 'mock', role: 'assistant', content: 'Mock response', created_at: new Date().toISOString() };
+  },
+  async archiveAndCreateNewChat(chatId: string): Promise<{ new_chat_id: string }> { return { new_chat_id: 'new_mock_id' }; },
+};
+
+const USE_MOCK_API = false;
 export const chatService = USE_MOCK_API ? mockChatService : realChatService;

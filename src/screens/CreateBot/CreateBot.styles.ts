@@ -14,11 +14,17 @@ export const getTheme = (isDark: boolean) => {
   const background = isDark ? NeutralColors.neutral.dark.gray1 : NeutralColors.neutral.light.gray1;
   const surface = isDark ? NeutralColors.neutral.dark.gray2 : NeutralColors.neutral.light.white1;
   const border = isDark ? NeutralColors.neutral.dark.gray3 : NeutralColors.neutral.light.gray2;
+  
+  // --- CORREÇÃO APLICADA AQUI ---
+  // A cor 'surfaceAlt' (surface alternative) estava em falta.
+  // É usada para fundos de elementos com um contraste ligeiramente diferente, como os nossos chips.
+  const surfaceAlt = isDark ? NeutralColors.neutral.dark.gray3 : NeutralColors.neutral.light.gray2;
 
   return {
     isDark,
     background,
     surface,
+    surfaceAlt, // Adicionada ao objeto retornado
     border,
     textPrimary: (font as any).primary,
     textSecondary: (font as any).secondary,
@@ -62,7 +68,7 @@ export const createCreateBotStyles = (t: CreateBotTheme) => StyleSheet.create({
   formSection: {
     backgroundColor: t.surface,
     borderRadius: Radius.xLarge,
-    paddingVertical: Spacing['spacing-element-s'], // Adjusted padding
+    paddingVertical: Spacing['spacing-element-s'],
     marginBottom: Spacing['spacing-group-m'],
   },
 
@@ -71,7 +77,7 @@ export const createCreateBotStyles = (t: CreateBotTheme) => StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: Spacing['spacing-group-s'],
-    minHeight: 50, // Ensure consistent height
+    minHeight: 50,
   },
   nameInputLabel: {
     ...Typography.bodySemiBold.medium,
@@ -93,7 +99,6 @@ export const createCreateBotStyles = (t: CreateBotTheme) => StyleSheet.create({
   textInput: {
     ...Typography.bodyRegular.medium,
     color: t.textPrimary,
-    // This base style has the gray background, which we override for the prompt.
     backgroundColor: t.background,
     borderRadius: Radius.medium,
     paddingHorizontal: Spacing['spacing-element-m'],
@@ -101,28 +106,65 @@ export const createCreateBotStyles = (t: CreateBotTheme) => StyleSheet.create({
     minHeight: 50,
   },
   inputErrorText: { ...Typography.bodyRegular.small, color: t.danger.normal, marginTop: 4, paddingHorizontal: Spacing['spacing-group-s'] },
-
-  // Prompt specific text input
-  promptInput: {
-    minHeight: 120,
+  descriptionInput: {
+    minHeight: 50,
     textAlignVertical: 'top',
-    // AJUSTE: Fundo transparente e padding zerado para o texto alinhar com o label.
     backgroundColor: 'transparent',
     paddingHorizontal: 0,
     paddingVertical: 0,
-    paddingTop: 0, // paddingTop is handled by the container
+    paddingTop: 0,
+  },
+  promptInput: {
+    minHeight: 120,
+    textAlignVertical: 'top',
+    backgroundColor: 'transparent',
+    paddingHorizontal: 0,
+    paddingVertical: 0,
+    paddingTop: 0,
+  },
+  
+  // --- Category Selector Styles ---
+  categorySection: {
+    backgroundColor: t.surface,
+    borderRadius: Radius.xLarge,
+    padding: Spacing['spacing-group-s'],
+    marginBottom: Spacing['spacing-group-m'],
+  },
+  categoryLabel: {
+    ...Typography.bodyMedium.medium,
+    color: t.textPrimary,
+    fontSize: 16,
+    marginBottom: Spacing['spacing-element-l'],
+
+  },
+ 
+  categorySelectorContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: Spacing['spacing-element-m'],
+  },
+  categoryChip: {
+    paddingVertical: 8,
+    paddingHorizontal: 18,
+    borderRadius: Radius.round,
+    backgroundColor: t.surfaceAlt, // Agora 'surfaceAlt' existe
+    borderWidth: 1,
+    borderColor: t.border,
+  },
+  categoryChipActive: {
+    backgroundColor: t.brand.normal,
+    borderColor: t.brand.normal,
+  },
+  categoryText: {
+    ...Typography.bodySemiBold.medium,
+    color: t.textSecondary,
+  },
+  categoryTextActive: {
+    color: '#FFFFFF',
   },
 
   // Settings rows
   settingsCard: { paddingVertical: 0, marginTop: 0 },
-  settingRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 14, paddingHorizontal: Spacing['spacing-group-s'] },
-  rowLeft: { flexDirection: 'row', alignItems: 'center' },
-  rowRight: { flexDirection: 'row', alignItems: 'center' },
-  settingIconWrapper: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center', marginRight: Spacing['spacing-element-l'] },
-  valueRowLabel: { ...Typography.bodyMedium.medium, color: t.textPrimary, fontSize: 16 },
-  valueRowValue: { ...Typography.bodyRegular.medium, color: t.textSecondary },
-  valueRowChevron: { color: t.textSecondary, opacity: 0.6, marginLeft: 8 },
-
   divider: { height: StyleSheet.hairlineWidth, backgroundColor: t.border, marginLeft: Spacing['spacing-group-s'] + 40 + Spacing['spacing-element-l'] },
   createButtonContainer: { marginTop: Spacing['spacing-group-m'] },
 });

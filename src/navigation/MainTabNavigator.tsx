@@ -2,22 +2,19 @@
 import React from 'react';
 import { createBottomTabNavigator, BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { RouteProp } from '@react-navigation/native';
+import { View, Text } from 'react-native';
 
 // Import your screens
-import AllChatsScreen from '../screens/AllChats/AllChatsScreen';
+import ChatListScreen from '../screens/ChatList/ChatListScreen'; // Renamed from AllChatsScreen
 import ExploreScreen from '../screens/Explore/ExploreScreen';
-import { View, Text } from 'react-native';
+import BotsScreen from '../screens/Bots/BotsScreen'; // New Screen
 
 // Import the custom BottomNav
 import { BottomNav } from '../components/navigation/BottomNav';
 import { RootStackParamList } from '../types/navigation';
 
-// This is a dummy component that will never be displayed.
+// These are dummy components that will never be displayed.
 const CreatePlaceholderScreen = () => null;
-
-// Stub components for screens not yet fully implemented
-const MessageScreen = () => <View style={{flex: 1, justifyContent: 'center', alignItems: 'center'}}><Text>Messages</Text></View>;
 const MeScreen = () => <View style={{flex: 1, justifyContent: 'center', alignItems: 'center'}}><Text>Me</Text></View>;
 
 // Define the param list for the tab navigator
@@ -25,7 +22,7 @@ export type MainTabParamList = {
   Chat: undefined;
   Explore: undefined;
   Create: undefined;
-  Message: undefined;
+  Bots: undefined; // Replaced Message with Bots
   Me: undefined;
 };
 
@@ -39,12 +36,8 @@ export const MainTabNavigator: React.FC = () => {
         headerShown: false,
       }}
     >
-      <Tab.Screen name="Chat" component={AllChatsScreen} />
+      <Tab.Screen name="Chat" component={ChatListScreen} />
       <Tab.Screen name="Explore" component={ExploreScreen} />
-      {/* AJUSTE: A tipagem foi corrigida e a lógica de navegação agora usa `getParent()`
-        para acessar o StackNavigator e chamar a tela 'Create' a partir dele.
-        Esta é a abordagem mais segura e type-safe.
-      */}
       <Tab.Screen
         name="Create"
         component={CreatePlaceholderScreen}
@@ -60,7 +53,7 @@ export const MainTabNavigator: React.FC = () => {
           },
         })}
       />
-      <Tab.Screen name="Message" component={MessageScreen} />
+      <Tab.Screen name="Bots" component={BotsScreen} />
       <Tab.Screen name="Me" component={MeScreen} />
     </Tab.Navigator>
   );

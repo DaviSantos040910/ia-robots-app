@@ -1,103 +1,135 @@
-
-import React, { createContext, useContext, useMemo, useState } from 'react';
-import { ChatMessage } from '../../types/chat';
+// src/contexts/chat/ChatProvider.tsx
+import React, { createContext, useContext, useMemo, useState, useCallback } from 'react';
+import { ChatMessage, PaginatedMessages } from '../../types/chat';
 import { chatService } from '../../services/chatService';
 
+// New shape for storing chat data, including pagination info.
+type ChatData = {
+  messages: ChatMessage[];
+  nextPage: number | null;
+  isLoadingMore: boolean;
+  isInitialLoad: boolean;
+};
+
 export type ChatStore = {
-  messagesById: Record<string, ChatMessage[]>;
+  chats: Record<string, ChatData>;
   isTypingById: Record<string, boolean>;
+  
+  loadInitialMessages: (chatId: string) => Promise<void>;
+  loadMoreMessages: (chatId: string) => Promise<void>;
   sendMessage: (chatId: string, text: string) => Promise<void>;
-  appendMessage: (chatId: string, msg: ChatMessage) => void;
-  updateMessageContent: (chatId: string, messageId: string, newContent: string) => void;
-  toggleLike: (chatId: string, messageId: string) => void;
-  rewriteMessage: (chatId: string, messageId: string) => Promise<void>;
-  speakMessage: (chatId: string, messageId: string) => Promise<void>;
-  setTyping: (chatId: string, v: boolean) => void;
+  archiveAndStartNew: (chatId: string) => Promise<string | null>; // Returns the new chat ID
 };
 
 const ChatContext = createContext<ChatStore | null>(null);
 
 export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [messagesById, setMessagesById] = useState<Record<string, ChatMessage[]>>({});
+  const [chats, setChats] = useState<Record<string, ChatData>>({});
   const [isTypingById, setIsTypingById] = useState<Record<string, boolean>>({});
 
-  const appendMessage = (chatId: string, msg: ChatMessage) => {
-    setMessagesById(prev => ({ ...prev, [chatId]: [...(prev[chatId] || []), msg] }));
-  };
-
-  const updateMessageContent = (chatId: string, messageId: string, newContent: string) => {
-    setMessagesById(prev => ({
+  const setChatData = (chatId: string, data: Partial<ChatData>) => {
+    setChats(prev => ({
       ...prev,
-      [chatId]: (prev[chatId] || []).map(m => (m.id === messageId ? { ...m, content: newContent, rewriting: false } : m)),
+      [chatId]: {
+        ...prev[chatId] || { messages: [], nextPage: 1, isLoadingMore: false, isInitialLoad: true },
+        ...data,
+      },
     }));
   };
 
-  const toggleLike = (chatId: string, messageId: string) => {
-    setMessagesById(prev => ({
-      ...prev,
-      [chatId]: (prev[chatId] || []).map(m => (m.id === messageId ? { ...m, liked: !m.liked } : m)),
-    }));
-  };
+  const loadInitialMessages = useCallback(async (chatId: string) => {
+    if (chats[chatId] && !chats[chatId].isInitialLoad) return;
 
-  const setTyping = (chatId: string, v: boolean) => setIsTypingById(prev => ({ ...prev, [chatId]: v }));
+    setChatData(chatId, { isInitialLoad: true });
+    try {
+      const response = await chatService.getMessages(chatId, 1);
+      setChatData(chatId, {
+        messages: response.results,
+        nextPage: response.next ? 2 : null,
+        isInitialLoad: false,
+      });
+    } catch (error) {
+      console.error("Failed to load initial messages:", error);
+      setChatData(chatId, { isInitialLoad: false });
+    }
+  }, [chats]);
 
+  const loadMoreMessages = useCallback(async (chatId: string) => {
+    const chat = chats[chatId];
+    if (!chat || chat.isLoadingMore || !chat.nextPage) return;
+
+    setChatData(chatId, { isLoadingMore: true });
+    try {
+      const response = await chatService.getMessages(chatId, chat.nextPage);
+      setChatData(chatId, {
+        messages: [...chat.messages, ...response.results],
+        nextPage: response.next ? chat.nextPage + 1 : null,
+        isLoadingMore: false,
+      });
+    } catch (error) {
+      console.error("Failed to load more messages:", error);
+      setChatData(chatId, { isLoadingMore: false });
+    }
+  }, [chats]);
+  
   const sendMessage = async (chatId: string, text: string) => {
-    const userMsg: ChatMessage = { id: String(Date.now()), role: 'user', content: text };
-    appendMessage(chatId, userMsg);
-    setTyping(chatId, true);
+    const userMsg: ChatMessage = { id: String(Date.now()), role: 'user', content: text, created_at: new Date().toISOString() };
+    
+    setChatData(chatId, { messages: [userMsg, ...(chats[chatId]?.messages || [])] });
+    
+    // --- CORREÇÃO APLICADA AQUI ---
+    // Corrigido 'setTypingById' para 'setIsTypingById' e adicionada a tipagem para 'prev'.
+    setIsTypingById((prev: Record<string, boolean>) => ({ ...prev, [chatId]: true }));
+    
     try {
       const reply = await chatService.sendMessage(chatId, text);
-      appendMessage(chatId, reply);
+      setChatData(chatId, { messages: [reply, userMsg, ...(chats[chatId]?.messages || [])].filter(m => m.id !== userMsg.id) });
+    } catch (error) {
+      console.error("Failed to send message:", error);
     } finally {
-      setTyping(chatId, false);
+      // --- CORREÇÃO APLICADA AQUI ---
+      setIsTypingById((prev: Record<string, boolean>) => ({ ...prev, [chatId]: false }));
     }
   };
-
-  const rewriteMessage = async (chatId: string, messageId: string) => {
-    // marca como reescrevendo
-    setMessagesById(prev => ({
-      ...prev,
-      [chatId]: (prev[chatId] || []).map(m => (m.id === messageId ? { ...m, rewriting: true } : m)),
-    }));
-    const current = messagesById[chatId]?.find(m => m.id === messageId);
-    if (!current) return;
-    const newText = await chatService.rewriteMessage(chatId, messageId, current.content);
-    updateMessageContent(chatId, messageId, newText);
-  };
-
-  const speakMessage = async (chatId: string, messageId: string) => {
-    const current = messagesById[chatId]?.find(m => m.id === messageId);
-    if (!current) return;
-    const uri = await chatService.synthesizeSpeech(chatId, messageId, current.content);
-    // Apenas salva a URI (player será implementado na integração real)
-    setMessagesById(prev => ({
-      ...prev,
-      [chatId]: (prev[chatId] || []).map(m => (m.id === messageId ? { ...m, audioUri: uri } : m)),
-    }));
-  };
+  
+  const archiveAndStartNew = useCallback(async (chatId: string): Promise<string | null> => {
+    try {
+      const { new_chat_id } = await chatService.archiveAndCreateNewChat(chatId);
+      
+      setChats(prev => {
+        const newState = { ...prev };
+        delete newState[chatId];
+        return newState;
+      });
+      
+      return new_chat_id;
+    } catch (error) {
+      console.error("Failed to archive chat:", error);
+      return null;
+    }
+  }, []);
 
   const value = useMemo(
-    () => ({ messagesById, isTypingById, sendMessage, appendMessage, updateMessageContent, toggleLike, rewriteMessage, speakMessage, setTyping }),
-    [messagesById, isTypingById]
+    () => ({ chats, isTypingById, loadInitialMessages, loadMoreMessages, sendMessage, archiveAndStartNew }),
+    [chats, isTypingById, loadInitialMessages, loadMoreMessages, sendMessage, archiveAndStartNew]
   );
 
   return <ChatContext.Provider value={value}>{children}</ChatContext.Provider>;
 };
 
+// Custom hook to interact with a specific chat's state
 export const useChatController = (chatId: string) => {
   const ctx = useContext(ChatContext);
   if (!ctx) throw new Error('useChatController must be used within ChatProvider');
-  const messages = ctx.messagesById[chatId] || [];
-  const isTyping = !!ctx.isTypingById[chatId];
+  
+  const chatData = ctx.chats[chatId] || { messages: [], nextPage: 1, isLoadingMore: false, isInitialLoad: true };
+
   return {
-    messages,
-    isTyping,
+    ...chatData,
+    isTyping: !!ctx.isTypingById[chatId],
+    loadInitialMessages: () => ctx.loadInitialMessages(chatId),
+    loadMoreMessages: () => ctx.loadMoreMessages(chatId),
     sendMessage: (text: string) => ctx.sendMessage(chatId, text),
-    appendMessage: (msg: ChatMessage) => ctx.appendMessage(chatId, msg),
-    updateMessageContent: (messageId: string, text: string) => ctx.updateMessageContent(chatId, messageId, text),
-    toggleLike: (messageId: string) => ctx.toggleLike(chatId, messageId),
-    rewriteMessage: (messageId: string) => ctx.rewriteMessage(chatId, messageId),
-    speakMessage: (messageId: string) => ctx.speakMessage(chatId, messageId),
-    setTyping: (v: boolean) => ctx.setTyping(chatId, v),
+    archiveAndStartNew: () => ctx.archiveAndStartNew(chatId),
   };
 };

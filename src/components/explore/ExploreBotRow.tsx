@@ -1,43 +1,85 @@
 // src/components/explore/ExploreBotRow.tsx
-import React from 'react';
-import { Pressable, Text, View, Image } from 'react-native';
+import React, { useState } from 'react';
+import { Pressable, Text, View, Image, ActivityIndicator } from 'react-native';
 import { useColorScheme } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { createExploreStyles, getTheme } from '../../screens/Explore/Explore.styles';
-import { ExploreBotItem } from '../../services/exploreService';
+import { Bot } from '../../types/chat';
 import { ScalePressable } from '../shared/Motion';
+import { useNavigation } from '@react-navigation/native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { RootStackParamList } from '../../types/navigation';
+import { botService } from '../../services/botService'; // Import botService
+import { exploreService } from '../../services/exploreService'; // Import exploreService
+
+export type ExploreBotItem = Bot & { is_subscribed?: boolean };
 
 interface Props {
   item: ExploreBotItem;
-  onPress: (item: ExploreBotItem) => void;
-  onToggleFollow: (item: ExploreBotItem) => void;
 }
 
-export const ExploreBotRow: React.FC<Props> = ({ item, onPress, onToggleFollow }) => {
+export const ExploreBotRow: React.FC<Props> = ({ item }) => {
   const scheme = useColorScheme();
-  const t = getTheme(scheme === 'dark');
-  const s = createExploreStyles(t);
+  const theme = getTheme(scheme === 'dark');
+  const s = createExploreStyles(theme);
+  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+
+  const [isSubscribed, setIsSubscribed] = useState(item.is_subscribed ?? false);
+  const [isLoading, setIsLoading] = useState(false);
+
+  // --- REFACTORED: Now uses the service layer ---
+  const handleToggleSubscribe = async () => {
+    setIsLoading(true);
+    try {
+      // Call the dedicated function from the service file.
+      await exploreService.toggleBotSubscription(item.id);
+      setIsSubscribed(prev => !prev);
+    } catch (error) {
+      console.error("Failed to toggle subscription:", error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // --- REFACTORED: Now uses the service layer ---
+  const handleRowPress = async () => {
+    try {
+      // Call the bootstrap function from the bot service.
+      const bootstrapData = await botService.getChatBootstrap(item.id);
+      
+      navigation.navigate('ChatScreen', {
+        chatId: bootstrapData.conversationId,
+        botName: bootstrapData.bot.name,
+        botHandle: bootstrapData.bot.handle,
+        botAvatarUrl: bootstrapData.bot.avatarUrl,
+      });
+    } catch (error) {
+      console.error("Failed to bootstrap chat from explore:", error);
+    }
+  };
 
   return (
-    <Pressable onPress={() => onPress(item)} style={({ pressed }) => [s.row, { backgroundColor: pressed ? t.surfaceAlt : 'transparent' }]}>
-      {/* Avatar */}
-      <Image source={require('../../assets/avatar.png')} style={s.avatar} />
+    <Pressable onPress={handleRowPress} style={({ pressed }) => [s.row, { backgroundColor: pressed ? theme.surfaceAlt : 'transparent' }]}>
+      <Image 
+        source={item.avatar_url ? { uri: item.avatar_url } : require('../../assets/avatar.png')} 
+        style={s.avatar} 
+      />
       
-      {/* Body: Title and Description */}
       <View style={s.body}>
         <Text style={s.title} numberOfLines={1}>{item.name}</Text>
         <Text style={s.desc} numberOfLines={1}>{item.description}</Text>
       </View>
 
-      {/* Action Button: Follow/Unfollow */}
-      <ScalePressable onPress={() => onToggleFollow(item)}>
-        <View style={s.followButton}>
+      <ScalePressable onPress={handleToggleSubscribe} disabled={isLoading} style={s.followButton}>
+        {isLoading ? (
+          <ActivityIndicator size="small" color={theme.brand.normal} />
+        ) : (
           <Ionicons 
-            name={item.followed ? "checkmark-circle" : "add-circle"}
+            name={isSubscribed ? "checkmark-circle" : "add-circle-outline"}
             size={32}
-            color={t.brand.normal}
+            color={isSubscribed ? theme.brand.normal : theme.textSecondary}
           />
-        </View>
+        )}
       </ScalePressable>
     </Pressable>
   );

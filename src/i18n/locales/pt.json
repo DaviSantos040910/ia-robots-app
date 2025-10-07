@@ -31,6 +31,8 @@
   "createBot": {
     "title": "Criar um bot",
     "nameLabel": "Nome",
+    "descriptionLabel": "Descrição", 
+    "descriptionPlaceholder": "Ex: Um assistente amigável para planear viagens.", 
     "promptLabel": "Instruções (Prompt)",
     "promptPlaceholder": "Você é um viajante espacial. Você está familiarizado com a personalização de planos de viagem globais e o planejamento de destinos turísticos.",
     "createButton": "Criar bot",
@@ -40,11 +42,24 @@
     "creationError": "Falha ao criar o bot. Por favor, tente novamente.",
     "avatarActionSheetTitle": "Esta imagem será usada como avatar do bot.",
     "takeNewPhoto": "Tirar nova foto",
-    "chooseFromGallery": "Escolher da Galeria"
+    "chooseFromGallery": "Escolher da Galeria",
+    "categoryLabel": "Categoria", 
+    "categoryDescription": "Selecione até 3 categorias que melhor descrevem seu bot.", 
+    "categoryRequired": "Selecione pelo menos uma categoria."
   },
   "explore": {
     "searchPlaceholder": "Buscar por bots ou pessoas",
     "clearHistory": "Limpar todo o histórico de busca"
 
+  },
+  "categories": {
+    "productivity": "Produtividade",
+    "learning": "Aprendizagem",
+    "creativity": "Criatividade",
+    "wellness": "Bem-estar",
+    "roleplay": "Roleplay",
+    "games": "Jogos",
+    "text": "Texto",
+    "image": "Imagem"
   }
 }

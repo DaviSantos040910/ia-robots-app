@@ -1,24 +1,31 @@
 // src/components/navigation/BottomNav.tsx
-import React from 'react';
-import { View, Text, TouchableOpacity, useColorScheme } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
-import { getTheme } from '../../screens/AllChats/AllChats.styles';
-import { createBottomNavStyles } from './BottomNav.styles';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import type { BottomTabBarProps } from '@react-navigation/bottom-tabs';
+import React from "react";
+import { View, Text, TouchableOpacity, useColorScheme } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
+import { getTheme } from "../../screens/ChatList/ChatList.styles"; // Will be updated
+import { createBottomNavStyles } from "./BottomNav.styles";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import type { BottomTabBarProps } from "@react-navigation/bottom-tabs";
+import { useTranslation } from "react-i18next"; // Import useTranslation
 
+// --- UPDATED ICONS ---
 const ICONS: Record<string, keyof typeof Ionicons.glyphMap> = {
-  Chat: 'chatbubble-outline',
-  Explore: 'search-outline',
-  Create: 'add-circle-outline',
-  Message: 'notifications-outline',
-  Me: 'person-outline',
+  Chat: "chatbubbles-outline",
+  Explore: "search-outline",
+  Create: "add-circle-outline",
+  Bots: "hardware-chip-outline", // New icon for Bots
+  Me: "person-outline",
 };
 
-export const BottomNav: React.FC<BottomTabBarProps> = ({ state, descriptors, navigation }) => {
+export const BottomNav: React.FC<BottomTabBarProps> = ({
+  state,
+  descriptors,
+  navigation,
+}) => {
+  const { t } = useTranslation(); // Hook for translations
   const scheme = useColorScheme();
-  const t = getTheme(scheme === 'dark');
-  const s = createBottomNavStyles(t);
+  const theme = getTheme(scheme === "dark");
+  const s = createBottomNavStyles(theme);
   const insets = useSafeAreaInsets();
 
   return (
@@ -26,12 +33,15 @@ export const BottomNav: React.FC<BottomTabBarProps> = ({ state, descriptors, nav
       <View style={s.nav}>
         {state.routes.map((route, index) => {
           const { options } = descriptors[route.key];
-          const label = options.tabBarLabel?.toString() ?? options.title ?? route.name;
+
+          // Use translation keys for labels
+          const label = t(`mainTabs.${route.name.toLowerCase()}` as any);
+
           const isFocused = state.index === index;
 
           const onPress = () => {
             const event = navigation.emit({
-              type: 'tabPress',
+              type: "tabPress",
               target: route.key,
               canPreventDefault: true,
             });
@@ -47,18 +57,15 @@ export const BottomNav: React.FC<BottomTabBarProps> = ({ state, descriptors, nav
               accessibilityRole="button"
               accessibilityState={isFocused ? { selected: true } : {}}
               accessibilityLabel={options.tabBarAccessibilityLabel}
-              // AJUSTE: Removida a propriedade 'testID' que estava causando o erro de tipo.
-              // testID={options.tabBarTestID}
               onPress={onPress}
               style={s.tab}
             >
               <View>
                 <Ionicons
-                  name={ICONS[route.name] || 'ellipse-outline'}
+                  name={ICONS[route.name] || "ellipse-outline"}
                   size={26}
                   style={isFocused ? s.iconActive : s.icon}
                 />
-                {/* Badge logic can be added here if needed */}
               </View>
               <Text style={[s.label, isFocused && s.labelActive]}>{label}</Text>
             </TouchableOpacity>

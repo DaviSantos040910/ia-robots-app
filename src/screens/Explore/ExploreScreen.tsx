@@ -7,13 +7,13 @@ import { useTranslation } from 'react-i18next';
 import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { createExploreStyles, getTheme } from './Explore.styles';
-import { exploreService, Category, ExploreBotItem } from '../../services/exploreService';
-import { ExploreBotRow } from '../../components/explore/ExploreBotRow';
-import { useFadeSlideIn, ScalePressable } from '../../components/shared/Motion';
+import { exploreService, Category } from '../../services/exploreService'; // Updated service
+import { ExploreBotRow, ExploreBotItem } from '../../components/explore/ExploreBotRow';
+import { useFadeSlideIn, ScalePressable, smoothLayout } from '../../components/shared/Motion';
 import searchHistoryService, { SearchHistoryItem } from '../../services/searchHistoryService';
 import SearchHistory from '../../components/explore/SearchHistory';
 
-// --- Sub-components ---
+// --- Sub-components (SearchBar, CategoryFilter) can remain the same ---
 
 const SearchBar: React.FC<{
   onFocus: () => void;
@@ -58,7 +58,6 @@ const SearchBar: React.FC<{
   );
 };
 
-// AJUSTE: Componente restaurado para dentro do arquivo.
 const CategoryFilter: React.FC<{
   categories: Category[];
   activeCategoryId: string;
@@ -81,17 +80,12 @@ const CategoryFilter: React.FC<{
   );
 };
 
-// AJUSTE: Componente restaurado para dentro do arquivo.
-const AnimatedBotRow: React.FC<{
-  item: ExploreBotItem;
-  index: number;
-  onPress: (item: ExploreBotItem) => void;
-  onToggleFollow: (item: ExploreBotItem) => void;
-}> = ({ item, index, onPress, onToggleFollow }) => {
+const AnimatedBotRow: React.FC<{ item: ExploreBotItem; index: number; }> = ({ item, index }) => {
   const anim = useFadeSlideIn({ delay: index * 60, dy: 12, duration: 350 });
   return (
     <Animated.View style={anim}>
-      <ExploreBotRow item={item} onPress={onPress} onToggleFollow={onToggleFollow} />
+      {/* The component now handles its own press and subscription logic */}
+      <ExploreBotRow item={item} />
     </Animated.View>
   );
 };
@@ -99,11 +93,10 @@ const AnimatedBotRow: React.FC<{
 // --- Main Screen Component ---
 const ExploreScreen: React.FC = () => {
   const scheme = useColorScheme();
-  // AJUSTE: Renomeado para 'theme' para evitar conflito com a função de tradução 't'.
   const theme = getTheme(scheme === 'dark');
   const s = createExploreStyles(theme);
   const navigation = useNavigation<any>();
-  const { t } = useTranslation(); // 't' é a função de tradução.
+  const { t } = useTranslation();
 
   // --- State Management ---
   const [isSearchActive, setIsSearchActive] = useState(false);
@@ -112,18 +105,7 @@ const ExploreScreen: React.FC = () => {
   const [loadingBots, setLoadingBots] = useState(true);
   const [categories, setCategories] = useState<Category[]>([]);
   const [bots, setBots] = useState<ExploreBotItem[]>([]);
-  const [activeCategoryId, setActiveCategoryId] = useState('featured');
-
-  const mainContentOpacity = useRef(new Animated.Value(1)).current;
-
-  // --- Animation for transitioning ---
-  useEffect(() => {
-    Animated.timing(mainContentOpacity, {
-      toValue: isSearchActive ? 0 : 1,
-      duration: 200,
-      useNativeDriver: true,
-    }).start();
-  }, [isSearchActive]);
+  const [activeCategoryId, setActiveCategoryId] = useState('featured'); // Default category
 
   // --- Data Fetching ---
   useEffect(() => {
@@ -136,6 +118,7 @@ const ExploreScreen: React.FC = () => {
         ]);
         setCategories(categoriesData);
         setSearchHistory(historyData);
+        // Set the first category as active if 'featured' doesn't exist
         if (categoriesData.length > 0 && !categoriesData.some(c => c.id === activeCategoryId)) {
           setActiveCategoryId(categoriesData[0].id);
         }
@@ -152,9 +135,10 @@ const ExploreScreen: React.FC = () => {
     const fetchBots = async () => {
       if (!activeCategoryId) return;
       setLoadingBots(true);
-      setBots([]);
+      setBots([]); // Clear previous bots
       try {
         const data = await exploreService.getBots(activeCategoryId);
+        smoothLayout();
         setBots(data);
       } catch (error) {
         console.error(`Failed to fetch bots for category ${activeCategoryId}:`, error);
@@ -181,25 +165,11 @@ const ExploreScreen: React.FC = () => {
     await searchHistoryService.clearHistory();
     setSearchHistory([]);
   };
-
-  const handleToggleFollow = useCallback((botToToggle: ExploreBotItem) => {
-    setBots(currentBots =>
-      currentBots.map(bot =>
-        bot.id === botToToggle.id ? { ...bot, followed: !bot.followed } : bot
-      )
-    );
-  }, []);
-
-  const openChat = useCallback((bot: ExploreBotItem) => {
-    navigation.navigate('ChatScreen', { chatId: bot.id });
-  }, [navigation]);
   
   const ItemSeparator = () => <View style={s.divider} />;
 
-  // --- Render ---
   return (
     <SafeAreaView style={s.screen} edges={['top']}>
-        {/* Header with Search Bar */}
         <View style={s.header}>
           <SearchBar 
             onFocus={handleSearchFocus}
@@ -208,7 +178,6 @@ const ExploreScreen: React.FC = () => {
           />
         </View>
 
-        {/* Conditional Rendering: Search History or Main Content */}
         {isSearchActive ? (
           <SearchHistory 
             history={searchHistory}
@@ -219,27 +188,21 @@ const ExploreScreen: React.FC = () => {
         ) : (
           <>
             {loadingCategories ? (
-              <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-                <ActivityIndicator size="large" color={theme.brand.normal} />
-              </View>
+              <ActivityIndicator style={{ marginTop: 20 }} size="large" color={theme.brand.normal} />
             ) : (
               <FlatList
                 data={bots}
-                keyExtractor={item => item.id}
-                renderItem={({ item, index }) => (
-                  <AnimatedBotRow 
-                    item={item} 
-                    index={index} 
-                    onPress={openChat}
-                    onToggleFollow={handleToggleFollow}
-                  />
-                )}
+                keyExtractor={item => item.id.toString()}
+                renderItem={({ item, index }) => <AnimatedBotRow item={item} index={index} />}
                 ListHeaderComponent={
                   <CategoryFilter
                     categories={categories}
                     activeCategoryId={activeCategoryId}
                     onSelectCategory={setActiveCategoryId}
                   />
+                }
+                ListFooterComponent={
+                  loadingBots ? <ActivityIndicator style={{ marginVertical: 20 }} color={theme.brand.normal} /> : null
                 }
                 contentContainerStyle={s.listContentContainer}
                 ItemSeparatorComponent={ItemSeparator}

@@ -1,11 +1,13 @@
 // src/components/chat/MessageBubble.tsx
 import React from 'react';
-import { ActivityIndicator, Pressable, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, View, StyleSheet } from 'react-native';
 import { useColorScheme } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { ChatMessage } from '../../types/chat';
 import { createChatStyles, getTheme } from '../../screens/Chat/Chat.styles';
 import { MiniSuggestionChip } from './MiniSuggestionChip';
+// 1. Importar a nova biblioteca
+import Markdown from 'react-native-markdown-display';
 
 export const MessageBubble: React.FC<{
   message: ChatMessage;
@@ -14,7 +16,7 @@ export const MessageBubble: React.FC<{
   onListen?: (m: ChatMessage) => void;
   onRewrite?: (m: ChatMessage) => void;
   onSuggestionPress?: (messageId: string, text: string) => void;
-  hideSuggestions?: boolean; // kept for compatibility but unused
+  hideSuggestions?: boolean;
 }> = ({
   message,
   onCopy,
@@ -32,11 +34,29 @@ export const MessageBubble: React.FC<{
   const bubbleStyle = isUser ? s.bubbleUser : s.bubbleBot;
   const textStyle = isUser ? s.userText : s.bubbleText;
 
+  // 2. Criar um objeto de estilos para o componente Markdown
+  //    Isto garante que o texto mantém o estilo original da sua app.
+  const markdownStyle = StyleSheet.create({
+    body: {
+      ...textStyle,
+    },
+    // O Markdown usa 'strong' para o negrito (**)
+    strong: {
+      fontWeight: 'bold',
+    },
+    // Pode adicionar outros estilos aqui se o bot usar, por ex.:
+    // list_item: { ... },
+    // heading1: { ... },
+  });
+
   return (
     <View style={rowStyle}>
       <View style={s.bubbleContainer}>
         <View style={bubbleStyle}>
-          <Text style={textStyle}>{message.content}</Text>
+          {/* 3. Substituir o componente <Text> pelo <Markdown> */}
+          <Markdown style={markdownStyle}>
+            {message.content}
+          </Markdown>
 
           {!isUser && (
             <>

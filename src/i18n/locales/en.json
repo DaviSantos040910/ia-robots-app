@@ -1,4 +1,3 @@
-
 {
   "common": {
     "show": "Show",
@@ -7,8 +6,29 @@
   },
   "chat": {
     "menuSettings": "Settings",
-    "menuNewChat": "New Chat",
+    "menuNewChat": "Start New Chat",
+    "menuArchivedChats": "View Archived Chats",
+    "newChatTitle": "Start New Chat?",
+    "newChatMessage": "This will archive the current conversation and start a new one. Do you want to proceed?",
+    "proceed": "Proceed",
     "inputPlaceholder": "Send message..."
+  },
+  "archivedChats": {
+    "title": "Archived Chats",
+    "empty": "No archived chats found for this bot.",
+    "chatFrom": "Chat from"
+  },
+  "mainTabs": {
+    "chat": "Chat",
+    "explore": "Explore",
+    "create": "Create",
+    "bots": "Bots",
+    "me": "Me"
+  },
+  "botsScreen": {
+    "title": "My Bots",
+    "emptyTitle": "No Bots Yet",
+    "emptyMessage": "Bots you create or add from the Explore tab will appear here."
   },
   "botSettings": {
     "by": "By",
@@ -23,7 +43,6 @@
     "cleanupTitle": "Clean Up Text",
     "cleanupMessage": "This will clear the bot's context. Are you sure?",
     "delete": "Delete",
-    "proceed": "Proceed",
     "publicityPrivate": "Private",
     "publicityGuests": "Guests",
     "publicityPublic": "Public"
@@ -31,11 +50,16 @@
   "createBot": {
     "title": "Create a bot",
     "nameLabel": "Name",
+    "descriptionLabel": "Description",
+    "descriptionPlaceholder": "e.g., A friendly assistant for travel planning.",
     "promptLabel": "Prompt",
-    "promptPlaceholder": "You are a space traveler. You are familiar with the customization of global travel plans and the planning of tourist destinations.",
+    "promptPlaceholder": "You are a space traveler...",
+    "categoryLabel": "Category",
+    "categoryDescription": "Select up to 3 categories that best describe your bot.",
     "createButton": "Create bot",
     "nameRequired": "Bot name is required.",
     "promptRequired": "Prompt is required.",
+    "categoryRequired": "Please select at least one category.",
     "creationSuccess": "Bot created successfully!",
     "creationError": "Failed to create bot. Please try again.",
     "avatarActionSheetTitle": "This image will be used for the bot avatar.",
@@ -45,6 +69,5 @@
   "explore": {
     "searchPlaceholder": "Search for bots or people",
     "clearHistory": "Clear all search history"
-
   }
 }
