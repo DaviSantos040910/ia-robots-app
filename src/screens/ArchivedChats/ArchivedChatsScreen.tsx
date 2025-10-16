@@ -30,6 +30,7 @@ const ArchivedChatRow: React.FC<{ item: ChatListItem }> = ({ item }) => {
   const handlePress = () => {
     navigation.navigate('ChatScreen', {
       chatId: item.id,
+      botId: item.bot.id, // --- ADICIONADO: Passa o botId para o ecrã de chat ---
       botName: item.bot.name,
       botHandle: `@${item.bot.name}`, // Placeholder
       botAvatarUrl: item.bot.avatar_url,

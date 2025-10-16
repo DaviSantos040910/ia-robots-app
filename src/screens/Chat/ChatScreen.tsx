@@ -22,6 +22,7 @@ type Props = NativeStackScreenProps<RootStackParamList, 'ChatScreen'>;
 
 const ChatScreen: React.FC<Props> = ({ route, navigation }) => {
   // Use a state for chatId to allow it to be updated when a new chat is created
+  const { botId } = route.params; 
   const [currentChatId, setCurrentChatId] = useState(route.params.chatId);
   
   const { 
@@ -53,6 +54,10 @@ const ChatScreen: React.FC<Props> = ({ route, navigation }) => {
   );
   
   // --- Handlers ---
+
+  const handleOpenSettings = () => {
+    navigation.navigate('BotSettings', { botId });
+  };
   
   const handleSend = () => {
     const value = input.trim();
@@ -88,10 +93,11 @@ const ChatScreen: React.FC<Props> = ({ route, navigation }) => {
     // This is a placeholder; you'll need to get the bot ID associated with the chat.
     // const botId = "123"; // This needs to be dynamic
     // navigation.navigate('ArchivedChats', { botId });
-    Alert.alert("Coming Soon", "This feature is under development.");
+    navigation.navigate('ArchivedChats', { botId });
   };
 
   const menuItems = useMemo(() => [
+    { label: t('chat.menuSettings'), onPress: handleOpenSettings, icon: <Feather name="settings" size={18} color={theme.textPrimary} /> },
     { label: t('chat.menuNewChat'), onPress: handleArchiveAndStartNew, icon: <Feather name="plus-circle" size={18} color={theme.textPrimary} /> },
     { label: t('chat.menuArchivedChats'), onPress: handleViewArchived, icon: <Feather name="archive" size={18} color={theme.textPrimary} /> },
     // Settings menu can be added back here

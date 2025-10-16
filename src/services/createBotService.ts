@@ -24,29 +24,59 @@ export type CreateBotPayload = {
  * This makes the actual HTTP request to the backend.
  */
 const realCreateBotService = {
+  /**
+   * Creates a new bot in a two-step process:
+   * 1. Create the bot with text-based data.
+   * 2. If an avatar is provided, upload it as a separate request.
+   * @param payload - The data for the new bot from the CreateBotScreen.
+   * @returns A promise that resolves with the final BotDetails.
+   */
   async createBot(payload: CreateBotPayload): Promise<BotDetails> {
-    // This is the object with the nested 'settings' that we receive from the screen
-    console.log(`[API] Received payload from screen:`, payload);
-
-    // Flatten the payload to match what the Django serializer expects.
-    // The nested 'settings' object is removed, and its properties are moved to the top level.
-    const flatPayload = {
+    
+    // --- Step 1: Create the bot with text data ---
+    const textPayload = {
       name: payload.name,
-      description: payload.description, // Adicionado
+      description: payload.description,
       prompt: payload.prompt,
-      avatar_url: payload.avatarUrl, // Match backend field name
       voice: payload.settings.voice,
       publicity: payload.settings.publicity,
-      // Pass the array of category IDs
       category_ids: payload.category_ids,
     };
 
-    // This log is useful for debugging to see the exact object being sent.
-    console.log(`[API] Sending flattened payload to server:`, flatPayload);
-    
-    // The endpoint in the backend for creating bots is /api/v1/bots/
-    const response = await api.post<BotDetails>('/api/v1/bots/', flatPayload);
-    return response;
+    console.log(`[API] Step 1: Sending text payload to create bot`, textPayload);
+    const createdBot = await api.post<BotDetails>('/api/v1/bots/', textPayload);
+
+    // --- Step 2: If an avatar URI exists, upload the image ---
+    if (payload.avatarUrl) {
+      console.log(`[API] Step 2: Uploading avatar for bot ID ${createdBot.id}`);
+      
+      const formData = new FormData();
+      // 'uri' is the local file path from the image picker
+      // 'name' is the filename
+      // 'type' is the mime type
+      formData.append('avatar_url', {
+        uri: payload.avatarUrl,
+        name: `avatar_${createdBot.id}.jpg`,
+        type: 'image/jpeg',
+      } as any);
+
+      try {
+        // We use PUT or PATCH to update the existing bot with the image.
+        // Let's assume the BotSerializer can handle file uploads on an update.
+        const updatedBot = await api.patch<BotDetails>(`/api/v1/bots/${createdBot.id}/`, formData, {
+          headers: {
+            'Content-Type': 'multipart/form-data', // This is crucial for file uploads
+          },
+        });
+        return updatedBot; // Return the bot with the final avatar URL
+      } catch (error) {
+        console.error("Avatar upload failed:", error);
+        // If upload fails, we still return the created bot without the avatar
+        return createdBot;
+      }
+    }
+
+    return createdBot; // Return the bot if no avatar was selected
   },
 };
 

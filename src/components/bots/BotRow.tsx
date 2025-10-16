@@ -28,6 +28,7 @@ export const BotRow: React.FC<Props> = ({ item }) => {
       
       navigation.navigate('ChatScreen', {
         chatId: bootstrapData.conversationId,
+        botId: item.id, // --- ADICIONADO: Passa o botId para o ecrã de chat ---
         botName: bootstrapData.bot.name,
         botHandle: bootstrapData.bot.handle,
         botAvatarUrl: bootstrapData.bot.avatarUrl,

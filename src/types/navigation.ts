@@ -16,6 +16,7 @@ export type RootStackParamList = {
   // Stack Screens
   ChatScreen: { 
     chatId: string;
+    botId: string; // --- ADICIONADO: Garante que sabemos qual bot está no chat ---
     botName: string; // Pass bot name for the header
     botHandle: string; // Pass bot handle for the header
     botAvatarUrl?: string | null; // Pass avatar for the header

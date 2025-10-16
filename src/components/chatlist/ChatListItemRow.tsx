@@ -31,6 +31,7 @@ export const ChatListItemRow: React.FC<Props> = ({ item }) => {
     // Navigate to the chat screen, passing all necessary info for the header
     navigation.navigate('ChatScreen', {
       chatId: item.id,
+      botId: item.bot.id, // --- ADICIONADO: Passa o botId para o ecrã de chat ---
       botName: item.bot.name,
       botHandle: `@${item.bot.name}`, // Placeholder for handle
       botAvatarUrl: item.bot.avatar_url,
