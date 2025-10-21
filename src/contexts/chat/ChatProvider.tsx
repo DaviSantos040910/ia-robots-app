@@ -43,8 +43,10 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setChatData(chatId, { isInitialLoad: true });
     try {
       const response = await chatService.getMessages(chatId, 1);
+      // Messages from API are newest first, but FlatList inverted needs them oldest first.
+      // So we reverse the initial batch.
       setChatData(chatId, {
-        messages: response.results,
+        messages: response.results.reverse(),
         nextPage: response.next ? 2 : null,
         isInitialLoad: false,
       });
@@ -62,7 +64,8 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       const response = await chatService.getMessages(chatId, chat.nextPage);
       setChatData(chatId, {
-        messages: [...chat.messages, ...response.results],
+        // Prepend older messages to the beginning of the list for inverted FlatList
+        messages: [...response.results.reverse(), ...chat.messages],
         nextPage: response.next ? chat.nextPage + 1 : null,
         isLoadingMore: false,
       });
@@ -72,22 +75,43 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   }, [chats]);
   
+  // --- FUNÇÃO CORRIGIDA ---
   const sendMessage = async (chatId: string, text: string) => {
-    const userMsg: ChatMessage = { id: String(Date.now()), role: 'user', content: text, created_at: new Date().toISOString() };
+    // 1. Create a temporary user message for immediate UI update (optimistic response)
+    const tempUserMsg: ChatMessage = { 
+      id: `temp_${Date.now()}`, 
+      role: 'user', 
+      content: text, 
+      created_at: new Date().toISOString() 
+    };
     
-    setChatData(chatId, { messages: [userMsg, ...(chats[chatId]?.messages || [])] });
-    
-    // --- CORREÇÃO APLICADA AQUI ---
-    // Corrigido 'setTypingById' para 'setIsTypingById' e adicionada a tipagem para 'prev'.
+    // 2. Add the temporary message to the end of the current messages array
+    setChatData(chatId, { messages: [...(chats[chatId]?.messages || []), tempUserMsg] });
     setIsTypingById((prev: Record<string, boolean>) => ({ ...prev, [chatId]: true }));
     
     try {
-      const reply = await chatService.sendMessage(chatId, text);
-      setChatData(chatId, { messages: [reply, userMsg, ...(chats[chatId]?.messages || [])].filter(m => m.id !== userMsg.id) });
+      // 3. Send the message to the backend. The service handles the correct payload.
+      const aiReply = await chatService.sendMessage(chatId, text);
+      
+      // 4. On success, add the AI's reply to the messages list.
+      // We don't need to update the user's message as the backend already saved it.
+      // We simply remove our temporary message and add the AI's response.
+      setChatData(chatId, { 
+        messages: [...(chats[chatId]?.messages || []).filter(m => m.id !== tempUserMsg.id), aiReply] 
+      });
+
     } catch (error) {
       console.error("Failed to send message:", error);
+      // Optional: Add an error message to the chat UI
+      const errorMsg: ChatMessage = {
+        id: `err_${Date.now()}`,
+        role: 'assistant',
+        content: 'Sorry, I could not send your message. Please try again.',
+        created_at: new Date().toISOString()
+      };
+      setChatData(chatId, { messages: [...(chats[chatId]?.messages || []).filter(m => m.id !== tempUserMsg.id), errorMsg] });
+
     } finally {
-      // --- CORREÇÃO APLICADA AQUI ---
       setIsTypingById((prev: Record<string, boolean>) => ({ ...prev, [chatId]: false }));
     }
   };

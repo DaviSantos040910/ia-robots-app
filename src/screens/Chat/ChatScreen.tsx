@@ -17,6 +17,9 @@ import { useChatController } from '../../contexts/chat/ChatProvider';
 import { ActionSheetMenu, type Anchor } from '../../components/chat/ActionSheetMenu';
 import type { RootStackParamList } from '../../types/navigation';
 import { useFadeSlideIn } from '../../components/shared/Motion';
+import { botService } from '../../services/botService'; // Importar o botService
+import { ChatBootstrap } from '../../types/chat'; // Importar ChatBootstrap
+import { SuggestionChip } from '../../components/chat/SuggestionChip';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'ChatScreen'>;
 
@@ -24,6 +27,8 @@ const ChatScreen: React.FC<Props> = ({ route, navigation }) => {
   // Use a state for chatId to allow it to be updated when a new chat is created
   const { botId } = route.params; 
   const [currentChatId, setCurrentChatId] = useState(route.params.chatId);
+
+  const [bootstrap, setBootstrap] = useState<ChatBootstrap | null>(null);
   
   const { 
     messages, 
@@ -47,10 +52,30 @@ const ChatScreen: React.FC<Props> = ({ route, navigation }) => {
   const [menuAnchor, setMenuAnchor] = useState<Anchor>(null);
 
   // Load initial messages when the screen is focused
+  const loadChatData = useCallback(async (chatIdToLoad: string) => {
+    // Se o bootstrap ainda não foi carregado, carrega-o
+    if (!bootstrap) {
+      try {
+        const data = await botService.getChatBootstrap(botId);
+        setBootstrap(data);
+        // Garante que estamos a usar o ID de conversa correto da API
+        if (chatIdToLoad !== data.conversationId) {
+          setCurrentChatId(data.conversationId);
+        }
+      } catch (error) {
+        console.error("Failed to load bootstrap:", error);
+        // Tratar erro, talvez navegar para trás
+        return;
+      }
+    }
+    // Carrega as mensagens iniciais para o chat ID atual
+    await loadInitialMessages();
+  }, [botId, bootstrap, loadInitialMessages]);
+
   useFocusEffect(
     useCallback(() => {
-      loadInitialMessages();
-    }, [loadInitialMessages])
+      loadChatData(currentChatId);
+    }, [loadChatData, currentChatId])
   );
   
   // --- Handlers ---
@@ -103,18 +128,29 @@ const ChatScreen: React.FC<Props> = ({ route, navigation }) => {
     // Settings menu can be added back here
   ], [t, theme.textPrimary, handleArchiveAndStartNew]);
 
+  const invertedMessages = useMemo(() => [...messages].reverse(), [messages]);
+
   // --- Render ---
   
   const renderHeader = () => (
     isLoadingMore ? <ActivityIndicator style={{ marginVertical: 16 }} color={theme.brand.normal} /> : null
   );
 
-  return (
+  if (!bootstrap || (isInitialLoad && messages.length === 0)) {
+    return (
+      <View style={[s.screen, { justifyContent: 'center', alignItems: 'center' }]}>
+        <ActivityIndicator size="large" color={theme.brand.normal} />
+      </View>
+    );
+  }
+
+ return (
     <SafeAreaView style={s.screen} edges={['top', 'bottom']}>
       <ChatHeader
-        title={route.params.botName}
-        subtitle={route.params.botHandle}
-        avatarUrl={route.params.botAvatarUrl}
+        // Usar os dados do bootstrap
+        title={bootstrap.bot.name}
+        subtitle={bootstrap.bot.handle}
+        avatarUrl={bootstrap.bot.avatarUrl}
         onBack={() => navigation.goBack()}
         onMorePress={(anchor) => { setMenuAnchor(anchor); setMenuOpen(true); }}
       />
@@ -125,15 +161,32 @@ const ChatScreen: React.FC<Props> = ({ route, navigation }) => {
         ) : (
           <FlatList
             inverted // This is key for chat UIs
-            data={messages}
+            data={invertedMessages}
             keyExtractor={(item) => item.id}
             style={{ flex: 1 }}
             contentContainerStyle={s.listContent}
             renderItem={({ item }) => <MessageBubble message={item} />}
-            onEndReached={() => loadMoreMessages()} // Triggered when scrolling to the top (because it's inverted)
+            onEndReached={() => loadMoreMessages()}
             onEndReachedThreshold={0.5}
-            ListHeaderComponent={renderHeader} // Shows loading indicator at the top
-            keyboardShouldPersistTaps="handled"
+            ListHeaderComponent={isLoadingMore ? <ActivityIndicator style={{ marginVertical: 16 }} color={theme.brand.normal} /> : null}            keyboardShouldPersistTaps="handled"
+            ListFooterComponent={ // ListFooterComponent é renderizado no topo quando 'inverted' é true
+            <>
+              {isLoadingMore && <ActivityIndicator style={{ marginVertical: 16 }} color={theme.brand.normal} />}
+              <View style={s.heroContainer}>
+                {/* Opcional: mostrar um avatar no início do chat */}
+              </View>
+              {/* Usar os dados do bootstrap para a mensagem de boas-vindas e sugestões */}
+              <View style={s.welcomeBubble}><Text style={s.bubbleText}>{bootstrap.welcome}</Text></View>
+              {messages.length === 0 && bootstrap.suggestions.length > 0 && (
+                <View style={s.chipStack}>
+                  {bootstrap.suggestions.map((label, idx) => (
+                    <SuggestionChip key={idx} label={label} onPress={() => sendMessage(label)} />
+                  ))}
+                </View>
+              )}
+            </>
+          }
+           
           />
         )}
         
