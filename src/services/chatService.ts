@@ -21,9 +21,9 @@ const realChatService = {
    * @param content - The text content of the user's message.
    * @returns A promise that resolves with the assistant's ChatMessage from the API.
    */
-  async sendMessage(chatId: string, content: string): Promise<ChatMessage> {
-    const response = await api.post<ChatMessage>(`/api/v1/chats/${chatId}/messages/`, { content });
-    return response;
+  async sendMessage(chatId: string, content: string): Promise<ChatMessage[]> { // --- ALTERADO AQUI ---
+    const response = await api.post<ChatMessage[]>(`/api/v1/chats/${chatId}/messages/`, { content });
+    return response; // O backend agora retorna um array de mensagens
   },
   
   /**
@@ -43,8 +43,8 @@ const realChatService = {
 // Mocks for development
 const mockChatService = {
   async getMessages(chatId: string, page: number): Promise<PaginatedMessages> { return { count: 0, next: null, previous: null, results: [] }; },
-  async sendMessage(chatId: string, content: string): Promise<ChatMessage> { 
-    return { id: 'mock', role: 'assistant', content: 'Mock response', created_at: new Date().toISOString() };
+  async sendMessage(chatId: string, content: string): Promise<ChatMessage[]> { // --- ALTERADO AQUI ---
+    return [{ id: 'mock', role: 'assistant', content: 'Mock response', created_at: new Date().toISOString() }];
   },
   async archiveAndCreateNewChat(chatId: string): Promise<{ new_chat_id: string }> { return { new_chat_id: 'new_mock_id' }; },
 };

@@ -3,7 +3,9 @@ import React, { createContext, useContext, useMemo, useState, useCallback } from
 import { ChatMessage, PaginatedMessages } from '../../types/chat';
 import { chatService } from '../../services/chatService';
 
-// New shape for storing chat data, including pagination info.
+// Função auxiliar para criar um atraso
+const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+
 type ChatData = {
   messages: ChatMessage[];
   nextPage: number | null;
@@ -14,11 +16,10 @@ type ChatData = {
 export type ChatStore = {
   chats: Record<string, ChatData>;
   isTypingById: Record<string, boolean>;
-  
   loadInitialMessages: (chatId: string) => Promise<void>;
   loadMoreMessages: (chatId: string) => Promise<void>;
   sendMessage: (chatId: string, text: string) => Promise<void>;
-  archiveAndStartNew: (chatId: string) => Promise<string | null>; // Returns the new chat ID
+  archiveAndStartNew: (chatId: string) => Promise<string | null>;
 };
 
 const ChatContext = createContext<ChatStore | null>(null);
@@ -27,57 +28,54 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [chats, setChats] = useState<Record<string, ChatData>>({});
   const [isTypingById, setIsTypingById] = useState<Record<string, boolean>>({});
 
-  const setChatData = (chatId: string, data: Partial<ChatData>) => {
-    setChats(prev => ({
-      ...prev,
-      [chatId]: {
-        ...prev[chatId] || { messages: [], nextPage: 1, isLoadingMore: false, isInitialLoad: true },
-        ...data,
-      },
+  // --- FUNÇÃO DE ESTADO ATUALIZADA ---
+  // Esta função agora usa um callback para garantir que estamos sempre a modificar o estado MAIS RECENTE.
+  const setChatData = (chatId: string, updater: (prevData: ChatData) => ChatData) => {
+    setChats(prevChats => ({
+      ...prevChats,
+      [chatId]: updater(prevChats[chatId] || { messages: [], nextPage: 1, isLoadingMore: false, isInitialLoad: true }),
     }));
   };
 
   const loadInitialMessages = useCallback(async (chatId: string) => {
     if (chats[chatId] && !chats[chatId].isInitialLoad) return;
-
-    setChatData(chatId, { isInitialLoad: true });
+    
+    setChatData(chatId, (prev) => ({ ...prev, isInitialLoad: true }));
     try {
       const response = await chatService.getMessages(chatId, 1);
-      // Messages from API are newest first, but FlatList inverted needs them oldest first.
-      // So we reverse the initial batch.
-      setChatData(chatId, {
-        messages: response.results.reverse(),
+      setChatData(chatId, (prev) => ({
+        ...prev,
+        messages: response.results.reverse(), // Reverter para FlatList invertida
         nextPage: response.next ? 2 : null,
         isInitialLoad: false,
-      });
+      }));
     } catch (error) {
       console.error("Failed to load initial messages:", error);
-      setChatData(chatId, { isInitialLoad: false });
+      setChatData(chatId, (prev) => ({ ...prev, isInitialLoad: false }));
     }
-  }, [chats]);
+  }, [chats]); // A dependência 'chats' está correta aqui
 
   const loadMoreMessages = useCallback(async (chatId: string) => {
     const chat = chats[chatId];
     if (!chat || chat.isLoadingMore || !chat.nextPage) return;
 
-    setChatData(chatId, { isLoadingMore: true });
+    setChatData(chatId, (prev) => ({ ...prev, isLoadingMore: true }));
     try {
       const response = await chatService.getMessages(chatId, chat.nextPage);
-      setChatData(chatId, {
-        // Prepend older messages to the beginning of the list for inverted FlatList
-        messages: [...response.results.reverse(), ...chat.messages],
-        nextPage: response.next ? chat.nextPage + 1 : null,
+      setChatData(chatId, (prev) => ({
+        ...prev,
+        messages: [...response.results.reverse(), ...prev.messages], // Adicionar mensagens antigas ao início
+        nextPage: response.next ? ((prev.nextPage ?? 1) + 1) : null,
         isLoadingMore: false,
-      });
+      }));
     } catch (error) {
       console.error("Failed to load more messages:", error);
-      setChatData(chatId, { isLoadingMore: false });
+      setChatData(chatId, (prev) => ({ ...prev, isLoadingMore: false }));
     }
-  }, [chats]);
+  }, [chats]); // A dependência 'chats' está correta aqui
   
-  // --- FUNÇÃO CORRIGIDA ---
+  // --- FUNÇÃO SENDMESSAGE TOTALMENTE CORRIGIDA ---
   const sendMessage = async (chatId: string, text: string) => {
-    // 1. Create a temporary user message for immediate UI update (optimistic response)
     const tempUserMsg: ChatMessage = { 
       id: `temp_${Date.now()}`, 
       role: 'user', 
@@ -85,34 +83,52 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
       created_at: new Date().toISOString() 
     };
     
-    // 2. Add the temporary message to the end of the current messages array
-    setChatData(chatId, { messages: [...(chats[chatId]?.messages || []), tempUserMsg] });
+    // 1. Adicionar mensagem do utilizador de forma otimista (usando o updater)
+    setChatData(chatId, (prev) => ({
+      ...prev,
+      messages: [...prev.messages, tempUserMsg]
+    }));
+    
     setIsTypingById((prev: Record<string, boolean>) => ({ ...prev, [chatId]: true }));
     
     try {
-      // 3. Send the message to the backend. The service handles the correct payload.
-      const aiReply = await chatService.sendMessage(chatId, text);
+      // 2. Enviar mensagem e receber um ARRAY de respostas da IA
+      const aiReplies = await chatService.sendMessage(chatId, text);
       
-      // 4. On success, add the AI's reply to the messages list.
-      // We don't need to update the user's message as the backend already saved it.
-      // We simply remove our temporary message and add the AI's response.
-      setChatData(chatId, { 
-        messages: [...(chats[chatId]?.messages || []).filter(m => m.id !== tempUserMsg.id), aiReply] 
-      });
+      setIsTypingById((prev: Record<string, boolean>) => ({ ...prev, [chatId]: false }));
+
+      // 3. Atualizar o estado: remover a mensagem temporária
+      setChatData(chatId, (prev) => ({
+        ...prev,
+        messages: prev.messages.filter(m => m.id !== tempUserMsg.id)
+      }));
+
+      // 4. Adicionar as respostas REAIS da IA, uma a uma, com um atraso
+      for (const reply of aiReplies) {
+        setChatData(chatId, (prev) => ({
+          ...prev,
+          messages: [...prev.messages, reply]
+        }));
+        // Atraso para um efeito de "digitação" natural
+        await sleep(500 + Math.random() * 500);
+      }
 
     } catch (error) {
       console.error("Failed to send message:", error);
-      // Optional: Add an error message to the chat UI
+      setIsTypingById((prev: Record<string, boolean>) => ({ ...prev, [chatId]: false }));
+      
       const errorMsg: ChatMessage = {
         id: `err_${Date.now()}`,
         role: 'assistant',
         content: 'Sorry, I could not send your message. Please try again.',
         created_at: new Date().toISOString()
       };
-      setChatData(chatId, { messages: [...(chats[chatId]?.messages || []).filter(m => m.id !== tempUserMsg.id), errorMsg] });
-
-    } finally {
-      setIsTypingById((prev: Record<string, boolean>) => ({ ...prev, [chatId]: false }));
+      
+      // Atualizar o estado para remover a mensagem temporária e adicionar a de erro
+      setChatData(chatId, (prev) => ({
+        ...prev,
+        messages: [...prev.messages.filter(m => m.id !== tempUserMsg.id), errorMsg]
+      }));
     }
   };
   
@@ -141,7 +157,7 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
   return <ChatContext.Provider value={value}>{children}</ChatContext.Provider>;
 };
 
-// Custom hook to interact with a specific chat's state
+// ... (hook useChatController sem alterações)
 export const useChatController = (chatId: string) => {
   const ctx = useContext(ChatContext);
   if (!ctx) throw new Error('useChatController must be used within ChatProvider');
