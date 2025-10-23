@@ -24,47 +24,48 @@ export type ChatStore = {
 
 const ChatContext = createContext<ChatStore | null>(null);
 
-// --- CORRIGIDO NOVAMENTE: Função auxiliar para remover duplicatas (mais segura) ---
+// --- CORRIGIDO: Função auxiliar para remover duplicatas (lida com IDs numéricos) ---
 const uniqueMessagesById = (messages: ChatMessage[]): ChatMessage[] => {
-  // Garante que a entrada seja um array válido
   if (!Array.isArray(messages)) {
     console.error('uniqueMessagesById received non-array input:', messages);
     return [];
   }
 
-  const seenIds = new Set<string>();
+  const seenIds = new Set<string>(); // Armazena IDs como strings
   const unique: ChatMessage[] = [];
   // Itera da mais antiga para a mais nova para manter a primeira ocorrência
   for (const message of messages) {
-    // *** VERIFICAÇÃO DE SEGURANÇA REFORÇADA ***
     // 1. Verifica se 'message' é um objeto e não nulo
-    // 2. Verifica se 'message.id' existe e é uma string
-    if (message && typeof message === 'object' && typeof message.id === 'string') {
-      const currentId = String(message.id);      const isTemporaryOrError = currentId.startsWith('temp_') || currentId.startsWith('err_');
+    // 2. Verifica se 'message.id' existe e NÃO é nulo/undefined
+    if (message && typeof message === 'object' && message.id != null) {
 
-      if (!seenIds.has(currentId)) {
-        seenIds.add(currentId);
+      // *** CONVERTE ID PARA STRING ***
+      const currentIdString = String(message.id);
+      // ****************************
+
+      // Agora a verificação .startsWith() funciona
+      const isTemporaryOrError = currentIdString.startsWith('temp_') || currentIdString.startsWith('err_');
+
+      if (!seenIds.has(currentIdString)) {
+        seenIds.add(currentIdString);
         unique.push(message);
       } else if (isTemporaryOrError) {
         // Lógica para substituir se necessário (mantém a versão temp/erro sobre a real se o ID colidir)
-        const existingIndex = unique.findIndex(m => m.id === currentId);
+        const existingIndex = unique.findIndex(m => String(m.id) === currentIdString); // Compara como string
         if (existingIndex > -1) {
-          console.warn(`Replacing existing message ID ${currentId} with temporary/error version.`);
+          console.warn(`Replacing existing message ID ${currentIdString} with temporary/error version.`);
           unique[existingIndex] = message; // Substitui no lugar
         } else {
-          // Se não encontrou para substituir (improvável), apenas adiciona
-          unique.push(message);
+          unique.push(message); // Se não achou para substituir, adiciona
         }
-        // Garante que o ID (agora temp/erro) está no set se foi adicionado/substituído
-        seenIds.add(currentId);
+        seenIds.add(currentIdString); // Garante que está no set
       } else {
-        console.warn(`Duplicate message ID detected and skipped: ${currentId}`);
+        // Loga apenas se for uma duplicata real, não um temp/erro substituindo
+         console.warn(`Duplicate message ID detected and skipped: ${currentIdString}`);
       }
     } else {
-      // Loga o item inválido encontrado
-      console.warn('Skipping invalid message object during unique check:', message);
+      console.warn('Skipping invalid message object (missing or invalid ID) during unique check:', message);
     }
-    // *******************************************
   }
   return unique;
 };
@@ -76,14 +77,12 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
  const [isTypingById, setIsTypingById] = useState<Record<string, boolean>>({});
 
  // --- setChatData AGORA GARANTE UNICIDADE ---
- const setChatData = (chatId: string, updater: (prevData: ChatData) => ChatData) => {
+const setChatData = (chatId: string, updater: (prevData: ChatData) => ChatData) => {
    setChats(prevChats => {
      const newState = { ...prevChats };
      const currentChatData = newState[chatId] || { messages: [], nextPage: 1, isLoadingMore: false, isInitialLoad: true };
-     // Calcula o próximo estado
      const nextChatDataCandidate = updater(currentChatData);
      // Garante que as mensagens são válidas e únicas *antes* de definir o estado
-     // Passa um array vazio como fallback caso messages seja undefined
      const validAndUniqueMessages = uniqueMessagesById(nextChatDataCandidate.messages || []);
 
      newState[chatId] = {
@@ -98,48 +97,51 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
  // Carrega mensagens iniciais
  const loadInitialMessages = useCallback(async (chatId: string) => {
    const currentChat = chats[chatId];
-   if (currentChat && (currentChat.isLoadingMore || !currentChat.isInitialLoad)) return;
+    // Previne múltiplas chamadas concorrentes
+   if (currentChat && (currentChat.isLoadingMore || currentChat.isInitialLoad)) return;
+   // Previne recarregar se já terminou o load inicial
+   if (currentChat && !currentChat.isInitialLoad) return;
+
 
    setChatData(chatId, (prev) => ({ ...prev, isInitialLoad: true, isLoadingMore: false }));
    try {
      console.log(`[API] Fetching initial messages for chat ${chatId}, page 1`);
      const response = await chatService.getMessages(chatId, 1);
-     // Adiciona verificação para garantir que response.results é um array
-     const results = Array.isArray(response.results) ? response.results : [];
+     const results = Array.isArray(response?.results) ? response.results : []; // Valida results
      setChatData(chatId, (prev) => ({
        ...prev,
        messages: results.reverse(), // Mantém reverse para FlatList invertida
-       nextPage: response.next ? 2 : null,
+       nextPage: response?.next ? 2 : null, // Usa optional chaining
        isInitialLoad: false,
      }));
    } catch (error) {
      console.error(`Failed to load initial messages for ${chatId}:`, error);
      setChatData(chatId, (prev) => ({ ...prev, isInitialLoad: false }));
    }
- }, [chats]);
+ }, [chats]); // chats como dependência
 
  // Carrega mais mensagens
  const loadMoreMessages = useCallback(async (chatId: string) => {
    const chat = chats[chatId];
+   // Previne múltiplas chamadas
    if (!chat || chat.isLoadingMore || !chat.nextPage || chat.isInitialLoad) return;
 
    setChatData(chatId, (prev) => ({ ...prev, isLoadingMore: true }));
    try {
      console.log(`[API] Fetching more messages for chat ${chatId}, page ${chat.nextPage}`);
      const response = await chatService.getMessages(chatId, chat.nextPage);
-      // Adiciona verificação para garantir que response.results é um array
-     const results = Array.isArray(response.results) ? response.results : [];
+     const results = Array.isArray(response?.results) ? response.results : []; // Valida results
      setChatData(chatId, (prev) => ({
        ...prev,
        messages: [...results.reverse(), ...prev.messages],
-       nextPage: response.next ? ((prev.nextPage ?? 1) + 1) : null,
+       nextPage: response?.next ? ((prev.nextPage ?? 1) + 1) : null, // Usa optional chaining
        isLoadingMore: false,
      }));
    } catch (error) {
      console.error(`Failed to load more messages for ${chatId}:`, error);
      setChatData(chatId, (prev) => ({ ...prev, isLoadingMore: false }));
    }
- }, [chats]);
+ }, [chats]); // chats como dependência
 
  // Envia mensagem
  const sendMessage = async (chatId: string, text: string) => {
@@ -151,6 +153,7 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
      created_at: new Date().toISOString()
    };
 
+   // Adiciona otimista
    setChatData(chatId, (prev) => ({
      ...prev,
      messages: [...prev.messages, tempUserMsg]
@@ -160,16 +163,29 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
    try {
      const aiReplies = await chatService.sendMessage(chatId, text);
-     // Adiciona verificação para garantir que aiReplies é um array
      const validAiReplies = Array.isArray(aiReplies) ? aiReplies : [];
 
-     setChatData(chatId, (prev) => ({
-       ...prev,
-       messages: [
-         ...prev.messages.filter(m => m?.id !== tempId), // Adiciona check para m?.id
-         ...validAiReplies
-       ]
-     }));
+     // Atualiza o estado UMA VEZ
+     setChatData(chatId, (prev) => {
+       // Log para depuração
+       // console.log(`[sendMessage Update - ${chatId}] Before filter (tempId: ${tempId}):`, prev.messages.map(m => m.id));
+       const messagesWithoutTemp = prev.messages.filter(m => {
+         // Garante que m existe e tem id antes de comparar
+         const isTemp = m && m.id === tempId;
+         // if (isTemp) console.log(`[sendMessage Update - ${chatId}] Filtering out temp message: ${tempId}`);
+         return !isTemp;
+       });
+       // console.log(`[sendMessage Update - ${chatId}] After filter, before adding AI:`, messagesWithoutTemp.map(m => m.id));
+       // console.log(`[sendMessage Update - ${chatId}] AI replies to add:`, validAiReplies.map(m => m.id));
+
+       return {
+         ...prev,
+         messages: [
+           ...messagesWithoutTemp, // Mensagens existentes sem a temporária
+           ...validAiReplies      // Novas respostas da IA
+         ]
+       };
+     });
 
      setIsTypingById((prev) => ({ ...prev, [chatId]: false }));
 
@@ -185,7 +201,8 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
       };
      setChatData(chatId, (prev) => ({
        ...prev,
-       messages: [...prev.messages.filter(m => m?.id !== tempId), errorMsg] // Adiciona check para m?.id
+       // Garante que m existe antes de acessar m.id
+       messages: [...prev.messages.filter(m => m?.id !== tempId), errorMsg]
      }));
    }
  };
