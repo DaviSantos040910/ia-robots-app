@@ -165,27 +165,20 @@ const setChatData = (chatId: string, updater: (prevData: ChatData) => ChatData) 
      const aiReplies = await chatService.sendMessage(chatId, text);
      const validAiReplies = Array.isArray(aiReplies) ? aiReplies : [];
 
-     // Atualiza o estado UMA VEZ
-     setChatData(chatId, (prev) => {
-       // Log para depuração
-       // console.log(`[sendMessage Update - ${chatId}] Before filter (tempId: ${tempId}):`, prev.messages.map(m => m.id));
-       const messagesWithoutTemp = prev.messages.filter(m => {
-         // Garante que m existe e tem id antes de comparar
-         const isTemp = m && m.id === tempId;
-         // if (isTemp) console.log(`[sendMessage Update - ${chatId}] Filtering out temp message: ${tempId}`);
-         return !isTemp;
-       });
-       // console.log(`[sendMessage Update - ${chatId}] After filter, before adding AI:`, messagesWithoutTemp.map(m => m.id));
-       // console.log(`[sendMessage Update - ${chatId}] AI replies to add:`, validAiReplies.map(m => m.id));
-
-       return {
-         ...prev,
-         messages: [
-           ...messagesWithoutTemp, // Mensagens existentes sem a temporária
-           ...validAiReplies      // Novas respostas da IA
-         ]
-       };
-     });
+     // --- CORREÇÃO APLICADA AQUI ---
+     // Atualiza o estado APENAS adicionando as respostas da IA.
+     // A mensagem do usuário (tempUserMsg) já está no estado.
+     setChatData(chatId, (prev) => ({
+       ...prev,
+       // Mantém as mensagens existentes (incluindo tempUserMsg) e adiciona as novas
+       messages: [
+         ...prev.messages,
+         ...validAiReplies
+       ]
+       // Nota: uniqueMessagesById dentro de setChatData removerá duplicatas
+       // se a API acidentalmente retornar a mensagem do usuário também.
+     }));
+     // -------------------------
 
      setIsTypingById((prev) => ({ ...prev, [chatId]: false }));
 
@@ -199,14 +192,13 @@ const setChatData = (chatId: string, updater: (prevData: ChatData) => ChatData) 
         content: 'Sorry, I could not send your message. Please try again.',
         created_at: new Date().toISOString()
       };
+      // Em caso de erro, remove a temporária e adiciona a mensagem de erro
      setChatData(chatId, (prev) => ({
        ...prev,
-       // Garante que m existe antes de acessar m.id
        messages: [...prev.messages.filter(m => m?.id !== tempId), errorMsg]
      }));
    }
  };
-
  // Arquivar chat
  const archiveAndStartNew = useCallback(async (chatId: string): Promise<string | null> => {
    try {

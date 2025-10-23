@@ -198,8 +198,13 @@ const ChatScreen: React.FC<Props> = ({ route, navigation }) => {
           />
 
           {/* Indicador 'digitando' e Input abaixo da lista */}
-          {isTyping && <Text style={{ textAlign: 'center', color: theme.textSecondary, padding: 4 }}>Bot is typing...</Text>}
-          <ChatInput
+            {isTyping && (
+            <View style={{ padding: 4 }}>
+              <Text style={{ textAlign: 'center', color: theme.textSecondary }}>
+                  Bot is typing...
+              </Text>
+            </View>
+          )}   <ChatInput
             value={input}
             onChangeText={setInput}
             onSend={handleSend}
