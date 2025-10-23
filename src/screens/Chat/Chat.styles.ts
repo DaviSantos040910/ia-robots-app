@@ -46,12 +46,37 @@ export const createChatStyles = (t: ChatTheme) =>
     screen: { flex: 1, backgroundColor: t.background },
     content: { flex: 1, backgroundColor: t.background },
 
-    listContent: { paddingHorizontal: Spacing['spacing-group-s'], paddingTop: 12 },
+    listContent: { paddingHorizontal: Spacing['spacing-group-s'] },
 
-    heroContainer: { alignItems: 'center', marginTop: Spacing['spacing-element-l'], marginBottom: Spacing['spacing-element-l'] },
-    heroAvatarRing: { width: 100, height: 100, borderRadius: 50, backgroundColor: t.surface, alignItems: 'center', justifyContent: 'center', elevation: 2, shadowColor: '#000', shadowOpacity: 0.1, shadowRadius: 4, shadowOffset: {width: 0, height: 2} },
-    heroAvatar: { width: 92, height: 92, borderRadius: 46, backgroundColor: t.surfaceAlt },
-    welcomeBubble: { backgroundColor: t.surface, borderRadius: Radius.xLarge, paddingHorizontal: Spacing['spacing-group-s'], paddingVertical: Spacing['spacing-element-l'], borderWidth: StyleSheet.hairlineWidth, borderColor: t.border, maxWidth: '90%', alignSelf: 'center', marginTop: 20, borderTopLeftRadius: Radius.small },
+    heroContainer: {
+        alignItems: 'center',
+        marginTop: Spacing['spacing-group-l'], // 24 ou 32
+        marginBottom: Spacing['spacing-group-m'], // 20
+    },
+    // --- ADICIONADO/RESTAURADO ---
+    heroAvatarRing: {
+        width: 100, // Tamanho do anel
+        height: 100,
+        borderRadius: 50, // Metade do tamanho
+        backgroundColor: t.surface, // Cor de fundo do anel
+        alignItems: 'center',
+        justifyContent: 'center',
+        // Sombra opcional
+        elevation: 2,
+        shadowColor: '#000',
+        shadowOpacity: 0.1,
+        shadowRadius: 4,
+        shadowOffset: {width: 0, height: 2},
+        marginBottom: Spacing['spacing-element-l'] // Espaço entre anel e welcome bubble
+    },
+    // --- AJUSTADO ---
+    heroAvatarImage: {
+        width: 92, // Ligeiramente menor que o anel
+        height: 92,
+        borderRadius: 46, // Metade do tamanho da imagem
+        backgroundColor: t.surfaceAlt,
+    },
+    welcomeBubble: { backgroundColor: t.surface, borderRadius: Radius.xLarge, paddingHorizontal: Spacing['spacing-group-s'], paddingVertical: Spacing['spacing-element-l'], borderWidth: StyleSheet.hairlineWidth, borderColor: t.border, maxWidth: '90%', alignSelf: 'flex-start', marginTop: 0,marginLeft: Spacing['spacing-group-s'],marginBottom: Spacing['spacing-group-m'], borderTopLeftRadius: Radius.small },
     bubbleText: { ...Typography.bodyRegular.medium, color: t.textPrimary },
     userText: { ...Typography.bodyRegular.medium, color: '#FFFFFF' },
 
@@ -81,7 +106,7 @@ export const createChatStyles = (t: ChatTheme) =>
     chipStack: { marginTop: 24, width: '100%', alignItems: 'flex-start', paddingHorizontal: Spacing['spacing-group-s'] },
     // CORREÇÃO: Removido `alignSelf` e `marginHorizontal` para seguir o alinhamento do container.
     chipItem: { marginBottom: 16 },
-    chip: { backgroundColor: t.surface, borderRadius: Radius.extraLarge, paddingHorizontal: Spacing['spacing-group-s'], paddingVertical: Spacing['spacing-element-l'], borderWidth: StyleSheet.hairlineWidth, borderColor: t.border, ...Platform.select({ ios: { shadowColor: '#000', shadowOpacity: 0.06, shadowRadius: 6, shadowOffset: { width: 0, height: 2 } }, android: { elevation: 2 } }) },
+    chip: { backgroundColor: t.surface, borderRadius: Radius.extraLarge, paddingHorizontal: Spacing['spacing-group-s'], paddingVertical: Spacing['spacing-element-l'], borderWidth: StyleSheet.hairlineWidth, borderColor: t.border, ...Platform.select({ ios: { shadowColor: '#000', shadowOpacity: 0.06, shadowRadius: 6, shadowOffset: { width: 0, height: 2 } }, android: { elevation: 2 } }), marginBottom: Spacing['spacing-element-l'] },
     chipText: { ...Typography.bodyMedium.medium, color: t.textPrimary },
 
     // --- Mini Suggestion Chips (In-chat) ---
