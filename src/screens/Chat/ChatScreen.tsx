@@ -1,6 +1,6 @@
 // src/screens/Chat/ChatScreen.tsx
-import React, { useCallback, useState, useMemo, useRef } from 'react'; // Remova useEffect se não for mais usado para scrollToRef
-import { ActivityIndicator, FlatList, Platform, View, Text, KeyboardAvoidingView, Alert, Image } from 'react-native';
+import React, { useCallback, useState, useMemo, useEffect } from 'react';
+import { ActivityIndicator, FlatList, Platform, View, Text, KeyboardAvoidingView, Alert, Image, Pressable } from 'react-native';
 import { useColorScheme } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
@@ -11,33 +11,38 @@ import { Feather } from '@expo/vector-icons';
 import { ChatHeader } from '../../components/chat/ChatHeader';
 import { ChatInput } from '../../components/chat/ChatInput';
 import { MessageBubble } from '../../components/chat/MessageBubble';
+import { SuggestionChip } from '../../components/chat/SuggestionChip';
 import { createChatStyles, getTheme } from './Chat.styles';
-import { ChatMessage } from '../../types/chat';
+import { ChatBootstrap, ChatMessage } from '../../types/chat';
 import { useChatController } from '../../contexts/chat/ChatProvider';
 import { ActionSheetMenu, type Anchor } from '../../components/chat/ActionSheetMenu';
 import type { RootStackParamList } from '../../types/navigation';
-// import { useFadeSlideIn } from '../../components/shared/Motion'; // Removido se não for usado
 import { botService } from '../../services/botService';
-import { ChatBootstrap } from '../../types/chat';
-import { SuggestionChip } from '../../components/chat/SuggestionChip';
-import { Spacing } from '../../theme/spacing'; // Import Spacing
 import { chatService } from '../../services/chatService';
+import { smoothLayout } from '../../components/shared/Motion';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'ChatScreen'>;
 
 const ChatScreen: React.FC<Props> = ({ route, navigation }) => {
+  // --- STATE AND PARAMS ---
   const { botId, isArchived: initialIsArchived } = route.params;
   const [currentChatId, setCurrentChatId] = useState(route.params.chatId);
   const [bootstrap, setBootstrap] = useState<ChatBootstrap | null>(null);
-
+  const [input, setInput] = useState('');
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [menuAnchor, setMenuAnchor] = useState<Anchor>(null);
+  
+  // --- CORREÇÃO: Readicionado o estado para controlar os chips de sugestão ---
+  const [showHeaderChips, setShowHeaderChips] = useState(true);
+  
   const [isReadOnly, setIsReadOnly] = useState(initialIsArchived ?? false);
 
-  const {
-    messages,
+  // --- HOOKS ---
+  const { 
+    messages, 
     isTyping,
     isLoadingMore,
     isInitialLoad,
-    nextPage,
     loadInitialMessages,
     loadMoreMessages,
     sendMessage,
@@ -49,41 +54,76 @@ const ChatScreen: React.FC<Props> = ({ route, navigation }) => {
   const theme = getTheme(scheme === 'dark');
   const s = createChatStyles(theme);
 
-  const [input, setInput] = useState('');
-  const [menuOpen, setMenuOpen] = useState(false);
-  const [menuAnchor, setMenuAnchor] = useState<Anchor>(null);
-  // const flatListRef = useRef<FlatList>(null); // Removido - não precisamos mais do ref para scrollToEnd
-
-  const loadChatData = useCallback(async (chatIdToLoad: string) => {
-    if (!bootstrap) {
-      try {
+  // --- DATA LOADING ---
+  const loadChatData = useCallback(async () => {
+    try {
+      if (!bootstrap || currentChatId !== bootstrap.conversationId) {
         const data = await botService.getChatBootstrap(botId);
         setBootstrap(data);
-        if (chatIdToLoad !== data.conversationId) {
+        if (currentChatId !== data.conversationId) {
           setCurrentChatId(data.conversationId);
         }
-      } catch (error) {
-        console.error("Failed to load bootstrap:", error);
-        return;
       }
+      await loadInitialMessages();
+    } catch (error) {
+      console.error("Failed to load chat data:", error);
+      Alert.alert("Error", "Could not load chat data. Please go back and try again.");
     }
-    await loadInitialMessages();
-  }, [botId, bootstrap, loadInitialMessages]);
+  }, [botId, bootstrap, loadInitialMessages, currentChatId]);
 
   useFocusEffect(
     useCallback(() => {
-      loadChatData(currentChatId);
-    }, [loadChatData, currentChatId])
+      // Quando o ecrã foca, garante que voltamos ao modo não-leitura se viemos de um arquivo
+      // e o chatId pode ter sido atualizado pela ativação
+      setIsReadOnly(initialIsArchived ?? false); 
+      loadChatData();
+    }, [loadChatData, initialIsArchived]) // Executa se loadChatData ou initialIsArchived mudar
   );
+  
+  // --- UI LOGIC ---
+  useEffect(() => {
+    if (isReadOnly) {
+      setShowHeaderChips(false);
+    } else {
+        // Quando não está em modo leitura, resetar o showHeaderChips se não houver mensagens
+        setShowHeaderChips(messages.length === 0);
+    }
+  }, [isReadOnly, messages.length]); // Reavalia quando o modo leitura ou as mensagens mudam
 
-  // --- Handlers ---
-  const handleOpenSettings = () => navigation.navigate('BotSettings', { botId });
+  useEffect(() => {
+    if (!isReadOnly && messages.length > 0 && showHeaderChips) {
+      smoothLayout();
+      setShowHeaderChips(false);
+    }
+  }, [messages.length, showHeaderChips, isReadOnly]);
+
+  // --- HANDLERS ---
+  
+  const handleOpenSettings = () => {
+    navigation.navigate('BotSettings', { botId });
+  };
+  
   const handleSend = () => {
     const value = input.trim();
-    if (!value || isTyping) return;
+    if (!value || isTyping || isReadOnly) return;
+    
+    if (showHeaderChips) {
+      smoothLayout();
+      setShowHeaderChips(false);
+    }
     sendMessage(value);
     setInput('');
   };
+
+  // --- CORREÇÃO: Readicionada a função para os chips de sugestão ---
+  const onHeaderChipPress = (label: string) => {
+    if (showHeaderChips) {
+      smoothLayout();
+      setShowHeaderChips(false);
+    }
+    sendMessage(label);
+  };
+
   const handleArchiveAndStartNew = () => {
     Alert.alert(
       t('chat.newChatTitle'),
@@ -95,13 +135,21 @@ const ChatScreen: React.FC<Props> = ({ route, navigation }) => {
           style: 'destructive',
           onPress: async () => {
             const newChatId = await archiveAndStartNew();
-            if (newChatId) setCurrentChatId(newChatId);
+            if (newChatId) {
+              setCurrentChatId(newChatId);
+              setBootstrap(null); // Force bootstrap to reload for the new chat
+              setIsReadOnly(false); // New chat is never read-only
+              setShowHeaderChips(true); // Show chips for the new chat
+            }
           },
         },
       ]
     );
   };
-  const handleViewArchived = () => navigation.navigate('ArchivedChats', { botId });
+  
+  const handleViewArchived = () => {
+    navigation.navigate('ArchivedChats', { botId });
+  };
 
   const handleActivateChat = () => {
     Alert.alert(
@@ -113,16 +161,11 @@ const ChatScreen: React.FC<Props> = ({ route, navigation }) => {
           text: t('chat.proceed'),
           onPress: async () => {
             try {
-              // Call the new service function
               await chatService.setActiveChat(currentChatId);
-              
-              // On success, disable read-only mode locally
-              setIsReadOnly(false); 
+              setIsReadOnly(false); // Desativa o modo leitura
+              // Força o recarregamento do bootstrap para garantir que temos o ID correto (embora deva ser o mesmo)
+              setBootstrap(null); 
               Alert.alert(t('chat.activateSuccess'));
-              
-              // We could also navigate away and back, but simply
-              // enabling the input provides immediate feedback.
-              // The main chat list will update on next focus.
             } catch (error) {
               console.error("Failed to activate chat:", error);
               Alert.alert("Error", "Could not activate this conversation.");
@@ -132,65 +175,31 @@ const ChatScreen: React.FC<Props> = ({ route, navigation }) => {
       ]
     );
   };
-
+  
   const menuItems = useMemo(() => [
     { label: t('chat.menuSettings'), onPress: handleOpenSettings, icon: <Feather name="settings" size={18} color={theme.textPrimary} /> },
     { label: t('chat.menuNewChat'), onPress: handleArchiveAndStartNew, icon: <Feather name="plus-circle" size={18} color={theme.textPrimary} /> },
     { label: t('chat.menuArchivedChats'), onPress: handleViewArchived, icon: <Feather name="archive" size={18} color={theme.textPrimary} /> },
-  ], [t, theme.textPrimary, handleArchiveAndStartNew, handleOpenSettings, handleViewArchived]); // Adicione as dependências que faltavam
+  ], [t, theme.textPrimary, handleArchiveAndStartNew, handleOpenSettings, handleViewArchived]);
 
   const invertedMessages = useMemo(() => [...messages].reverse(), [messages]);
 
-  // --- Renderização ---
-
-  // Componente movido para dentro da função principal para acessar `bootstrap`, `isInitialLoad`, `messages`
-  const renderChatListFooter = () => {
-    if (!bootstrap) return null; // Não renderiza nada se o bootstrap não carregou
-
-    const showSuggestions = !isInitialLoad && messages.length === 0 && bootstrap.suggestions.length > 0;
-
-    return (
-      <>
-        {/* Avatar Hero Centralizado */}
-        <View style={s.heroContainer}>
-          <View style={s.heroAvatarRing}>
-            <Image
-              source={bootstrap.bot.avatarUrl ? { uri: bootstrap.bot.avatarUrl } : require('../../assets/avatar.png')}
-              style={s.heroAvatarImage} // Estilo da imagem (menor que o anel)
-            />
-          </View>
-        </View>
-
-        {/* Mensagem de Boas-Vindas */}
-        <View style={s.welcomeBubble}>
-            <Text style={s.bubbleText}>{bootstrap.welcome}</Text>
-        </View>
-
-        {/* Sugestões Iniciais (Condicionais) */}
-        {showSuggestions && (
-          <View style={s.chipStack}>
-            {bootstrap.suggestions.map((label, idx) => (
-              <SuggestionChip
-                key={idx}
-                label={label}
-                onPress={() => sendMessage(label)}
-              />
-            ))}
-          </View>
-        )}
-      </>
-    );
-  };
+  // --- RENDER ---
 
   if (!bootstrap) {
     return (
-      <View style={[s.screen, { justifyContent: 'center', alignItems: 'center' }]}>
-        <ActivityIndicator size="large" color={theme.brand.normal} />
-      </View>
+      <SafeAreaView style={[s.screen, { justifyContent: 'center', alignItems: 'center' }]}>
+        <ChatHeader title={route.params.botName} subtitle={route.params.botHandle} onBack={() => navigation.goBack()} />
+        <ActivityIndicator size="large" color={theme.brand.normal} style={{ flex: 1 }} />
+      </SafeAreaView>
     );
   }
 
- return (
+  // Determina se o conteúdo inicial (Hero, sugestões) deve ser mostrado
+  // Mostra se (estiver em modo leitura E não houver mensagens) OU se (NÃO estiver em modo leitura E showHeaderChips for true E não houver mensagens)
+  const shouldShowInitialContent = (isReadOnly && messages.length === 0) || (!isReadOnly && showHeaderChips && messages.length === 0);
+
+  return (
     <SafeAreaView style={s.screen} edges={['top', 'bottom']}>
       <ChatHeader
         title={bootstrap.bot.name}
@@ -200,50 +209,67 @@ const ChatScreen: React.FC<Props> = ({ route, navigation }) => {
         onMorePress={(anchor) => { setMenuAnchor(anchor); setMenuOpen(true); }}
       />
 
-      <KeyboardAvoidingView
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'} keyboardVerticalOffset={Platform.OS === 'ios' ? 60 : 0}>
+        <FlatList
+          inverted
+          data={invertedMessages}
+          keyExtractor={(item) => item.id}
           style={{ flex: 1 }}
-          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-          keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0} // Pode precisar ajustar o offset para iOS
-      >
-          {/* FlatList é o principal elemento de conteúdo */}
-          <FlatList
-            // ref={flatListRef} // Removido ref
-            inverted // Mantém invertido
-            data={invertedMessages} // Usa as mensagens já invertidas pelo useMemo
-            keyExtractor={(item) => item.id}
-            style={{ flex: 1 }}
-            // Ajuste o padding aqui se necessário (especialmente paddingBottom)
-            contentContainerStyle={s.listContent}
-            renderItem={({ item }) => <MessageBubble message={item} />}
-            onEndReached={() => loadMoreMessages()}
-            onEndReachedThreshold={0.5}
-            // ListHeaderComponent (visual: fundo) é para loading de mensagens antigas
-            ListHeaderComponent={isLoadingMore ? <ActivityIndicator style={{ marginVertical: 16 }} color={theme.brand.normal} /> : null}
-            // ListFooterComponent (visual: topo) contém hero, welcome e sugestões
-            ListFooterComponent={renderChatListFooter}
-            keyboardShouldPersistTaps="handled"
-            // Mostra indicador de loading inicial DENTRO da lista se não houver mensagens ainda
-            ListEmptyComponent={isInitialLoad ? (
-                <View style={{flex: 1, justifyContent: 'center', alignItems: 'center', transform: [{ scaleY: -1 }] }}> {/* Inverte a escala para compensar o 'inverted' */}
-                     <ActivityIndicator size="large" color={theme.brand.normal} />
+          contentContainerStyle={s.listContent}
+          renderItem={({ item }) => <MessageBubble message={item} onSuggestionPress={(_, label) => sendMessage(label)} />}
+          onEndReached={() => loadMoreMessages()}
+          onEndReachedThreshold={0.5}
+          ListHeaderComponent={isLoadingMore ? <ActivityIndicator style={{ marginVertical: 16 }} color={theme.brand.normal} /> : null}
+          
+          ListFooterComponent={
+            <>
+              {/* O Hero (avatar + welcome) é sempre mostrado, a menos que esteja a carregar inicialmente */}
+              {!(isInitialLoad && messages.length === 0) && (
+                <>
+                  <View style={s.heroContainer}>
+                    <View style={s.heroAvatarRing}>
+                      <Image 
+                        source={bootstrap.bot.avatarUrl ? { uri: bootstrap.bot.avatarUrl } : require('../../assets/avatar.png')} 
+                        style={s.heroAvatarImage} 
+                      />
+                    </View>
+                  </View>
+                  <View style={s.welcomeBubble}>
+                    <Text style={s.bubbleText}>{bootstrap.welcome}</Text>
+                  </View>
+                </>
+              )}
+              
+              {/* Sugestões são mostradas se shouldShowInitialContent for verdadeiro */}
+              {shouldShowInitialContent && bootstrap.suggestions.length > 0 && (
+                <View style={s.chipStack}>
+                  {bootstrap.suggestions.map((label, idx) => (
+                    <SuggestionChip key={idx} label={label} onPress={() => onHeaderChipPress(label)} />
+                  ))}
                 </View>
-            ) : null} // Não mostra nada se o loading acabou e a lista está vazia
-          />
+              )}
+            </>
+          }
+          keyboardShouldPersistTaps="handled"
+        />
+        
+        {isTyping && <Text style={{ textAlign: 'center', color: theme.textSecondary, padding: 4 }}>Bot is typing...</Text>}
 
-          {/* Indicador 'digitando' e Input abaixo da lista */}
-            {isTyping && (
-            <View style={{ padding: 4 }}>
-              <Text style={{ textAlign: 'center', color: theme.textSecondary }}>
-                  Bot is typing...
-              </Text>
-            </View>
-          )}   <ChatInput
+        {isReadOnly ? (
+          <View style={s.activateBanner}>
+            <Pressable style={s.activateButton} onPress={handleActivateChat}>
+              <Text style={s.activateButtonText}>{t('chat.activateButton')}</Text>
+            </Pressable>
+          </View>
+        ) : (
+          <ChatInput
             value={input}
             onChangeText={setInput}
             onSend={handleSend}
             onMic={() => {}}
             onPlus={() => {}}
           />
+        )}
       </KeyboardAvoidingView>
 
       <ActionSheetMenu
