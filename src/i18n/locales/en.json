@@ -11,7 +11,11 @@
     "newChatTitle": "Start New Chat?",
     "newChatMessage": "This will archive the current conversation and start a new one. Do you want to proceed?",
     "proceed": "Proceed",
-    "inputPlaceholder": "Send message..."
+    "inputPlaceholder": "Send message...",
+    "activateButton": "Make this conversation active",
+    "activateConfirmTitle": "Activate this chat?",
+    "activateConfirmMessage": "This will archive your current active chat with this bot and restore this one. Do you want to proceed?",
+    "activateSuccess": "Conversation is now active."
   },
   "archivedChats": {
     "title": "Archived Chats",

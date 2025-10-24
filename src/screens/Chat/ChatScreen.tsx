@@ -21,13 +21,16 @@ import { botService } from '../../services/botService';
 import { ChatBootstrap } from '../../types/chat';
 import { SuggestionChip } from '../../components/chat/SuggestionChip';
 import { Spacing } from '../../theme/spacing'; // Import Spacing
+import { chatService } from '../../services/chatService';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'ChatScreen'>;
 
 const ChatScreen: React.FC<Props> = ({ route, navigation }) => {
-  const { botId } = route.params;
+  const { botId, isArchived: initialIsArchived } = route.params;
   const [currentChatId, setCurrentChatId] = useState(route.params.chatId);
   const [bootstrap, setBootstrap] = useState<ChatBootstrap | null>(null);
+
+  const [isReadOnly, setIsReadOnly] = useState(initialIsArchived ?? false);
 
   const {
     messages,
@@ -99,6 +102,36 @@ const ChatScreen: React.FC<Props> = ({ route, navigation }) => {
     );
   };
   const handleViewArchived = () => navigation.navigate('ArchivedChats', { botId });
+
+  const handleActivateChat = () => {
+    Alert.alert(
+      t('chat.activateConfirmTitle'),
+      t('chat.activateConfirmMessage'),
+      [
+        { text: t('common.cancel'), style: 'cancel' },
+        {
+          text: t('chat.proceed'),
+          onPress: async () => {
+            try {
+              // Call the new service function
+              await chatService.setActiveChat(currentChatId);
+              
+              // On success, disable read-only mode locally
+              setIsReadOnly(false); 
+              Alert.alert(t('chat.activateSuccess'));
+              
+              // We could also navigate away and back, but simply
+              // enabling the input provides immediate feedback.
+              // The main chat list will update on next focus.
+            } catch (error) {
+              console.error("Failed to activate chat:", error);
+              Alert.alert("Error", "Could not activate this conversation.");
+            }
+          },
+        },
+      ]
+    );
+  };
 
   const menuItems = useMemo(() => [
     { label: t('chat.menuSettings'), onPress: handleOpenSettings, icon: <Feather name="settings" size={18} color={theme.textPrimary} /> },

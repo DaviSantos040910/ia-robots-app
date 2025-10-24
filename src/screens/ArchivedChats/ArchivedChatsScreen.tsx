@@ -34,6 +34,7 @@ const ArchivedChatRow: React.FC<{ item: ChatListItem }> = ({ item }) => {
       botName: item.bot.name,
       botHandle: `@${item.bot.name}`, // Placeholder
       botAvatarUrl: item.bot.avatar_url,
+      isArchived: true,
     });
   };
   

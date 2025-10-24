@@ -141,4 +141,23 @@ export const createChatStyles = (t: ChatTheme) =>
       shadowRadius: 6,
       shadowOffset: { width: 0, height: 3 },
     },
+
+    activateBanner: {
+      paddingHorizontal: Spacing['spacing-element-m'],
+      paddingVertical: Spacing['spacing-element-l'],
+      backgroundColor: t.surface,
+      borderTopWidth: StyleSheet.hairlineWidth,
+      borderTopColor: t.border,
+      alignItems: 'center',
+    },
+    activateButton: {
+      backgroundColor: t.brand.normal,
+      paddingVertical: Spacing['spacing-element-m'],
+      paddingHorizontal: Spacing['spacing-group-s'],
+      borderRadius: Radius.large,
+    },
+    activateButtonText: {
+      ...Typography.bodySemiBold.medium,
+      color: '#FFFFFF',
+    },
   });

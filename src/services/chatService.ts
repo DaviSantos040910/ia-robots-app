@@ -1,6 +1,7 @@
 // src/services/chatService.ts
 import api from './api';
-import { ChatMessage, PaginatedMessages } from '../types/chat'; // Import PaginatedMessages type
+import { ChatMessage, PaginatedMessages, ChatListItem } from '../types/chat'; // Import PaginatedMessages type
+import { string } from 'yup';
 
 const realChatService = {
   /**
@@ -37,8 +38,21 @@ const realChatService = {
     return response;
   },
 
-  // Other functions like rewriteMessage or synthesizeSpeech would go here if needed.
-};
+ /**
+   * Sets a specific chat (usually archived) as the active one.
+   * This will archive the currently active chat for the same bot.
+   * @param chatId - The ID of the chat to activate.
+   * @returns A promise that resolves with the details of the newly activated chat.
+   */
+  async setActiveChat(chatId: string): Promise<ChatListItem> {
+    console.log(`[API] Setting chat ${chatId} as active`);
+    const response = await api.post<ChatListItem>(`/api/v1/chats/${chatId}/set-active/`);
+    return response;
+  },
+  };
+
+
+
 
 // Mocks for development
 const mockChatService = {
@@ -47,6 +61,18 @@ const mockChatService = {
     return [{ id: 'mock', role: 'assistant', content: 'Mock response', created_at: new Date().toISOString() }];
   },
   async archiveAndCreateNewChat(chatId: string): Promise<{ new_chat_id: string }> { return { new_chat_id: 'new_mock_id' }; },
+  
+  async setActiveChat(chatId: string): Promise<ChatListItem> {
+    console.log(`[MOCK] Setting chat ${chatId} as active`);
+    await new Promise(resolve => setTimeout(resolve, 500));
+    return {
+      id: chatId,
+      status: 'active',
+      bot: { id: 'bot_1', name: 'Mock Bot', description: 'Mocked' },
+      last_message: null,
+      last_message_at: new Date().toISOString(),
+    };
+  }
 };
 
 const USE_MOCK_API = false;
