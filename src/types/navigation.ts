@@ -1,11 +1,12 @@
 // src/types/navigation.ts
 import type { ChatMessage, ChatBootstrap, ChatListItem } from '../types/chat';
+import type { NavigatorScreenParams } from '@react-navigation/native'; // <-- Adicione esta importação
+import type { MainTabParamList } from '../navigation/MainTabNavigator';
 
 export type RootStackParamList = {
   Login: undefined;
   SignUp: undefined;
-  Main: undefined;
-  
+  Main: NavigatorScreenParams<MainTabParamList>; // Indica que 'Main' aceita params para suas telas internas  
   // Tab Navigator Screens
   Chat: undefined; // Renamed from AllChats
   Explore: undefined;
