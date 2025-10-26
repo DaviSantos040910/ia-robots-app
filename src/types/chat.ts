@@ -46,3 +46,9 @@ export type PaginatedMessages = {
   previous: string | null;
   results: ChatMessage[];
 };
+
+export interface ChatCacheData {
+  messages: ChatMessage[];
+  nextPage: number | null;
+  timestamp: number; // Unix timestamp (ms) de quando o cache foi salvo
+}
