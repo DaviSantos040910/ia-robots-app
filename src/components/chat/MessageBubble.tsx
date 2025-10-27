@@ -16,7 +16,8 @@ export const MessageBubble: React.FC<{
   onListen?: (m: ChatMessage) => void;
   onRewrite?: (m: ChatMessage) => void;
   onSuggestionPress?: (messageId: string, text: string) => void;
-  hideSuggestions?: boolean;
+  isLastMessage?: boolean;
+  isSendingSuggestion?: boolean;
 }> = ({
   message,
   onCopy,
@@ -24,6 +25,8 @@ export const MessageBubble: React.FC<{
   onListen,
   onRewrite,
   onSuggestionPress,
+  isLastMessage,
+  isSendingSuggestion,
 }) => {
   const scheme = useColorScheme();
   const theme = getTheme(scheme === 'dark');
@@ -48,6 +51,8 @@ export const MessageBubble: React.FC<{
     // list_item: { ... },
     // heading1: { ... },
   });
+
+  const shouldShowSuggestions = !isUser && !!message.suggestions?.length && isLastMessage;
 
   return (
     <View style={rowStyle}>
@@ -88,13 +93,14 @@ export const MessageBubble: React.FC<{
         </View>
 
         {/* Mini suggestions: always visible; do not hide on tap */}
-        {!isUser && !!message.suggestions?.length && (
+        {shouldShowSuggestions && ( // ----> ALTERADO: Usa a nova condição <----
           <View style={s.miniSuggestionRow}>
-            {message.suggestions.map((label, i) => (
+            {message.suggestions?.map((label, i) => (
               <MiniSuggestionChip
-                key={i}
+                key={`${message.id}-suggestion-${i}`} // Melhora a key para incluir ID da mensagem
                 label={label}
                 onPress={() => onSuggestionPress?.(message.id, label)}
+                disabled={isSendingSuggestion}
               />
             ))}
           </View>

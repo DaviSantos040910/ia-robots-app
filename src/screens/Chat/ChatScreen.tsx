@@ -60,6 +60,7 @@ const ChatScreen: React.FC = () => {
   const [menuAnchor, setMenuAnchor] = useState<Anchor>(null);
   const [showHeaderChips, setShowHeaderChips] = useState(false);
   const [isScreenLoading, setIsScreenLoading] = useState(true);
+  const [isSendingSuggestion, setIsSendingSuggestion] = useState(false);
 
   // --- HOOKS ---
   const {
@@ -262,14 +263,21 @@ const ChatScreen: React.FC = () => {
     setInput('');
    };
 
-  const onHeaderChipPress = (label: string) => { /* ... (sem alterações) ... */
-     if (isTyping || isReadOnly || !currentChatId) {
-        console.warn(`[ChatScreen] Suggestion send cancelled: isTyping=${isTyping}, isReadOnly=${isReadOnly}, currentChatId=${currentChatId}`);
-        return;
-    }
-    if (showHeaderChips) { smoothLayout(); setShowHeaderChips(false); }
-    sendMessage(label);
-  };
+  const handleSuggestionPress = async (label: string) => { // Marca como async
+    // Verifica se já está enviando ou se não deve enviar
+    if (isSendingSuggestion || isTyping || isReadOnly || !currentChatId) {
+       console.warn(`[ChatScreen] Suggestion send cancelled: isSendingSuggestion=${isSendingSuggestion}, isTyping=${isTyping}, isReadOnly=${isReadOnly}, currentChatId=${currentChatId}`);
+       return;
+   }
+   if (showHeaderChips) { smoothLayout(); setShowHeaderChips(false); }
+
+   setIsSendingSuggestion(true); // ----> ADICIONADO: Inicia o estado de envio <----
+   try {
+       await sendMessage(label); // ----> ADICIONADO: Aguarda o envio <----
+   } finally {
+       setIsSendingSuggestion(false); // ----> ADICIONADO: Finaliza o estado de envio (sucesso ou erro) <----
+   }
+ };
 
   const handleArchiveAndStartNew = useCallback(() => { /* ... (sem alterações, mas verifica logs) ... */
     if (!currentChatId) { console.warn("[ChatScreen] Cannot archive: currentChatId is null."); return; }
@@ -390,7 +398,16 @@ const ChatScreen: React.FC = () => {
           keyExtractor={(item) => String(item.id)}
           style={{ flex: 1 }}
           contentContainerStyle={[s.listContent, { paddingTop: Spacing['spacing-element-m'] }]}
-          renderItem={({ item }) => <MessageBubble message={item} onSuggestionPress={(_, label) => onHeaderChipPress(label)} />}
+          renderItem={({ item, index }) => (
+            <MessageBubble
+                message={item}
+                // Passa a função renomeada
+                onSuggestionPress={(messageId, text) => handleSuggestionPress(text)}
+                // ----> ADICIONADO: Verifica se é o último item (índice 0 na lista invertida) <----
+                isLastMessage={index === 0}
+                isSendingSuggestion={isSendingSuggestion}
+            />
+          )} 
           onEndReached={() => {
             if (!isReadOnly && !isLoadingMore && hasLoadedOnce && messages.length > 0 && bootstrap?.conversationId === currentChatId) {
               console.log("[ChatScreen] Reached end (top), attempting to load more...");
@@ -418,14 +435,14 @@ const ChatScreen: React.FC = () => {
                     <SuggestionChip
                       key={`${currentChatId ?? `bot_${botId}`}-suggestion-${idx}`}
                       label={label}
-                      onPress={() => onHeaderChipPress(label)} />
+                      onPress={() => handleSuggestionPress(label)} />
                   ))}
                 </View>
               )}
             </>
           }
           keyboardShouldPersistTaps="handled"
-extraData={messages.length + (currentChatId ?? 'nullId') + isLoadingMore + isReadOnly + isTyping + hasLoadedOnce}        />
+extraData={messages.length + (currentChatId ?? 'nullId') + isLoadingMore + isReadOnly + isTyping + hasLoadedOnce+ showHeaderChips + isSendingSuggestion}        />
 
         {isTyping && <Text style={{ textAlign: 'center', color: theme.textSecondary, padding: 4 }}>Bot está digitando...</Text>}
 
