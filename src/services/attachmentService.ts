@@ -1,7 +1,6 @@
 import api from './api';
 import { ChatMessage } from '../types/chat';
-import * as FileSystem from 'expo-file-system';
-
+import * as FileSystem from 'expo-file-system/legacy';
 export type AttachmentType = 'image' | 'document' | 'other';
 
 export interface AttachmentPickerResult {
@@ -41,7 +40,7 @@ class AttachmentService {
     chatId: string,
     file: AttachmentPickerResult,
     onProgress?: (progress: number) => void
-  ): Promise<ChatMessage> {
+  ): Promise<ChatMessage[]> {
     try {
       // Valida tamanho antes do upload
       await this.validateFileSize(file.uri);
@@ -60,7 +59,7 @@ class AttachmentService {
       console.log(`[AttachmentService] Uploading to chat ${chatId}:`, file.name);
 
       // Faz o upload usando multipart/form-data
-      const response = await api.post<ChatMessage>(
+      const response = await api.post<ChatMessage[]>(
         `/api/v1/chats/${chatId}/messages/attach/`,
         formData,
         {
