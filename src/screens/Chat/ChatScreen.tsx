@@ -24,6 +24,10 @@ import { botService } from '../../services/botService';
 import { chatService } from '../../services/chatService';
 import { smoothLayout } from '../../components/shared/Motion';
 import { Spacing } from '../../theme/spacing';
+import { AttachmentMenu } from '../../components/chat/AttachmentMenu';
+import { AttachmentPreview } from '../../components/chat/AttachmentPreview';
+import { useAttachmentPicker } from '../../hooks/useAttachmentPicker';
+import { AttachmentPickerResult } from '../../services/attachmentService';
 
 type ChatScreenRouteProp = NativeStackScreenProps<RootStackParamList, 'ChatScreen'>['route'];
 // Adiciona o tipo para a prop de navegação
@@ -61,6 +65,12 @@ const ChatScreen: React.FC = () => {
   const [showHeaderChips, setShowHeaderChips] = useState(false);
   const [isScreenLoading, setIsScreenLoading] = useState(true);
   const [isSendingSuggestion, setIsSendingSuggestion] = useState(false);
+  const { sendAttachment } = useChatController(currentChatId);
+  const { pickImage, pickDocument, takePhoto, isPickerLoading } = useAttachmentPicker();
+  const [attachmentMenuVisible, setAttachmentMenuVisible] = useState(false);
+  const [selectedAttachment, setSelectedAttachment] = useState<AttachmentPickerResult | null>(null);
+  const [isUploadingAttachment, setIsUploadingAttachment] = useState(false);
+
 
   // --- HOOKS ---
   const {
@@ -231,6 +241,38 @@ const ChatScreen: React.FC = () => {
   const handleOpenSettings = () => { navigation.navigate('BotSettings', { botId }); };
   const handleViewArchived = () => { navigation.navigate('ArchivedChats', { botId }); };
 
+  const handlePlusPress = () => {
+  if (isReadOnly) return;
+  setAttachmentMenuVisible(true);
+};
+
+const handleSelectImage = async () => {
+  const result = await pickImage();
+  if (result) {
+    setSelectedAttachment(result);
+  }
+};
+
+const handleSelectDocument = async () => {
+  const result = await pickDocument();
+  if (result) {
+    setSelectedAttachment(result);
+  }
+};
+
+const handleTakePhoto = async () => {
+  const result = await takePhoto();
+  if (result) {
+    setSelectedAttachment(result);
+  }
+};
+
+const handleRemoveAttachment = () => {
+  setSelectedAttachment(null);
+};
+
+
+
   // --- CORREÇÃO: Botão Voltar ---
  const handleBackPress = () => {
     if (isReadOnly) {
@@ -250,18 +292,38 @@ const ChatScreen: React.FC = () => {
       }
     }
   };
-  // --- FIM DA CORREÇÃO ---
 
-  const handleSend = () => { /* ... (sem alterações) ... */
-    const value = input.trim();
-    if (!value || isTyping || isReadOnly || !currentChatId) {
-        console.warn(`[ChatScreen] Send cancelled: value=${!!value}, isTyping=${isTyping}, isReadOnly=${isReadOnly}, currentChatId=${currentChatId}`);
-        return;
+  const handleSend = useCallback(async () => {
+  if (isReadOnly || !currentChatId) return;
+
+  // Se tem anexo selecionado, envia o anexo
+  if (selectedAttachment) {
+    setIsUploadingAttachment(true);
+    try {
+      await sendAttachment(selectedAttachment);
+      setSelectedAttachment(null);
+    } catch (error: any) {
+      Alert.alert('Erro', error.message || 'Não foi possível enviar o arquivo');
+    } finally {
+      setIsUploadingAttachment(false);
     }
-    if (showHeaderChips) { smoothLayout(); setShowHeaderChips(false); }
-    sendMessage(value);
-    setInput('');
-   };
+    return;
+  }
+
+  // Caso contrário, envia mensagem de texto (lógica existente)
+  const textToSend = input.trim();
+  if (!textToSend) return;
+
+  setInput('');
+  try {
+    await sendMessage(textToSend);
+  } catch (error) {
+    console.error('[ChatScreen] Failed to send message:', error);
+    Alert.alert('Erro', 'Não foi possível enviar a mensagem');
+    setInput(textToSend);
+  }
+}, [isReadOnly, currentChatId, input, selectedAttachment, sendMessage, sendAttachment]);
+
 
   const handleSuggestionPress = async (label: string) => { // Marca como async
     // Verifica se já está enviando ou se não deve enviar
@@ -445,20 +507,25 @@ const ChatScreen: React.FC = () => {
 extraData={messages.length + (currentChatId ?? 'nullId') + isLoadingMore + isReadOnly + isTyping + hasLoadedOnce+ showHeaderChips + isSendingSuggestion}        />
 
         {isTyping && <Text style={{ textAlign: 'center', color: theme.textSecondary, padding: 4 }}>Bot está digitando...</Text>}
-
+        {selectedAttachment && (
+          <AttachmentPreview
+          attachment={selectedAttachment}
+          onRemove={handleRemoveAttachment}
+          />
+          )}
         {isReadOnly ? (
           <View style={s.activateBanner}>
             <Pressable style={s.activateButton} onPress={handleActivateChat}>
               <Text style={s.activateButtonText}>{t('chat.activateButton')}</Text>
             </Pressable>
           </View>
-        ) : (
+        ) :   (
           <ChatInput
             value={input}
             onChangeText={setInput}
             onSend={handleSend}
             onMic={() => {}}
-            onPlus={() => {}}
+            onPlus={handlePlusPress}
           />
         )}
       </KeyboardAvoidingView>
@@ -469,6 +536,13 @@ extraData={messages.length + (currentChatId ?? 'nullId') + isLoadingMore + isRea
         anchor={menuAnchor}
         items={menuItems}
       />
+      <AttachmentMenu
+  visible={attachmentMenuVisible}
+  onClose={() => setAttachmentMenuVisible(false)}
+  onSelectImage={handleSelectImage}
+  onSelectDocument={handleSelectDocument}
+  onTakePhoto={handleTakePhoto}
+/>
     </SafeAreaView>
   );
 };

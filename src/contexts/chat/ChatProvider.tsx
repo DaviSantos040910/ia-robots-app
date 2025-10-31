@@ -4,7 +4,7 @@ import { ChatMessage, PaginatedMessages } from '../../types/chat';
 import { chatService } from '../../services/chatService';
 import { getCachedChatData, setCachedChatData, removeCachedChatData} from '../../services/chatCacheService';
 import { ChatCacheData } from '../../types/chat';
-
+import { AttachmentPickerResult, attachmentService } from '../../services/attachmentService';
 
 // --- DEFINITIONS ---
 type ChatData = {
@@ -23,6 +23,7 @@ export type ChatStore = {
   sendMessage: (chatId: string, text: string) => Promise<void>;
   archiveAndStartNew: (chatId: string) => Promise<string | null>;
   clearLocalChatState: (chatId: string) => void; // Clears only in-memory state
+  sendAttachment: (chatId: string, file: AttachmentPickerResult) => Promise<void>;
 };
 
 const initialChatData: ChatData = {
@@ -401,6 +402,89 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   // --- clearLocalChatState ---
   // Clears only the IN-MEMORY state for a given chat ID, not the persistent cache.
+
+  const sendAttachment = useCallback(async (chatId: string, file: AttachmentPickerResult) => {
+  console.log(`[ChatProvider] Sending attachment for chat ${chatId}:`, file.name);
+  
+  // Check if chat exists in state
+  let currentChat: ChatData | undefined;
+  setChats(currentChats => {
+    currentChat = currentChats[chatId];
+    return currentChats;
+  });
+  
+  if (!currentChat) {
+    console.warn(`[ChatProvider] Chat ${chatId} not initialized`);
+    return;
+  }
+
+  try {
+    // Cria mensagem temporária mostrando que está enviando
+    const tempId = `temp-${Date.now()}`;
+    const tempMessage: ChatMessage = {
+      id: tempId,
+      role: 'user',
+      content: `📎 ${file.name}`,
+      created_at: new Date().toISOString(),
+      attachment_url: file.uri, // Preview local
+      attachment_type: file.type,
+      original_filename: file.name,
+    };
+
+    // Adiciona mensagem temporária
+    setChats(prev => ({
+      ...prev,
+      [chatId]: {
+        ...prev[chatId],
+        messages: [...prev[chatId].messages, tempMessage],
+      },
+    }));
+
+    // Faz upload
+    const uploadedMessage = await attachmentService.uploadAttachment(chatId, file);
+
+    // Remove mensagem temporária e adiciona a real
+    setChats(prev => {
+      const filtered = prev[chatId].messages.filter((m: ChatMessage) => m.id !== tempId);
+      return {
+        ...prev,
+        [chatId]: {
+          ...prev[chatId],
+          messages: [...filtered, uploadedMessage],
+        },
+      };
+    });
+
+    // Atualiza cache
+    setChats(prevChats => {
+      const currentData = prevChats[chatId];
+      if (currentData) {
+        setCachedChatData(chatId, {
+          messages: [...currentData.messages.filter((m: ChatMessage) => m.id !== tempId), uploadedMessage],
+          nextPage: currentData.nextPage,
+          timestamp: Date.now(),
+        });
+      }
+      return prevChats;
+    });
+
+    console.log('[ChatProvider] Attachment sent successfully');
+  } catch (error: any) {
+    console.error('[ChatProvider] Failed to send attachment:', error);
+    
+    // Remove mensagem temporária em caso de erro
+    setChats(prev => ({
+      ...prev,
+      [chatId]: {
+        ...prev[chatId],
+        messages: prev[chatId].messages.filter((m: ChatMessage) => !m.id.startsWith('temp-')),
+      },
+    }));
+
+    throw error;
+  }
+}, []);
+
   const clearLocalChatState = useCallback((chatId: string) => {
       console.log(`[ChatProvider] Clearing local IN-MEMORY state for chatId: ${chatId}`);
       setChats(prev => {
@@ -424,8 +508,8 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   // Memoize the context value
   const value = useMemo(
-    () => ({ chats, isTypingById, loadInitialMessages, loadMoreMessages, sendMessage, archiveAndStartNew, clearLocalChatState }),
-    [chats, isTypingById, loadInitialMessages, loadMoreMessages, sendMessage, archiveAndStartNew, clearLocalChatState]
+    () => ({ chats, isTypingById, loadInitialMessages, loadMoreMessages, sendMessage, archiveAndStartNew, clearLocalChatState, sendAttachment }),
+    [chats, isTypingById, loadInitialMessages, loadMoreMessages, sendMessage, archiveAndStartNew, clearLocalChatState, sendAttachment]
   );
 
   return <ChatContext.Provider value={value}>{children}</ChatContext.Provider>;
@@ -433,7 +517,7 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
 // --- useChatController Hook ---
 // Provides access to chat data and actions for a specific chat ID.
-export const useChatController = (chatId: string | null): ChatData & { isTyping: boolean; loadInitialMessages: () => Promise<void>; loadMoreMessages: () => Promise<void>; sendMessage: (text: string) => Promise<void>; archiveAndStartNew: () => Promise<string | null>; clearLocalChatState: (idToClear: string) => void; } => {
+export const useChatController = (chatId: string | null): ChatData & { isTyping: boolean; loadInitialMessages: () => Promise<void>; loadMoreMessages: () => Promise<void>; sendMessage: (text: string) => Promise<void>; archiveAndStartNew: () => Promise<string | null>; clearLocalChatState: (idToClear: string) => void; sendAttachment: (file: AttachmentPickerResult) => Promise<void>; } => {
   const ctx = useContext(ChatContext);
   // Ensure the hook is used within the ChatProvider
   if (!ctx) {
@@ -489,6 +573,15 @@ export const useChatController = (chatId: string | null): ChatData & { isTyping:
        ctx.clearLocalChatState(idToClear);
    }, [ctx]); // Only depends on the context itself
 
+   const stableSendAttachment = useCallback((file: AttachmentPickerResult) => {
+       if (chatId) {
+           console.log(`[useChatController] Calling sendAttachment for ${chatId}`);
+           return ctx.sendAttachment(chatId, file);
+       }
+        console.warn("[useChatController] Attempted to call sendAttachment with null chatId.");
+       return Promise.resolve();
+   }, [ctx, chatId]);
+
   // Memoize the returned object to prevent unnecessary re-renders in consuming components
   return useMemo(() => ({
     ...chatData, // Spread the current chat data (messages, nextPage, loading states, hasLoadedOnce)
@@ -499,6 +592,7 @@ export const useChatController = (chatId: string | null): ChatData & { isTyping:
     sendMessage: stableSendMessage,
     archiveAndStartNew: stableArchiveAndStartNew,
     clearLocalChatState: stableClearLocalChatState,
+    sendAttachment: stableSendAttachment,
     // Add type assertion for return type correctness if needed, though useMemo should infer it
-  }), [chatData, isTyping, stableLoadInitialMessages, stableLoadMoreMessages, stableSendMessage, stableArchiveAndStartNew, stableClearLocalChatState]);
+  }), [chatData, isTyping, stableLoadInitialMessages, stableLoadMoreMessages, stableSendMessage, stableArchiveAndStartNew, stableClearLocalChatState, stableSendAttachment]);
 };

@@ -11,6 +11,10 @@ export type ChatMessage = {
   rewriting?: boolean;
   audioUri?: string | null;
   suggestions?: string[];
+  attachment_url?: string | null;
+  attachment_type?: string | null;
+  original_filename?: string | null;
+
 };
 
 // Represents the bot's details.
