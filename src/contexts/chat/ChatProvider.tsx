@@ -279,10 +279,10 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
         console.log(`[ChatProvider] Received ${apiReplies.length} replies for temp ID ${tempUserMsgId}.`);
         setIsTypingById((prev) => ({ ...prev, [chatId]: false })); // Stop typing indicator
 
-        let finalMessages: ChatMessage[] = []; // Variable to hold the final message list
-        let finalNextPage: number | null = 1;  // Variable to hold the nextPage state
+        // --- INÍCIO DA CORREÇÃO 1 (sendMessage) ---
+        let newFinalMessages: ChatMessage[] = [];
+        let newFinalNextPage: number | null = 1;
 
-        // Update the state: replace temp message with actual messages from API
         setChats(prevChats => {
             const currentChatState = prevChats[chatId];
             if (!currentChatState) {
@@ -298,43 +298,40 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
                console.log(`[ChatProvider] Temporary message ID ${tempUserMsgId} successfully removed.`);
             }
 
-            // Combine messages (old ones + new ones from API)
-            finalMessages = [...messagesWithoutTemp, ...apiReplies];
-            finalNextPage = currentChatState.nextPage; // Preserve the current nextPage value
+            // 1. Calcular os arrays finais
+            newFinalMessages = [...messagesWithoutTemp, ...apiReplies];
+            newFinalNextPage = currentChatState.nextPage; // Preserve the current nextPage value
 
             // Final duplicate check
-            const finalIds = finalMessages.map(m => m.id);
+            const finalIds = newFinalMessages.map(m => m.id);
             if (finalIds.length !== new Set(finalIds).size) {
                  console.error('[ChatProvider] DUPLICATE IDs detected in finalMessages after sending!', finalIds);
-                 // Simple de-duplication strategy: keep the last occurrence
                  const uniqueMessagesMap = new Map<string, ChatMessage>();
-                 finalMessages.forEach(msg => uniqueMessagesMap.set(msg.id, msg));
-                 finalMessages = Array.from(uniqueMessagesMap.values());
+                 newFinalMessages.forEach(msg => uniqueMessagesMap.set(msg.id, msg));
+                 newFinalMessages = Array.from(uniqueMessagesMap.values());
                  console.warn('[ChatProvider] Attempted duplicate removal.');
             } else {
                  console.log('[ChatProvider] Final message list appears unique.');
             }
-            console.log('[ChatProvider] Final messages count after update:', finalMessages.length);
+            console.log('[ChatProvider] Final messages count after update:', newFinalMessages.length);
 
-            // Return the updated state for this chat ID
+            // 2. Retornar o novo estado
             return {
                 ...prevChats,
                 [chatId]: {
                     ...currentChatState,
-                    messages: finalMessages, // Use the updated, potentially de-duplicated list
-                    // nextPage remains unchanged here
+                    messages: newFinalMessages, // Use the updated, potentially de-duplicated list
                 }
             };
         });
 
-        // --- Update Cache AFTER state update ---
-        // Use the `finalMessages` and `finalNextPage` captured during state update
+        // 3. Atualizar o Cache APÓS o setChats, com as variáveis corretas
         await setCachedChatData(chatId, {
-          messages: finalMessages,
-          nextPage: finalNextPage,
-          timestamp: Date.now(), // Update timestamp
+          messages: newFinalMessages,
+          nextPage: newFinalNextPage,
+          timestamp: Date.now(),
         });
-        // --- End Cache Update ---
+        // --- FIM DA CORREÇÃO 1 (sendMessage) ---
 
       })
       .catch(error => { // Handle API errors
@@ -443,6 +440,10 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
     // Para "Bot está digitando..."
     setIsTypingById((prev) => ({ ...prev, [chatId]: false }));
 
+    // --- INÍCIO DA CORREÇÃO 2 (sendAttachment) ---
+    let finalMessages: ChatMessage[] = [];
+    let finalNextPage: number | null = 1;
+
     // 4. Remove mensagem temporária e adiciona as mensagens reais
     setChats(prev => {
       const currentChat = prev[chatId];
@@ -451,16 +452,11 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
       // Remove a mensagem temporária
       const filtered = currentChat.messages.filter((m: ChatMessage) => m.id !== tempId);
       
-      // Adiciona todas as mensagens do backend (user + AI)
-      const finalMessages = [...filtered, ...apiReplies];
+      // 1. Calcular os arrays finais
+      finalMessages = [...filtered, ...apiReplies];
+      finalNextPage = currentChat.nextPage;
 
-      // 5. Atualiza o cache
-      setCachedChatData(chatId, {
-        messages: finalMessages,
-        nextPage: currentChat.nextPage,
-        timestamp: Date.now(),
-      });
-
+      // 2. Retornar o novo estado
       return {
         ...prev,
         [chatId]: {
@@ -469,6 +465,14 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
         },
       };
     });
+
+    // 5. Atualiza o cache APÓS o setChats, com as variáveis corretas
+    await setCachedChatData(chatId, {
+      messages: finalMessages,
+      nextPage: finalNextPage,
+      timestamp: Date.now(),
+    });
+    // --- FIM DA CORREÇÃO 2 (sendAttachment) ---
 
     console.log('[ChatProvider] Attachment sent and AI reply received.');
   } catch (error: any) {

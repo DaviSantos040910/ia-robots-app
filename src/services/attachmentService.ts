@@ -71,6 +71,7 @@ async uploadAttachment(
         headers: {
           'Content-Type': 'multipart/form-data',
         },
+        timeout: 30000,
         onUploadProgress: (progressEvent) => {
           if (onProgress && progressEvent.total) {
             const percentCompleted = Math.round(
