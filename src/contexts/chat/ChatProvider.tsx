@@ -23,7 +23,7 @@ export type ChatStore = {
   sendMessage: (chatId: string, text: string) => Promise<void>;
   archiveAndStartNew: (chatId: string) => Promise<string | null>;
   clearLocalChatState: (chatId: string) => void; // Clears only in-memory state
-  sendAttachment: (chatId: string, file: AttachmentPickerResult) => Promise<void>;
+  sendAttachment: (chatId: string, file: AttachmentPickerResult, content?: string) => Promise<void>;
 };
 
 const initialChatData: ChatData = {
@@ -403,89 +403,98 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // --- clearLocalChatState ---
   // Clears only the IN-MEMORY state for a given chat ID, not the persistent cache.
 
-  const sendAttachment = useCallback(async (chatId: string, file: AttachmentPickerResult) => {
-    console.log(`[ChatProvider] Sending attachment for chat ${chatId}:`, file.name);
+  const sendAttachment = useCallback(async (chatId: string, file: AttachmentPickerResult, content?: string ) => {
+  console.log(`[ChatProvider] Sending attachment for chat ${chatId}:`, file.name);
+  
+  // 1. Cria mensagem temporária de preview (com o texto se houver)
+  const tempId = `temp-attachment-${Date.now()}-${Math.random()}`;
+  const tempMessage: ChatMessage = {
+    id: tempId,
+    role: 'user',
+    content: content || '', // Sem texto, apenas anexo
+    created_at: new Date().toISOString(),
+    attachment_url: file.uri, // Preview local
+    attachment_type: file.type || 'application/octet-stream',
+    original_filename: file.name,
+  };
 
-    let currentChat: ChatData | undefined;
-    setChats(currentChats => {
-      currentChat = currentChats[chatId];
-      return currentChats;
-    });
+  // 2. Adiciona mensagem temporária ao estado
+  setChatData(chatId, (prev) => ({
+    messages: [...(prev.messages ?? []), tempMessage],
+  }));
 
-    if (!currentChat) {
-      console.warn(`[ChatProvider] Chat ${chatId} not initialized`);
-      return;
+  // Inicia indicador de "Bot digitando..."
+  setIsTypingById((prev) => ({ ...prev, [chatId]: true }));
+
+  try {
+    // 3. Faz upload do anexo - O BACKEND RETORNA UM ARRAY
+    const apiReplies = await attachmentService.uploadAttachment(chatId, file, content);
+    console.log('[ChatProvider] Raw API response:', apiReplies);
+    console.log('[ChatProvider] Is array?', Array.isArray(apiReplies));
+    console.log('[ChatProvider] Length:', apiReplies?.length);
+    
+    // A resposta já é um ARRAY: [mensagem_user_com_anexo, ...mensagens_ai]
+    if (!Array.isArray(apiReplies) || apiReplies.length === 0) {
+      throw new Error('Resposta inválida do servidor');
     }
 
-    // 1. Cria mensagem temporária
-    const tempId = `temp-${Date.now()}`;
-    const tempMessage: ChatMessage = {
-      id: tempId,
-      role: 'user',
-      content: `📎 ${file.name}`,
-      created_at: new Date().toISOString(),
-      attachment_url: file.uri,
-      attachment_type: file.type,
-      original_filename: file.name,
-    };
+    console.log(`[ChatProvider] Received ${apiReplies.length} messages from attachment upload`);
 
-    // Adiciona mensagem temporária
-    setChats(prev => ({
-      ...prev,
-      [chatId]: {
-        ...prev[chatId],
-        messages: [...prev[chatId].messages, tempMessage],
-      },
-    }));
+    // Para "Bot está digitando..."
+    setIsTypingById((prev) => ({ ...prev, [chatId]: false }));
 
-    // Adiciona "Bot está digitando..."
-    setIsTypingById((prev) => ({ ...prev, [chatId]: true }));
+    // 4. Remove mensagem temporária e adiciona as mensagens reais
+    setChats(prev => {
+      const currentChat = prev[chatId];
+      if (!currentChat) return prev;
 
-    try {
-      // 2. Faz upload (agora espera uma lista)
-      const apiReplies = await attachmentService.uploadAttachment(chatId, file);
+      // Remove a mensagem temporária
+      const filtered = currentChat.messages.filter((m: ChatMessage) => m.id !== tempId);
       
-      // Para "Bot está digitando..."
-      setIsTypingById((prev) => ({ ...prev, [chatId]: false }));
+      // Adiciona todas as mensagens do backend (user + AI)
+      const finalMessages = [...filtered, ...apiReplies];
 
-      // 3. Remove mensagem temporária e adiciona as reais (user + bot)
-      setChats(prev => {
-        const filtered = prev[chatId].messages.filter((m: ChatMessage) => m.id !== tempId);
-        const finalMessages = [...filtered, ...apiReplies]; // Adiciona a LISTA de respostas
-
-        // 4. Atualiza o cache (movido para dentro do setChats)
-        setCachedChatData(chatId, {
-          messages: finalMessages,
-          nextPage: prev[chatId].nextPage, // Mantém o nextPage
-          timestamp: Date.now(),
-        });
-
-        return {
-          ...prev,
-          [chatId]: {
-            ...prev[chatId],
-            messages: finalMessages,
-          },
-        };
+      // 5. Atualiza o cache
+      setCachedChatData(chatId, {
+        messages: finalMessages,
+        nextPage: currentChat.nextPage,
+        timestamp: Date.now(),
       });
 
-      console.log('[ChatProvider] Attachment sent and AI reply received.');
-    } catch (error: any) {
-      console.error('[ChatProvider] Failed to send attachment:', error);
-      setIsTypingById((prev) => ({ ...prev, [chatId]: false })); // Para "digitando"
-
-      // Remove mensagem temporária em caso de erro
-      setChats(prev => ({
+      return {
         ...prev,
         [chatId]: {
-          ...prev[chatId],
-          messages: prev[chatId].messages.filter((m: ChatMessage) => !(m?.id?.startsWith('temp-'))),
+          ...currentChat,
+          messages: finalMessages,
         },
-      }));
+      };
+    });
 
-      throw error;
-    }
-  }, []); // Mantenha as dependências vazias
+    console.log('[ChatProvider] Attachment sent and AI reply received.');
+  } catch (error: any) {
+    console.error('[ChatProvider] Failed to send attachment:', error);
+    setIsTypingById((prev) => ({ ...prev, [chatId]: false }));
+
+    // Remove mensagem temporária em caso de erro
+    setChats(prev => {
+      const currentChat = prev[chatId];
+      if (!currentChat) return prev;
+
+      return {
+        ...prev,
+        [chatId]: {
+          ...currentChat,
+          messages: currentChat.messages.filter((m: ChatMessage) => 
+            m.id !== tempId // Remove apenas a mensagem temporária específica
+          ),
+        },
+      };
+    });
+
+    throw error;
+  }
+}, []);
+
 
   const clearLocalChatState = useCallback((chatId: string) => {
       console.log(`[ChatProvider] Clearing local IN-MEMORY state for chatId: ${chatId}`);
@@ -519,7 +528,7 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
 // --- useChatController Hook ---
 // Provides access to chat data and actions for a specific chat ID.
-export const useChatController = (chatId: string | null): ChatData & { isTyping: boolean; loadInitialMessages: () => Promise<void>; loadMoreMessages: () => Promise<void>; sendMessage: (text: string) => Promise<void>; archiveAndStartNew: () => Promise<string | null>; clearLocalChatState: (idToClear: string) => void; sendAttachment: (file: AttachmentPickerResult) => Promise<void>; } => {
+export const useChatController = (chatId: string | null): ChatData & { isTyping: boolean; loadInitialMessages: () => Promise<void>; loadMoreMessages: () => Promise<void>; sendMessage: (text: string) => Promise<void>; archiveAndStartNew: () => Promise<string | null>; clearLocalChatState: (idToClear: string) => void; sendAttachment: (file: AttachmentPickerResult, content?: string) => Promise<void>; } => {
   const ctx = useContext(ChatContext);
   // Ensure the hook is used within the ChatProvider
   if (!ctx) {
@@ -575,10 +584,10 @@ export const useChatController = (chatId: string | null): ChatData & { isTyping:
        ctx.clearLocalChatState(idToClear);
    }, [ctx]); // Only depends on the context itself
 
-   const stableSendAttachment = useCallback((file: AttachmentPickerResult) => {
+   const stableSendAttachment = useCallback((file: AttachmentPickerResult, content?: string) => {
        if (chatId) {
            console.log(`[useChatController] Calling sendAttachment for ${chatId}`);
-           return ctx.sendAttachment(chatId, file);
+           return ctx.sendAttachment(chatId, file, content);
        }
         console.warn("[useChatController] Attempted to call sendAttachment with null chatId.");
        return Promise.resolve();

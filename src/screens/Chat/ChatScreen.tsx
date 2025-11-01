@@ -293,15 +293,23 @@ const handleRemoveAttachment = () => {
     }
   };
 
-  const handleSend = useCallback(async () => {
+  // Em ChatScreen.tsx
+
+const handleSend = useCallback(async () => {
   if (isReadOnly || !currentChatId) return;
 
-  // Se tem anexo selecionado, envia o anexo
+  const textToSend = input.trim();
+
+  // ✅ CASO 1: Tem anexo selecionado
   if (selectedAttachment) {
     setIsUploadingAttachment(true);
     try {
-      await sendAttachment(selectedAttachment);
+      // Envia anexo COM o texto digitado
+      await sendAttachment(selectedAttachment, textToSend);
+      
+      // Limpa AMBOS após sucesso
       setSelectedAttachment(null);
+      setInput('');  // ✅ Limpa o texto também
     } catch (error: any) {
       Alert.alert('Erro', error.message || 'Não foi possível enviar o arquivo');
     } finally {
@@ -310,8 +318,7 @@ const handleRemoveAttachment = () => {
     return;
   }
 
-  // Caso contrário, envia mensagem de texto (lógica existente)
-  const textToSend = input.trim();
+  // ✅ CASO 2: Apenas texto (sem anexo)
   if (!textToSend) return;
 
   setInput('');
@@ -320,7 +327,7 @@ const handleRemoveAttachment = () => {
   } catch (error) {
     console.error('[ChatScreen] Failed to send message:', error);
     Alert.alert('Erro', 'Não foi possível enviar a mensagem');
-    setInput(textToSend);
+    setInput(textToSend);  // Restaura texto em caso de erro
   }
 }, [isReadOnly, currentChatId, input, selectedAttachment, sendMessage, sendAttachment]);
 

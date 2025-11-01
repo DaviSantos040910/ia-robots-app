@@ -36,64 +36,72 @@ class AttachmentService {
   /**
    * Faz upload de um anexo para o chat
    */
-  async uploadAttachment(
-    chatId: string,
-    file: AttachmentPickerResult,
-    onProgress?: (progress: number) => void
-  ): Promise<ChatMessage[]> {
-    try {
-      // Valida tamanho antes do upload
-      await this.validateFileSize(file.uri);
+  // src/services/attachmentService.ts
 
-      // Cria FormData
-      const formData = new FormData();
-      
-      // Adiciona o arquivo ao FormData
-      // @ts-ignore - React Native permite passar objetos especiais para FormData
-      formData.append('attachment', {
-        uri: file.uri,
-        name: file.name,
-        type: file.type || 'application/octet-stream',
-      });
+async uploadAttachment(
+  chatId: string,
+  file: AttachmentPickerResult,
+  content?: string,
+  onProgress?: (progress: number) => void
+): Promise<ChatMessage[]> {
+  try {
+    await this.validateFileSize(file.uri);
 
-      console.log(`[AttachmentService] Uploading to chat ${chatId}:`, file.name);
+    const formData = new FormData();
 
-      // Faz o upload usando multipart/form-data
-      const response = await api.post<ChatMessage[]>(
-        `/api/v1/chats/${chatId}/messages/attach/`,
-        formData,
-        {
-          headers: {
-            'Content-Type': 'multipart/form-data',
-          },
-          // Opcional: track upload progress
-          onUploadProgress: (progressEvent) => {
-            if (onProgress && progressEvent.total) {
-              const percentCompleted = Math.round(
-                (progressEvent.loaded * 100) / progressEvent.total
-              );
-              onProgress(percentCompleted);
-            }
-          },
-        }
-      );
+    // @ts-ignore
+    formData.append('attachment', {
+      uri: file.uri,
+      name: file.name,
+      type: file.type || 'application/octet-stream',
+    });
 
-      console.log('[AttachmentService] Upload successful:', response);
-      return response;
-    } catch (error: any) {
-      console.error('[AttachmentService] Upload failed:', error);
-      
-      // Trata erros específicos do backend
-      if (error.response?.data) {
-        const errorMsg = error.response.data.attachment?.[0] || 
-                        error.response.data.error || 
-                        'Erro ao enviar arquivo';
-        throw new Error(errorMsg);
-      }
-      
-      throw new Error('Erro ao enviar arquivo. Verifique sua conexão.');
+    if (content && content.trim()) {
+      formData.append('content', content.trim());
     }
+
+    console.log(`[AttachmentService] Uploading to chat ${chatId}:`, file.name, 
+                content ? `with text: "${content}"` : 'without text');
+
+    // ✅ CORREÇÃO: api.post já retorna T diretamente (não AxiosResponse<T>)
+    const messages = await api.post<ChatMessage[]>(
+      `/api/v1/chats/${chatId}/messages/attach/`,
+      formData,
+      {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+        onUploadProgress: (progressEvent) => {
+          if (onProgress && progressEvent.total) {
+            const percentCompleted = Math.round(
+              (progressEvent.loaded * 100) / progressEvent.total
+            );
+            onProgress(percentCompleted);
+          }
+        },
+      }
+    );
+
+    console.log('[AttachmentService] Upload successful');
+    
+    // ✅ Retorna diretamente (messages já é ChatMessage[])
+    return messages;
+    
+  } catch (error: any) {
+    console.error('[AttachmentService] Upload failed:', error);
+    
+    if (error.response?.data) {
+      const errorMsg = error.response.data.attachment?.[0] ||
+        error.response.data.content?.[0] ||
+        error.response.data.detail ||
+        'Erro ao enviar arquivo';
+      throw new Error(errorMsg);
+    }
+
+    throw new Error('Erro ao enviar arquivo. Verifique sua conexão.');
   }
+}
+
 
   /**
    * Determina o tipo de anexo baseado no MIME type
