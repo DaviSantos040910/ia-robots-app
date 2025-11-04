@@ -20,6 +20,28 @@ const formatTimestamp = (date: string, locale: Locale) => {
     return formatDistanceToNowStrict(new Date(date), { addSuffix: true, locale });
 };
 
+const stripMarkdown = (text: string | undefined | null): string => {
+  if (!text) return '...'; // Retorna '...' se a mensagem for nula ou vazia
+  
+  let newText = text
+    // 1. Substitui quebras de linha por espaço PRIMEIRO
+    .replace(/(\r\n|\n|\r)/gm, ' ')
+    // 2. Remove formatação comum
+    .replace(/\*\*(.*?)\*\*/g, '$1') // Negrito (**)
+    .replace(/\*(.*?)\*/g, '$1')   // Itálico (*)
+    .replace(/\[(.*?)\]\(.*?\)/g, '$1') // Links [texto](url)
+    .replace(/#{1,6} (.*?)/g, '$1') // Cabeçalhos (#)
+    .replace(/`{1,3}(.*?)`{1,3}/g, '$1'); // Código (`)
+
+  // 3. Remove marcadores de lista (globais) e limpa espaços duplos
+  return newText
+    .replace(/\s[\*-\+]\s+/g, ' ') // Remove " * ", " - ", " + " no meio do texto
+    .replace(/^\s*[\*-\+]\s+/, '') // Remove " * ", " - ", " + " do início
+    .replace(/\s+/g, ' ') // Substitui espaços duplos/múltiplos por um único espaço
+    .trim(); // Limpa espaços no início/fim
+};
+
+
 export const ChatListItemRow: React.FC<Props> = ({ item }) => {
   const { i18n } = useTranslation();
   const scheme = useColorScheme();
@@ -40,6 +62,7 @@ export const ChatListItemRow: React.FC<Props> = ({ item }) => {
 
   // Determine which locale to use for date-fns
   const dateLocale = i18n.language.startsWith('pt') ? ptBR : enUS;
+  const lastMessageContent = stripMarkdown(item.last_message?.content);
   
   return (
     <Pressable onPress={handlePress} style={({ pressed }) => ({ backgroundColor: pressed ? theme.surfaceAlt : 'transparent' })}>
@@ -57,8 +80,8 @@ export const ChatListItemRow: React.FC<Props> = ({ item }) => {
               </Text>
             )}
           </View>
-          <Text style={s.lastMessage} numberOfLines={1}>
-            {item.last_message?.content ?? '...'}
+         <Text style={s.lastMessage} numberOfLines={1}>
+            {lastMessageContent}
           </Text>
         </View>
       </View>

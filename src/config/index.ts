@@ -11,8 +11,8 @@ type Environment = {
 const ENV = {
   dev: {
     api: {
-      baseUrl: "http://192.168.0.123:8000",
-      timeout: 10000,
+      baseUrl: "http://192.168.0.103:8000",
+      timeout: 30000,
     },
     isDev: true,
   },

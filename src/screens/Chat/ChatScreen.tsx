@@ -295,23 +295,34 @@ const handleRemoveAttachment = () => {
 
   // Em ChatScreen.tsx
 
+// ...
 const handleSend = useCallback(async () => {
   if (isReadOnly || !currentChatId) return;
 
   const textToSend = input.trim();
+  const attachmentToSend = selectedAttachment; // <-- Salva o anexo atual
 
   // ✅ CASO 1: Tem anexo selecionado
-  if (selectedAttachment) {
+  if (attachmentToSend) {
+    
+    // --- INÍCIO DA CORREÇÃO ---
+    // Limpa o input e o preview IMEDIATAMENTE
+    setSelectedAttachment(null);
+    setInput('');
     setIsUploadingAttachment(true);
+    // --- FIM DA CORREÇÃO ---
+
     try {
-      // Envia anexo COM o texto digitado
-      await sendAttachment(selectedAttachment, textToSend);
-      
-      // Limpa AMBOS após sucesso
-      setSelectedAttachment(null);
-      setInput('');  // ✅ Limpa o texto também
+      // Envia o anexo salvo (attachmentToSend)
+      await sendAttachment(attachmentToSend, textToSend);
+      // Não limpa o estado aqui, já foi limpo
     } catch (error: any) {
       Alert.alert('Erro', error.message || 'Não foi possível enviar o arquivo');
+      // --- INÍCIO DA CORREÇÃO ---
+      // Restaura o input e o anexo em caso de erro
+      setSelectedAttachment(attachmentToSend);
+      setInput(textToSend);
+      // --- FIM DA CORREÇÃO ---
     } finally {
       setIsUploadingAttachment(false);
     }
@@ -321,7 +332,7 @@ const handleSend = useCallback(async () => {
   // ✅ CASO 2: Apenas texto (sem anexo)
   if (!textToSend) return;
 
-  setInput('');
+  setInput(''); // <-- Lógica original (correta)
   try {
     await sendMessage(textToSend);
   } catch (error) {
@@ -330,6 +341,7 @@ const handleSend = useCallback(async () => {
     setInput(textToSend);  // Restaura texto em caso de erro
   }
 }, [isReadOnly, currentChatId, input, selectedAttachment, sendMessage, sendAttachment]);
+// ...
 
 
   const handleSuggestionPress = async (label: string) => { // Marca como async

@@ -53,8 +53,8 @@ export const MessageBubble: React.FC<{
 
   // Determina se a mensagem tem anexo
   const hasAttachment = !!message.attachment_url;
-  const isImageAttachment = message.attachment_type?.startsWith('image/');
-
+const isImageAttachment = message.attachment_type?.startsWith('image/') || 
+                            message.attachment_type === 'image';
   return (
     <View style={rowStyle}>
       <View style={s.bubbleContainer}>
