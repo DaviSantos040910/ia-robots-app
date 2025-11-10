@@ -56,3 +56,11 @@ export interface ChatCacheData {
   nextPage: number | null;
   timestamp: number; // Unix timestamp (ms) de quando o cache foi salvo
 }
+
+export interface ChatContextValue {
+  playTTS: (conversationId: string, messageId: string) => Promise<void>;
+  stopTTS: () => Promise<void>;
+  isTTSPlaying: boolean;
+  isTTSLoading: boolean;
+  currentTTSMessageId: string | null;
+}

@@ -2,6 +2,10 @@
 import api from './api';
 import { ChatMessage, PaginatedMessages, ChatListItem } from '../types/chat'; // Import PaginatedMessages type
 import { string } from 'yup';
+import config from '../config'; // ✅ Importar config
+
+const env = config(); // ✅ Obter configuração
+
 
 const realChatService = {
   /**
@@ -49,7 +53,55 @@ const realChatService = {
     const response = await api.post<ChatListItem>(`/api/v1/chats/${chatId}/set-active/`);
     return response;
   },
-  };
+
+  /**
+   * Gets TTS audio for a specific message.
+   * @param chatId - The ID of the conversation.
+   * @param messageId - The ID of the message to convert to speech.
+   * @returns A promise that resolves with the audio blob.
+   */
+  async getMessageTTS(chatId: string, messageId: string): Promise<Blob> {
+    console.log(`[API] Fetching TTS for message ${messageId} in chat ${chatId}`);
+    
+    // Usando fetch porque precisamos do Blob raw
+    // O axios do api.ts converte para JSON automaticamente
+    const token = await import('expo-secure-store').then(m => 
+      m.getItemAsync('authToken')
+    );
+    
+      const response = await fetch(
+      `${env.api.baseUrl}/api/v1/chats/${chatId}/messages/${messageId}/tts/`,
+      {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      }
+    );
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.detail || 'Erro ao buscar áudio');
+    }
+
+    return response.blob();
+  },
+
+  /**
+   * Toggles like status for a message.
+   * @param chatId - The ID of the conversation.
+   * @param messageId - The ID of the message to like/unlike.
+   * @returns A promise that resolves with the updated like status.
+   */
+  async toggleMessageLike(chatId: string, messageId: string): Promise<{ liked: boolean }> {
+    console.log(`[API] Toggling like for message ${messageId}`);
+    const response = await api.post<{ liked: boolean }>(
+      `/api/v1/chats/${chatId}/messages/${messageId}/like/`
+    );
+    return response;
+  },
+};
+
 
 
 
@@ -72,7 +124,19 @@ const mockChatService = {
       last_message: null,
       last_message_at: new Date().toISOString(),
     };
-  }
+  },
+async getMessageTTS(chatId: string, messageId: string): Promise<Blob> {
+    console.log(`[MOCK] Getting TTS for message ${messageId}`);
+    await new Promise(resolve => setTimeout(resolve, 500));
+    // Retorna um blob vazio para mock
+    return new Blob([], { type: 'audio/wav' });
+  },
+
+  async toggleMessageLike(chatId: string, messageId: string): Promise<{ liked: boolean }> {
+    console.log(`[MOCK] Toggling like for message ${messageId}`);
+    await new Promise(resolve => setTimeout(resolve, 300));
+    return { liked: true };
+  },
 };
 
 const USE_MOCK_API = false;

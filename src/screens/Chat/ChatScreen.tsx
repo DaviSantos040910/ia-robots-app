@@ -75,7 +75,8 @@ const ChatScreen: React.FC = () => {
   // --- HOOKS ---
   const {
     messages, isTyping, isLoadingMore, isLoadingInitial, hasLoadedOnce,
-    loadInitialMessages, loadMoreMessages, sendMessage, archiveAndStartNew, clearLocalChatState
+    loadInitialMessages, loadMoreMessages, sendMessage, archiveAndStartNew, clearLocalChatState,handleCopyMessage,
+  handleLikeMessage
   } = useChatController(currentChatId);
 
   const isFocused = useIsFocused();
@@ -479,16 +480,24 @@ const handleSend = useCallback(async () => {
           keyExtractor={(item) => String(item.id)}
           style={{ flex: 1 }}
           contentContainerStyle={[s.listContent, { paddingTop: Spacing['spacing-element-m'] }]}
-          renderItem={({ item, index }) => (
-            <MessageBubble
-                message={item}
-                // Passa a função renomeada
-                onSuggestionPress={(messageId, text) => handleSuggestionPress(text)}
-                // ----> ADICIONADO: Verifica se é o último item (índice 0 na lista invertida) <----
-                isLastMessage={index === 0}
-                isSendingSuggestion={isSendingSuggestion}
-            />
-          )} 
+          renderItem={({ item, index }) => {
+    // Adicionar verificação de null
+    if (!currentChatId) {
+      return null; // ou retornar um placeholder se preferir
+    }
+
+    return (
+      <MessageBubble
+        message={item}
+        conversationId={currentChatId} // Agora TypeScript sabe que não é null
+        onCopy={handleCopyMessage}
+        onLike={handleLikeMessage}
+        onSuggestionPress={(messageId, text) => handleSuggestionPress(text)}
+        isLastMessage={index === 0}
+        isSendingSuggestion={isSendingSuggestion}
+      />
+    );
+  }}
           onEndReached={() => {
             if (!isReadOnly && !isLoadingMore && hasLoadedOnce && messages.length > 0 && bootstrap?.conversationId === currentChatId) {
               console.log("[ChatScreen] Reached end (top), attempting to load more...");
