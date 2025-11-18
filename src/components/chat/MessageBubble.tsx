@@ -1,13 +1,22 @@
 // src/components/chat/MessageBubble.tsx
 
 import React from 'react';
-import { ActivityIndicator, Pressable, View, StyleSheet, Text, Image, Linking } from 'react-native';
-import { useColorScheme } from 'react-native';
+import { 
+  ActivityIndicator, 
+  Pressable, 
+  View, 
+  StyleSheet, 
+  Text, 
+  Image, 
+  Linking, 
+  useColorScheme 
+} from 'react-native';
 import { Feather } from '@expo/vector-icons';
+import Markdown from 'react-native-markdown-display';
+
 import { ChatMessage } from '../../types/chat';
 import { createChatStyles, getTheme } from '../../screens/Chat/Chat.styles';
 import { MiniSuggestionChip } from './MiniSuggestionChip';
-import Markdown from 'react-native-markdown-display';
 import { Spacing } from '../../theme/spacing';
 import { Radius } from '../../theme/radius';
 import { Typography } from '../../theme/typography';
@@ -42,7 +51,7 @@ export const MessageBubble: React.FC<{
   const bubbleStyle = isUser ? s.bubbleUser : s.bubbleBot;
   const textStyle = isUser ? s.userText : s.bubbleText;
 
-  // Hook para acessar o contexto de TTS
+  // Hook para acessar o contexto de TTS (Text-to-Speech)
   const { playTTS, isTTSPlaying, currentTTSMessageId } = useChatController(conversationId);
   const isThisMessagePlaying = isTTSPlaying && currentTTSMessageId === message.id;
 
@@ -66,23 +75,22 @@ export const MessageBubble: React.FC<{
   return (
     <View style={rowStyle}>
       <View style={[s.bubbleContainer, bubbleStyle]}>
-        {/* Renderiza o conteúdo de texto */}
-        {message.content && (
+        {/* Renderiza o conteúdo de texto, se houver */}
+        {message.content ? (
           <Markdown style={markdownStyle}>
             {message.content}
           </Markdown>
-        )}
+        ) : null}
 
         {/* Renderiza o anexo se existir */}
-{hasAttachment && message.attachment_url && (
-  <View style={attachmentStyles.container}>
-    {isImageAttachment ? (
-              // Renderiza imagem
+        {hasAttachment && message.attachment_url && (
+          <View style={attachmentStyles.container}>
+            {isImageAttachment ? (
+              // Renderiza imagem com tamanho fixo para manter padrão visual
               <Pressable
                 onPress={() => {
-                  // TODO: Implementar preview/zoom de imagem
-                  console.log('Open image preview:', message.attachment_url);
-                  // Você pode abrir um modal ou navegador de imagens aqui
+                  // Aqui você pode implementar um visualizador de imagem em tela cheia
+                  console.log('Abrir preview da imagem:', message.attachment_url);
                 }}
               >
                 <Image
@@ -92,12 +100,12 @@ export const MessageBubble: React.FC<{
                 />
               </Pressable>
             ) : (
-              // Renderiza documento/arquivo
+              // Renderiza documento/arquivo com layout ajustado
               <Pressable
                 onPress={() => {
                   if (message.attachment_url) {
                     Linking.openURL(message.attachment_url).catch(err => {
-                      console.error('Failed to open attachment:', err);
+                      console.error('Falha ao abrir anexo:', err);
                     });
                   }
                 }}
@@ -110,15 +118,18 @@ export const MessageBubble: React.FC<{
                 ]}
               >
                 <Feather name="file-text" size={20} color={isUser ? '#FFFFFF' : theme.textSecondary} />
-                <Text 
-                  style={[
-                    attachmentStyles.documentText,
-                    { color: isUser ? '#FFFFFF' : theme.textPrimary }
-                  ]}
-                  numberOfLines={1}
-                >
-                  {message.original_filename || 'Arquivo anexo'}
-                </Text>
+                <View style={{ flex: 1, marginHorizontal: Spacing['spacing-element-m'] }}>
+                    <Text 
+                    style={[
+                        attachmentStyles.documentText,
+                        { color: isUser ? '#FFFFFF' : theme.textPrimary }
+                    ]}
+                    numberOfLines={1}
+                    ellipsizeMode="middle"
+                    >
+                    {message.original_filename || 'Arquivo anexo'}
+                    </Text>
+                </View>
                 <Feather name="external-link" size={16} color={isUser ? '#FFFFFF' : theme.textSecondary} />
               </Pressable>
             )}
@@ -171,7 +182,7 @@ export const MessageBubble: React.FC<{
           </>
         )}
 
-        {/* Mini suggestions: sempre visíveis na última mensagem do bot */}
+        {/* Mini sugestões: sempre visíveis na última mensagem do bot */}
         {shouldShowSuggestions && (
           <View style={s.miniSuggestionRow}>
             {message.suggestions?.map((label, i) => (
@@ -192,14 +203,18 @@ export const MessageBubble: React.FC<{
 // Estilos específicos para anexos
 const attachmentStyles = StyleSheet.create({
   container: {
-    marginTop: Spacing['spacing-element-m'],
+    marginTop: Spacing['spacing-element-s'],
     borderRadius: Radius.medium,
     overflow: 'hidden',
+    // Define uma largura mínima para evitar colapso quando não há texto
+    minWidth: 200,
   },
   image: {
-    width: '100%',
-    height: 200,
+    // Define dimensões fixas para garantir padrão visual
+    width: 220, 
+    height: 220,
     borderRadius: Radius.medium,
+    backgroundColor: 'rgba(0,0,0,0.05)',
   },
   document: {
     flexDirection: 'row',
@@ -207,10 +222,10 @@ const attachmentStyles = StyleSheet.create({
     padding: Spacing['spacing-element-l'],
     borderRadius: Radius.medium,
     borderWidth: StyleSheet.hairlineWidth,
+    // Mantém a mesma largura da imagem para consistência
+    width: 220,
   },
   documentText: {
     ...Typography.bodyRegular.medium,
-    flex: 1,
-    marginHorizontal: Spacing['spacing-element-m'],
   },
 });
