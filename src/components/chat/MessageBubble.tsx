@@ -30,6 +30,7 @@ export const MessageBubble: React.FC<{
   onListen?: (m: ChatMessage) => void;
   onRewrite?: (m: ChatMessage) => void;
   onSuggestionPress?: (messageId: string, text: string) => void;
+  onImagePress?: (imageUrl: string) => void; // Nova prop para abrir imagem
   isLastMessage?: boolean;
   isSendingSuggestion?: boolean;
 }> = ({
@@ -40,6 +41,7 @@ export const MessageBubble: React.FC<{
   onListen,
   onRewrite,
   onSuggestionPress,
+  onImagePress,
   isLastMessage,
   isSendingSuggestion,
 }) => {
@@ -51,11 +53,14 @@ export const MessageBubble: React.FC<{
   const bubbleStyle = isUser ? s.bubbleUser : s.bubbleBot;
   const textStyle = isUser ? s.userText : s.bubbleText;
 
-  // Hook para acessar o contexto de TTS (Text-to-Speech)
+  // Hook para acessar o contexto de TTS
   const { playTTS, isTTSPlaying, currentTTSMessageId } = useChatController(conversationId);
   const isThisMessagePlaying = isTTSPlaying && currentTTSMessageId === message.id;
 
-  // Estilos para o componente Markdown
+  // Verifica se a mensagem é temporária (ainda enviando)
+  // No ChatProvider, IDs temporários começam com "temp"
+  const isPending = message.id.toString().startsWith('temp');
+
   const markdownStyle = StyleSheet.create({
     body: {
       ...textStyle,
@@ -67,43 +72,56 @@ export const MessageBubble: React.FC<{
 
   const shouldShowSuggestions = !isUser && !!message.suggestions?.length && isLastMessage;
 
-  // Determina se a mensagem tem anexo
   const hasAttachment = !!message.attachment_url;
   const isImageAttachment = message.attachment_type?.startsWith('image/') ||
     message.attachment_type === 'image';
 
+  const handleImagePress = () => {
+    // Só permite abrir se tiver URL e NÃO for uma mensagem pendente de envio
+    if (message.attachment_url && onImagePress && !isPending) {
+      onImagePress(message.attachment_url);
+    }
+  };
+
   return (
     <View style={rowStyle}>
       <View style={[s.bubbleContainer, bubbleStyle]}>
-        {/* Renderiza o conteúdo de texto, se houver */}
+        {/* Conteúdo de Texto */}
         {message.content ? (
           <Markdown style={markdownStyle}>
             {message.content}
           </Markdown>
         ) : null}
 
-        {/* Renderiza o anexo se existir */}
+        {/* Anexos */}
         {hasAttachment && message.attachment_url && (
           <View style={attachmentStyles.container}>
             {isImageAttachment ? (
-              // Renderiza imagem com tamanho fixo para manter padrão visual
+              // Imagem
               <Pressable
-                onPress={() => {
-                  // Aqui você pode implementar um visualizador de imagem em tela cheia
-                  console.log('Abrir preview da imagem:', message.attachment_url);
-                }}
+                onPress={handleImagePress}
+                style={({ pressed }) => ({ opacity: pressed ? 0.9 : 1 })}
               >
                 <Image
                   source={{ uri: message.attachment_url }}
-                  style={attachmentStyles.image}
+                  style={[
+                    attachmentStyles.image,
+                    // Adiciona uma leve opacidade se estiver pendente para indicar upload
+                    { opacity: isPending ? 0.5 : 1 }
+                  ]}
                   resizeMode="cover"
                 />
+                {isPending && (
+                  <View style={attachmentStyles.loadingOverlay}>
+                    <ActivityIndicator size="small" color="#FFFFFF" />
+                  </View>
+                )}
               </Pressable>
             ) : (
-              // Renderiza documento/arquivo com layout ajustado
+              // Documento
               <Pressable
                 onPress={() => {
-                  if (message.attachment_url) {
+                  if (message.attachment_url && !isPending) {
                     Linking.openURL(message.attachment_url).catch(err => {
                       console.error('Falha ao abrir anexo:', err);
                     });
@@ -114,6 +132,7 @@ export const MessageBubble: React.FC<{
                   {
                     backgroundColor: isUser ? 'rgba(255, 255, 255, 0.2)' : theme.surfaceAlt,
                     borderColor: isUser ? 'rgba(255, 255, 255, 0.3)' : theme.border,
+                    opacity: isPending ? 0.7 : 1,
                   },
                 ]}
               >
@@ -130,13 +149,18 @@ export const MessageBubble: React.FC<{
                     {message.original_filename || 'Arquivo anexo'}
                     </Text>
                 </View>
-                <Feather name="external-link" size={16} color={isUser ? '#FFFFFF' : theme.textSecondary} />
+                {!isPending && (
+                  <Feather name="external-link" size={16} color={isUser ? '#FFFFFF' : theme.textSecondary} />
+                )}
+                {isPending && (
+                   <ActivityIndicator size="small" color={isUser ? '#FFFFFF' : theme.textSecondary} />
+                )}
               </Pressable>
             )}
           </View>
         )}
 
-        {/* Ações do bot (apenas para mensagens do assistente) */}
+        {/* Ações do Bot */}
         {!isUser && (
           <>
             <View style={s.bubbleDivider} />
@@ -182,7 +206,7 @@ export const MessageBubble: React.FC<{
           </>
         )}
 
-        {/* Mini sugestões: sempre visíveis na última mensagem do bot */}
+        {/* Sugestões */}
         {shouldShowSuggestions && (
           <View style={s.miniSuggestionRow}>
             {message.suggestions?.map((label, i) => (
@@ -200,21 +224,25 @@ export const MessageBubble: React.FC<{
   );
 };
 
-// Estilos específicos para anexos
 const attachmentStyles = StyleSheet.create({
   container: {
     marginTop: Spacing['spacing-element-s'],
     borderRadius: Radius.medium,
     overflow: 'hidden',
-    // Define uma largura mínima para evitar colapso quando não há texto
     minWidth: 200,
   },
   image: {
-    // Define dimensões fixas para garantir padrão visual
     width: 220, 
     height: 220,
     borderRadius: Radius.medium,
     backgroundColor: 'rgba(0,0,0,0.05)',
+  },
+  loadingOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0,0,0,0.3)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderRadius: Radius.medium,
   },
   document: {
     flexDirection: 'row',
@@ -222,10 +250,11 @@ const attachmentStyles = StyleSheet.create({
     padding: Spacing['spacing-element-l'],
     borderRadius: Radius.medium,
     borderWidth: StyleSheet.hairlineWidth,
-    // Mantém a mesma largura da imagem para consistência
     width: 220,
   },
   documentText: {
     ...Typography.bodyRegular.medium,
   },
 });
+
+

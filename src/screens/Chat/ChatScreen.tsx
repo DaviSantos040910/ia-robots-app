@@ -35,6 +35,7 @@ import { smoothLayout } from '../../components/shared/Motion';
 import { Spacing } from '../../theme/spacing';
 import { AttachmentMenu } from '../../components/chat/AttachmentMenu';
 import { AttachmentPreview } from '../../components/chat/AttachmentPreview';
+import { ImageViewerModal } from '../../components/chat/ImageViewerModal'; // Importado
 import { useAttachmentPicker } from '../../hooks/useAttachmentPicker';
 import { AttachmentPickerResult } from '../../services/attachmentService';
 import { useAudioRecorder } from '../../hooks/useAudioRecorder';
@@ -72,9 +73,16 @@ const ChatScreen: React.FC = () => {
   const [showHeaderChips, setShowHeaderChips] = useState(false);
   const [isScreenLoading, setIsScreenLoading] = useState(true);
   const [isSendingSuggestion, setIsSendingSuggestion] = useState(false);
+  
+  // Estados de Anexos e Modal
   const [attachmentMenuVisible, setAttachmentMenuVisible] = useState(false);
   const [selectedAttachments, setSelectedAttachments] = useState<AttachmentPickerResult[]>([]);
   const [isUploadingAttachment, setIsUploadingAttachment] = useState(false);
+  
+  // NOVO: Estado para controlar o modal de visualização de imagem
+  const [viewingImageUrl, setViewingImageUrl] = useState<string | null>(null);
+
+  // Estado de Áudio
   const [isTranscribing, setIsTranscribing] = useState(false);
 
   // --- Audio Recording Hook ---
@@ -92,7 +100,7 @@ const ChatScreen: React.FC = () => {
     sendMessage,
     archiveAndStartNew,
     clearLocalChatState,
-    sendAttachment,
+    sendAttachments,
     handleCopyMessage,
     handleLikeMessage
   } = useChatController(currentChatId);
@@ -109,36 +117,22 @@ const ChatScreen: React.FC = () => {
 
   // --- DATA LOADING ---
   const loadChatData = useCallback(async (isTriggeredByFocusOrActivation: boolean = false) => {
-    if (isLoadingData.current && !isTriggeredByFocusOrActivation) {
-      console.log("[ChatScreen] Skipping loadChatData: already loading.");
-      return;
-    }
-
-    if (!botId) {
-      console.log("[ChatScreen] Skipping loadChatData: no botId.");
-      setIsScreenLoading(false);
-      return;
-    }
+    if (isLoadingData.current && !isTriggeredByFocusOrActivation) return;
+    if (!botId) { setIsScreenLoading(false); return; }
 
     if (isTriggeredByFocusOrActivation && initialLoadDoneForCurrentId.current === currentChatId && hasLoadedOnce) {
-      console.log(`[ChatScreen] Skipping loadChatData (focus/activation): Initial load already done for ${currentChatId}.`);
       setIsScreenLoading(false);
       return;
     }
 
     isLoadingData.current = true;
     if (initialLoadDoneForCurrentId.current !== currentChatId) {
-      console.log(`[ChatScreen] Setting isScreenLoading to true (initial load for ${currentChatId}).`);
       setIsScreenLoading(true);
     }
-    console.log(`[ChatScreen] Starting loadChatData. CurrentChatId: ${currentChatId}, isReadOnly (state): ${isReadOnly}`);
 
     try {
-      // FLUXO 1: Chat ARQUIVADO (Modo Leitura)
       if (isReadOnly) {
-        console.log(`[ChatScreen] Loading ARCHIVED chat (ID: ${currentChatId})`);
         if (currentChatId !== initialChatId) {
-          console.warn(`[ChatScreen] Archived flow: currentChatId (${currentChatId}) differs from initialChatId (${initialChatId}). Forcing initialChatId.`);
           setCurrentChatId(initialChatId);
           isLoadingData.current = false;
           return;
@@ -155,44 +149,32 @@ const ChatScreen: React.FC = () => {
         }
 
         if (initialLoadDoneForCurrentId.current !== initialChatId && initialChatId) {
-          console.log(`[ChatScreen] Triggering loadInitialMessages for ARCHIVED chat ${initialChatId}`);
           clearLocalChatState(initialChatId);
           await loadInitialMessages();
           initialLoadDoneForCurrentId.current = initialChatId;
         }
-
-        // FLUXO 2: Chat ATIVO (Modo Escrita)
       } else {
-        console.log(`[ChatScreen] Loading ACTIVE chat for botId: ${botId}`);
         let chatDataToLoad: string | null = null;
         let fetchedBootstrapData: ChatBootstrap | null = null;
 
-        console.log("[ChatScreen] Fetching bootstrap for active chat...");
         fetchedBootstrapData = await botService.getChatBootstrap(botId);
         setBootstrap(fetchedBootstrapData);
         chatDataToLoad = fetchedBootstrapData.conversationId;
 
         if (currentChatId !== chatDataToLoad) {
-          console.log(`[ChatScreen] Bootstrap updated chatId from ${currentChatId} to ${chatDataToLoad}`);
           setCurrentChatId(chatDataToLoad);
           initialLoadDoneForCurrentId.current = null;
           isLoadingData.current = false;
-          console.log("[ChatScreen] Returning early after setting new active currentChatId from bootstrap.");
           return;
-        } else {
-          console.log("[ChatScreen] Bootstrap ID matches currentChatId. No state update needed.");
         }
 
         const needsLoad = chatDataToLoad && initialLoadDoneForCurrentId.current !== chatDataToLoad;
-        console.log(`[ChatScreen] Checking active message load: needsLoad=${needsLoad}, chatIdToLoad=${chatDataToLoad}`);
         if (needsLoad && chatDataToLoad) {
-          console.log(`[ChatScreen] Triggering loadInitialMessages for ACTIVE chat ${chatDataToLoad}`);
           clearLocalChatState(chatDataToLoad);
           await loadInitialMessages();
           initialLoadDoneForCurrentId.current = chatDataToLoad;
         }
       }
-
     } catch (error) {
       console.error("[ChatScreen] Failed to load chat data:", error);
       Alert.alert("Erro", "Não foi possível carregar os dados do chat.");
@@ -200,14 +182,12 @@ const ChatScreen: React.FC = () => {
     } finally {
       isLoadingData.current = false;
       setIsScreenLoading(false);
-      console.log(`[ChatScreen] Finished loadChatData execution. isScreenLoading set to false.`);
     }
   }, [
     botId,
     currentChatId,
     initialChatId,
     isReadOnly,
-    initialIsArchived,
     bootstrap,
     botName,
     botHandle,
@@ -217,18 +197,14 @@ const ChatScreen: React.FC = () => {
     t,
   ]);
 
-  // --- Trigger data loading on focus or when currentChatId OR isReadOnly changes ---
   useEffect(() => {
     if (isFocused) {
-      console.log(`[ChatScreen] useEffect [isFocused, currentChatId, isReadOnly] triggered.`);
       loadChatData(true);
     } else {
-      console.log(`[ChatScreen] Screen lost focus. Resetting load flag.`);
       initialLoadDoneForCurrentId.current = null;
     }
   }, [isFocused, currentChatId, isReadOnly, loadChatData]);
 
-  // --- UI LOGIC for header chips ---
   useEffect(() => {
     const shouldShow = !!bootstrap && !isReadOnly && messages.length === 0;
     if (shouldShow !== showHeaderChips) {
@@ -252,80 +228,49 @@ const ChatScreen: React.FC = () => {
   };
 
   const handleSelectImage = async () => {
-    const result = await pickImage(); // Retorna array ou null
-    if (result) {
-      setSelectedAttachments(prev => [...prev, ...result]); // Adiciona ao array
-    }
+    const result = await pickImage();
+    if (result) setSelectedAttachments(prev => [...prev, ...result]);
   };
 
   const handleSelectDocument = async () => {
-    const result = await pickDocument(); // Retorna array ou null
-    if (result) {
-      setSelectedAttachments(prev => [...prev, ...result]); // Adiciona ao array
-    }
+    const result = await pickDocument();
+    if (result) setSelectedAttachments(prev => [...prev, ...result]);
   };
 
   const handleTakePhoto = async () => {
-    const result = await takePhoto(); // Retorna array de 1 item ou null
-    if (result) {
-      setSelectedAttachments(prev => [...prev, ...result]); // Adiciona ao array
-    }
+    const result = await takePhoto();
+    if (result) setSelectedAttachments(prev => [...prev, ...result]);
   };
 
   const handleRemoveAttachment = (uriToRemove: string) => {
     setSelectedAttachments(prev => prev.filter(att => att.uri !== uriToRemove));
   };
 
-  // Handler para iniciar gravação
   const handleStartRecording = useCallback(async () => {
-    console.log('[ChatScreen] Iniciando gravação de áudio...');
     const success = await audioRecorder.startRecording();
-
     if (!success) {
       Alert.alert(
         t('error', { defaultValue: 'Erro' }),
-        t('chat.recordingPermissionDenied', {
-          defaultValue: 'É necessária permissão do microfone para gravar áudio.'
-        })
+        t('chat.recordingPermissionDenied', { defaultValue: 'É necessária permissão do microfone para gravar áudio.' })
       );
     }
   }, [audioRecorder, t]);
 
-  // Handler para parar gravação e transcrever
   const handleStopRecording = useCallback(async () => {
     if (!currentChatId) return;
-
-    console.log('[ChatScreen] Parando gravação e iniciando transcrição...');
-
     const audioUri = await audioRecorder.stopRecording();
 
     if (!audioUri) {
-      Alert.alert(
-        t('error', { defaultValue: 'Erro' }),
-        t('chat.recordingFailed', { defaultValue: 'Falha ao salvar a gravação de áudio.' })
-      );
+      Alert.alert(t('error', { defaultValue: 'Erro' }), t('chat.recordingFailed', { defaultValue: 'Falha ao salvar gravação.' }));
       return;
     }
 
-    // Inicia transcrição
     setIsTranscribing(true);
-
     try {
-      console.log('[ChatScreen] Transcrevendo áudio...', audioUri);
       const transcription = await chatService.transcribeAudio(currentChatId, audioUri);
-
-      console.log('[ChatScreen] Transcrição recebida:', transcription);
-
-      // Coloca o texto transcrito no campo de input para o usuário editar
       setInput(transcription);
     } catch (error) {
-      console.error('[ChatScreen] Erro ao transcrever áudio:', error);
-      Alert.alert(
-        t('error', { defaultValue: 'Erro' }),
-        t('chat.transcriptionFailed', {
-          defaultValue: 'Falha ao transcrever áudio. Por favor, tente novamente.'
-        })
-      );
+      Alert.alert(t('error', { defaultValue: 'Erro' }), t('chat.transcriptionFailed', { defaultValue: 'Falha ao transcrever áudio.' }));
     } finally {
       setIsTranscribing(false);
     }
@@ -333,10 +278,8 @@ const ChatScreen: React.FC = () => {
 
   const handleBackPress = () => {
     if (isReadOnly) {
-      console.log("[ChatScreen] Back pressed in read-only mode. Navigating back.");
       navigation.goBack();
     } else {
-      console.log("[ChatScreen] Back pressed in active mode. Navigating to Main Chat list.");
       if (navigation.canGoBack()) {
         navigation.goBack();
       } else {
@@ -345,58 +288,45 @@ const ChatScreen: React.FC = () => {
     }
   };
 
+  // --- UPDATED SEND HANDLER (BATCH) ---
   const handleSend = useCallback(async () => {
     if (isReadOnly || !currentChatId) return;
 
     const textToSend = input.trim();
     const attachmentsToSend = selectedAttachments;
 
-    // Se não há nem texto nem anexos, não faz nada
-    if (attachmentsToSend.length === 0 && !textToSend) {
-      return;
-    }
+    if (attachmentsToSend.length === 0 && !textToSend) return;
 
-    // Limpa a UI
     setSelectedAttachments([]);
     setInput('');
-    setIsUploadingAttachment(true); // Usamos este loading para todo o processo
+    setIsUploadingAttachment(true);
 
     try {
-      // ETAPA 1: Enviar todos os anexos, um por um
-      for (const attachment of attachmentsToSend) {
-        console.log(`[ChatScreen] Enviando anexo: ${attachment.name}`);
-        // O sendAttachment agora só envia o arquivo e espera o "OK"
-        await sendAttachment(attachment);
+      if (attachmentsToSend.length > 0) {
+        console.log(`[ChatScreen] Iniciando upload em lote de ${attachmentsToSend.length} arquivos...`);
+        await sendAttachments(attachmentsToSend);
       }
 
-      // ETAPA 2: Enviar a mensagem de texto (que vai disparar a IA)
-      // Enviamos o texto mesmo que esteja vazio,
-      // se tivermos enviado anexos, para que a IA possa processá-los.
       if (textToSend || attachmentsToSend.length > 0) {
-        console.log(`[ChatScreen] Enviando prompt de texto para disparar IA: "${textToSend}"`);
+        console.log(`[ChatScreen] Enviando texto: "${textToSend}"`);
         await sendMessage(textToSend);
       }
 
     } catch (error: any) {
-      Alert.alert('Erro no Envio', error.message || 'Não foi possível enviar a mensagem ou anexos.');
-      // Restaura a UI em caso de falha
+      Alert.alert('Erro no Envio', error.message || 'Não foi possível enviar.');
       setSelectedAttachments(attachmentsToSend);
       setInput(textToSend);
     } finally {
       setIsUploadingAttachment(false);
     }
-  }, [isReadOnly, currentChatId, input, selectedAttachments, sendMessage, sendAttachment]);
+  }, [isReadOnly, currentChatId, input, selectedAttachments, sendMessage, sendAttachments]);
 
   const handleSuggestionPress = async (label: string) => {
-    if (isSendingSuggestion || isTyping || isReadOnly || !currentChatId) {
-      console.warn(`[ChatScreen] Suggestion send cancelled: isSendingSuggestion=${isSendingSuggestion}, isTyping=${isTyping}, isReadOnly=${isReadOnly}, currentChatId=${currentChatId}`);
-      return;
-    }
+    if (isSendingSuggestion || isTyping || isReadOnly || !currentChatId) return;
     if (showHeaderChips) {
       smoothLayout();
       setShowHeaderChips(false);
     }
-
     setIsSendingSuggestion(true);
     try {
       await sendMessage(label);
@@ -405,11 +335,14 @@ const ChatScreen: React.FC = () => {
     }
   };
 
+  // Handler para abrir imagem em tela cheia
+  const handleImagePress = (imageUrl: string) => {
+    setViewingImageUrl(imageUrl);
+  };
+
+  // ... (rest of the handlers: handleArchiveAndStartNew, handleActivateChat, menuItems) ...
   const handleArchiveAndStartNew = useCallback(() => {
-    if (!currentChatId) {
-      console.warn("[ChatScreen] Cannot archive: currentChatId is null.");
-      return;
-    }
+    if (!currentChatId) return;
     Alert.alert(
       t('chat.newChatTitle'),
       t('chat.newChatMessage'),
@@ -419,17 +352,14 @@ const ChatScreen: React.FC = () => {
           text: t('chat.proceed'),
           style: 'destructive',
           onPress: async () => {
-            console.log(`[ChatScreen] Archiving chat ${currentChatId} and starting new.`);
             setIsScreenLoading(true);
             const newChatId = await archiveAndStartNew();
             if (newChatId) {
-              console.log(`[ChatScreen] New chat ID: ${newChatId}. Resetting state for transition.`);
               setBootstrap(null);
               setIsReadOnly(false);
               initialLoadDoneForCurrentId.current = null;
               setCurrentChatId(newChatId);
             } else {
-              console.error("[ChatScreen] Failed to get new chat ID.");
               setIsScreenLoading(false);
             }
           },
@@ -439,11 +369,7 @@ const ChatScreen: React.FC = () => {
   }, [currentChatId, archiveAndStartNew, t]);
 
   const handleActivateChat = useCallback(() => {
-    if (!currentChatId) {
-      console.warn("[ChatScreen] Cannot activate: currentChatId is null.");
-      return;
-    }
-
+    if (!currentChatId) return;
     Alert.alert(
       t('chat.activateConfirmTitle'),
       t('chat.activateConfirmMessage'),
@@ -452,14 +378,10 @@ const ChatScreen: React.FC = () => {
         {
           text: t('chat.proceed'),
           onPress: async () => {
-            console.log(`[ChatScreen] Activating chat ${currentChatId}.`);
             try {
               setIsScreenLoading(true);
-
               const activatedChat: ChatListItem = await chatService.setActiveChat(currentChatId);
-              console.log(`[ChatScreen] Chat ${activatedChat.id} activated successfully via API.`);
               Alert.alert(t('chat.activateSuccess'));
-
               navigation.replace('ChatScreen', {
                 chatId: activatedChat.id,
                 botId: activatedChat.bot.id,
@@ -468,9 +390,7 @@ const ChatScreen: React.FC = () => {
                 botAvatarUrl: activatedChat.bot.avatar_url,
                 isArchived: false,
               });
-
             } catch (error) {
-              console.error("[ChatScreen] Failed to activate chat:", error);
               Alert.alert("Erro", "Não foi possível ativar esta conversa.");
               setIsScreenLoading(false);
             }
@@ -478,7 +398,7 @@ const ChatScreen: React.FC = () => {
         },
       ]
     );
-  }, [currentChatId, t, navigation, botId]);
+  }, [currentChatId, t, navigation]);
 
   const menuItems = useMemo(() => [
     {
@@ -502,7 +422,6 @@ const ChatScreen: React.FC = () => {
 
   // --- RENDER ---
   if (isScreenLoading || !bootstrap) {
-    console.log(`[ChatScreen] Final Loading Check: isScreenLoading=${isScreenLoading}, !bootstrap=${!bootstrap}`);
     return (
       <SafeAreaView style={[s.screen, { justifyContent: 'center', alignItems: 'center' }]}>
         <ChatHeader
@@ -541,10 +460,7 @@ const ChatScreen: React.FC = () => {
           style={{ flex: 1 }}
           contentContainerStyle={[s.listContent, { paddingTop: Spacing['spacing-element-m'] }]}
           renderItem={({ item, index }) => {
-            if (!currentChatId) {
-              return null;
-            }
-
+            if (!currentChatId) return null;
             return (
               <MessageBubble
                 message={item}
@@ -552,6 +468,8 @@ const ChatScreen: React.FC = () => {
                 onCopy={handleCopyMessage}
                 onLike={handleLikeMessage}
                 onSuggestionPress={(messageId, text) => handleSuggestionPress(text)}
+                // Passa o handler de imagem
+                onImagePress={handleImagePress}
                 isLastMessage={index === 0}
                 isSendingSuggestion={isSendingSuggestion}
               />
@@ -559,15 +477,12 @@ const ChatScreen: React.FC = () => {
           }}
           onEndReached={() => {
             if (!isReadOnly && !isLoadingMore && hasLoadedOnce && messages.length > 0 && bootstrap?.conversationId === currentChatId) {
-              console.log("[ChatScreen] Reached end (top), attempting to load more...");
               loadMoreMessages();
             }
           }}
           onEndReachedThreshold={0.5}
           ListHeaderComponent={
-            isLoadingMore ? (
-              <ActivityIndicator style={{ marginVertical: 16 }} color={theme.brand.normal} />
-            ) : null
+            isLoadingMore ? <ActivityIndicator style={{ marginVertical: 16 }} color={theme.brand.normal} /> : null
           }
           ListFooterComponent={
             <>
@@ -596,7 +511,7 @@ const ChatScreen: React.FC = () => {
             </>
           }
           keyboardShouldPersistTaps="handled"
-          extraData={messages.length + (currentChatId ?? 'nullId') + isLoadingMore + isReadOnly + isTyping + hasLoadedOnce + showHeaderChips + isSendingSuggestion}
+          extraData={messages.length}
         />
 
         {isTyping && (
@@ -605,9 +520,7 @@ const ChatScreen: React.FC = () => {
           </Text>
         )}
 
-        {/* ✅ CORREÇÃO: Preview de anexos e input devem estar dentro de View separada */}
         <View>
-          {/* Preview de anexos selecionados */}
           {selectedAttachments.length > 0 && (
             <ScrollView
               horizontal
@@ -619,20 +532,13 @@ const ChatScreen: React.FC = () => {
               }}
             >
               {selectedAttachments.map((attachment) => (
-                <View
-                  key={attachment.uri}
-                  style={{ marginRight: Spacing['spacing-element-m'] }}
-                >
-                  <AttachmentPreview
-                    attachment={attachment}
-                    onRemove={handleRemoveAttachment}
-                  />
+                <View key={attachment.uri} style={{ marginRight: Spacing['spacing-element-m'] }}>
+                  <AttachmentPreview attachment={attachment} onRemove={handleRemoveAttachment} />
                 </View>
               ))}
             </ScrollView>
           )}
 
-          {/* Banner de ativação ou input de chat */}
           {isReadOnly ? (
             <View style={s.activateBanner}>
               <Pressable style={s.activateButton} onPress={handleActivateChat}>
@@ -671,6 +577,13 @@ const ChatScreen: React.FC = () => {
         onSelectImage={handleSelectImage}
         onSelectDocument={handleSelectDocument}
         onTakePhoto={handleTakePhoto}
+      />
+
+      {/* Modal de Visualização de Imagem */}
+      <ImageViewerModal
+        visible={!!viewingImageUrl}
+        imageUrl={viewingImageUrl}
+        onClose={() => setViewingImageUrl(null)}
       />
     </SafeAreaView>
   );
