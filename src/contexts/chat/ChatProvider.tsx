@@ -26,7 +26,7 @@ export type ChatStore = {
   sendMessage: (chatId: string, text: string) => Promise<void>;
   archiveAndStartNew: (chatId: string) => Promise<string | null>;
   clearLocalChatState: (chatId: string) => void;
-  sendAttachment: (chatId: string, file: AttachmentPickerResult, content?: string) => Promise<void>;
+  sendAttachment: (chatId: string, file: AttachmentPickerResult) => Promise<void>;
   playTTS: (conversationId: string, messageId: string) => Promise<void>;
   stopTTS: () => Promise<void>;
   isTTSPlaying: boolean;
@@ -45,7 +45,6 @@ const initialChatData: ChatData = {
 };
 
 const ChatContext = createContext<ChatStore | null>(null);
-
 type ChatsState = Record<string, ChatData>;
 
 // --- FIM DAS DEFINIÇÕES ---
@@ -54,14 +53,14 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [chats, setChats] = useState<ChatsState>({});
   const [isTypingById, setIsTypingById] = useState<Record<string, boolean>>({});
   const activeSendPromises = useRef<Record<string, Promise<void>>>({});
-  
+
   // Hook do TTS
-  const { 
-    playTTS, 
-    stopTTS, 
-    isPlaying: isTTSPlaying, 
-    isLoading: isTTSLoading, 
-    currentMessageId: currentTTSMessageId 
+  const {
+    playTTS,
+    stopTTS,
+    isPlaying: isTTSPlaying,
+    isLoading: isTTSLoading,
+    currentMessageId: currentTTSMessageId
   } = useTTS();
 
   // Function to update the state for a specific chat ID
@@ -123,7 +122,6 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
           const latestMessageTimestampInCache = cachedData.messages.length > 0
             ? cachedData.messages[cachedData.messages.length - 1]?.created_at
             : null;
-
           let newerMessages: ChatMessage[] = [];
           if (latestMessageTimestampInCache) {
             newerMessages = response.results.filter(
@@ -144,7 +142,6 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
               }
               return { messages: [...prev.messages, ...uniqueNewerMessages] };
             });
-
             await setCachedChatData(chatId, {
               messages: [...cachedData.messages, ...messagesToAdd.filter(nm => !cachedData.messages.some(cm => cm.id === nm.id))],
               nextPage: response.next ? 2 : null,
@@ -169,14 +166,12 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
       console.log(`[ChatProvider] Received initial messages for ${chatId} from API. Count: ${response.results.length}. Next page exists: ${!!response.next}`);
       const apiMessages = response.results.reverse();
       const nextPageApi = response.next ? 2 : null;
-
       setChatData(chatId, () => ({
         messages: apiMessages,
         nextPage: nextPageApi,
         isLoadingInitial: false,
         hasLoadedOnce: true,
       }));
-
       await setCachedChatData(chatId, {
         messages: apiMessages,
         nextPage: nextPageApi,
@@ -228,7 +223,6 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
         console.log(`[ChatProvider] Adding ${newUniqueMessages.length} unique older messages from page ${pageToFetch}.`);
         const combinedMessages = [...newUniqueMessages.reverse(), ...(prev.messages ?? [])];
-
         const finalIds = combinedMessages.map((m: ChatMessage) => m.id);
         if (finalIds.length !== new Set(finalIds).size) {
           console.error('[ChatProvider] DUPLICATE IDs detected after merging in loadMoreMessages!', finalIds);
@@ -262,9 +256,11 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
 
     console.log(`[ChatProvider] Sending message. Temp ID: ${tempUserMsgId}, Content: "${text}"`);
+
     setChatData(chatId, (prev) => ({
       messages: [...(prev.messages ?? []), tempUserMsg]
     }));
+
     setIsTypingById((prev) => ({ ...prev, [chatId]: true }));
 
     const sendPromise = chatService.sendMessage(chatId, text)
@@ -280,6 +276,7 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
           }
 
           const messagesWithoutTemp = (currentChatState.messages ?? []).filter(m => m.id !== tempUserMsgId);
+
           if (messagesWithoutTemp.length === (currentChatState.messages?.length ?? 0)) {
             console.warn(`[ChatProvider] Temporary message ID ${tempUserMsgId} was NOT found during update!`);
           } else {
@@ -292,7 +289,7 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
           const finalIds = newFinalMessages.map(m => m.id);
           if (finalIds.length !== new Set(finalIds).size) {
             console.error('[ChatProvider] DUPLICATE IDs detected in finalMessages after sending!', finalIds);
-            const uniqueMessagesMap = new Map();
+            const uniqueMessagesMap = new Map<string, ChatMessage>();
             newFinalMessages.forEach(msg => uniqueMessagesMap.set(msg.id, msg));
             console.warn('[ChatProvider] Attempted duplicate removal.');
           } else {
@@ -333,12 +330,14 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setChatData(chatId, (prev) => {
           const messageExists = prev.messages.some(m => m.id === tempUserMsgId);
           let updatedMessages: ChatMessage[];
+
           if (messageExists) {
             updatedMessages = prev.messages.map(m => m.id === tempUserMsgId ? errorMsg : m);
           } else {
             console.warn(`[ChatProvider] Temp message ${tempUserMsgId} not found during error handling. Adding error message.`);
             updatedMessages = [...(prev.messages ?? []), errorMsg];
           }
+
           return { messages: updatedMessages };
         });
       })
@@ -366,48 +365,52 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, []);
 
   // --- sendAttachment ---
-  const sendAttachment = useCallback(async (chatId: string, file: AttachmentPickerResult, content?: string ) => {
+  // ✅ CORREÇÃO: Melhorada a lógica de substituição de mensagens temporárias
+  const sendAttachment = useCallback(async (chatId: string, file: AttachmentPickerResult) => {
     console.log(`[ChatProvider] Sending attachment for chat ${chatId}:`, file.name);
-
+    
+    // Cria uma mensagem temporária para o anexo
     const tempId = `temp-attachment-${Date.now()}-${Math.random()}`;
     const tempMessage: ChatMessage = {
       id: tempId,
       role: 'user',
-      content: content || '',
+      content: '', // Sem conteúdo de texto
       created_at: new Date().toISOString(),
-      attachment_url: file.uri,
+      attachment_url: file.uri, // URI local para preview
       attachment_type: file.type || 'application/octet-stream',
       original_filename: file.name,
     };
 
+    // Adiciona o anexo à tela
     setChatData(chatId, (prev) => ({
       messages: [...(prev.messages ?? []), tempMessage],
     }));
 
-    setIsTypingById((prev) => ({ ...prev, [chatId]: true }));
-
     try {
-      const apiReplies = await attachmentService.uploadAttachment(chatId, file, content);
-      console.log('[ChatProvider] Raw API response:', apiReplies);
-
+      // Chama o attachmentService sem texto
+      const apiReplies = await attachmentService.uploadAttachment(chatId, file, undefined);
+      
       if (!Array.isArray(apiReplies) || apiReplies.length === 0) {
-        throw new Error('Resposta inválida do servidor');
+        throw new Error('Resposta inválida do servidor ao enviar anexo');
       }
 
-      console.log(`[ChatProvider] Received ${apiReplies.length} messages from attachment upload`);
-      setIsTypingById((prev) => ({ ...prev, [chatId]: false }));
+      console.log('[ChatProvider] Attachment uploaded successfully, replacing temp message');
 
+      // ✅ CORREÇÃO: Substitui a mensagem temporária pela resposta do servidor
       setChats(prev => {
         const currentChat = prev[chatId];
         if (!currentChat) return prev;
 
-        const filtered = currentChat.messages.filter((m: ChatMessage) => m.id !== tempId);
-        const finalMessages = [...filtered, ...apiReplies];
-        const finalNextPage = currentChat.nextPage;
+        // Filtra a mensagem temporária e adiciona a mensagem real do servidor
+        const messagesWithoutTemp = currentChat.messages.filter(m => m.id !== tempId);
+        const finalMessages = [...messagesWithoutTemp, ...apiReplies];
 
+        console.log(`[ChatProvider] Messages before: ${currentChat.messages.length}, after: ${finalMessages.length}`);
+
+        // Salva no cache
         setCachedChatData(chatId, {
           messages: finalMessages,
-          nextPage: finalNextPage,
+          nextPage: currentChat.nextPage,
           timestamp: Date.now(),
         }).catch(cacheError => {
           console.error('[Cache] Failed to save cache from within setChats (sendAttachment):', cacheError);
@@ -422,11 +425,11 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
         };
       });
 
-      console.log('[ChatProvider] Attachment sent and AI reply received.');
+      console.log('[ChatProvider] Attachment sent and ACKNOWLEDGED by server.');
     } catch (error: any) {
       console.error('[ChatProvider] Failed to send attachment:', error);
-      setIsTypingById((prev) => ({ ...prev, [chatId]: false }));
-
+      
+      // Remove a mensagem temporária se o upload falhar
       setChats(prev => {
         const currentChat = prev[chatId];
         if (!currentChat) return prev;
@@ -440,7 +443,7 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
         };
       });
 
-      throw error;
+      throw error; // Propaga o erro para o ChatScreen
     }
   }, []);
 
@@ -457,7 +460,6 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
       return newState;
     });
-
     setIsTypingById(prev => {
       const newState = { ...prev };
       delete newState[chatId];
@@ -476,7 +478,7 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const handleLikeMessage = useCallback(async (chatId: string, message: ChatMessage) => {
     try {
       const result = await chatService.toggleMessageLike(chatId, message.id);
-
+      
       setChats(prevChats => {
         const currentChat = prevChats[chatId];
         if (!currentChat) return prevChats;
@@ -502,14 +504,14 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   // Memoize the context value
   const value = useMemo(
-    () => ({ 
-      chats, 
-      isTypingById, 
-      loadInitialMessages, 
-      loadMoreMessages, 
-      sendMessage, 
-      archiveAndStartNew, 
-      clearLocalChatState, 
+    () => ({
+      chats,
+      isTypingById,
+      loadInitialMessages,
+      loadMoreMessages,
+      sendMessage,
+      archiveAndStartNew,
+      clearLocalChatState,
       sendAttachment,
       playTTS,
       stopTTS,
@@ -520,13 +522,13 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
       handleLikeMessage,
     }),
     [
-      chats, 
-      isTypingById, 
-      loadInitialMessages, 
-      loadMoreMessages, 
-      sendMessage, 
-      archiveAndStartNew, 
-      clearLocalChatState, 
+      chats,
+      isTypingById,
+      loadInitialMessages,
+      loadMoreMessages,
+      sendMessage,
+      archiveAndStartNew,
+      clearLocalChatState,
       sendAttachment,
       playTTS,
       stopTTS,
@@ -549,7 +551,7 @@ export const useChatController = (chatId: string | null): ChatData & {
   sendMessage: (text: string) => Promise<void>;
   archiveAndStartNew: () => Promise<string | null>;
   clearLocalChatState: (idToClear: string) => void;
-  sendAttachment: (file: AttachmentPickerResult, content?: string) => Promise<void>;
+  sendAttachment: (file: AttachmentPickerResult) => Promise<void>;
   playTTS: (conversationId: string, messageId: string) => Promise<void>;
   stopTTS: () => Promise<void>;
   isTTSPlaying: boolean;
@@ -559,7 +561,6 @@ export const useChatController = (chatId: string | null): ChatData & {
   handleLikeMessage: (message: ChatMessage) => Promise<void>;
 } => {
   const ctx = useContext(ChatContext);
-
   if (!ctx) {
     throw new Error('useChatController must be used within ChatProvider');
   }
@@ -608,10 +609,10 @@ export const useChatController = (chatId: string | null): ChatData & {
     ctx.clearLocalChatState(idToClear);
   }, [ctx]);
 
-  const stableSendAttachment = useCallback((file: AttachmentPickerResult, content?: string) => {
+  const stableSendAttachment = useCallback((file: AttachmentPickerResult) => {
     if (chatId) {
       console.log(`[useChatController] Calling sendAttachment for ${chatId}`);
-      return ctx.sendAttachment(chatId, file, content);
+      return ctx.sendAttachment(chatId, file);
     }
     console.warn("[useChatController] Attempted to call sendAttachment with null chatId.");
     return Promise.resolve();
@@ -643,13 +644,13 @@ export const useChatController = (chatId: string | null): ChatData & {
     handleCopyMessage: ctx.handleCopyMessage,
     handleLikeMessage: stableHandleLikeMessage,
   }), [
-    chatData, 
-    isTyping, 
-    stableLoadInitialMessages, 
-    stableLoadMoreMessages, 
-    stableSendMessage, 
-    stableArchiveAndStartNew, 
-    stableClearLocalChatState, 
+    chatData,
+    isTyping,
+    stableLoadInitialMessages,
+    stableLoadMoreMessages,
+    stableSendMessage,
+    stableArchiveAndStartNew,
+    stableClearLocalChatState,
     stableSendAttachment,
     ctx.playTTS,
     ctx.stopTTS,

@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Image, Text, Pressable, StyleSheet } from 'react-native';
-import { Feather } from '@expo/vector-icons';
+import { Ionicons } from '@expo/vector-icons';
 import { useColorScheme } from 'react-native';
 import { getTheme } from '../../screens/Chat/Chat.styles';
 import { AttachmentPickerResult } from '../../services/attachmentService';
@@ -11,7 +11,7 @@ import { Radius } from '../../theme/radius';
 
 type Props = {
   attachment: AttachmentPickerResult;
-  onRemove: () => void;
+  onRemove: (uri: string) => void;
 };
 
 export const AttachmentPreview: React.FC<Props> = ({ attachment, onRemove }) => {
@@ -31,7 +31,7 @@ export const AttachmentPreview: React.FC<Props> = ({ attachment, onRemove }) => 
           />
         ) : (
           <View style={[styles.iconContainer, { backgroundColor: theme.brand.normal }]}>
-            <Feather name="file-text" size={24} color="#FFFFFF" />
+            <Ionicons name="document-text-outline" size={24} color="#FFFFFF" />
           </View>
         )}
         
@@ -51,11 +51,11 @@ export const AttachmentPreview: React.FC<Props> = ({ attachment, onRemove }) => 
       </View>
 
       <Pressable 
-        onPress={onRemove} 
+        onPress={() => onRemove(attachment.uri)} 
         style={[styles.removeButton, { backgroundColor: Colors.semantic.error.normal }]}
         hitSlop={8}
       >
-        <Feather name="x" size={16} color="#FFFFFF" />
+        <Ionicons name="close" size={16} color="#FFFFFF" />
       </Pressable>
     </View>
   );
@@ -74,8 +74,9 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: Spacing['spacing-group-s'],
     paddingVertical: Spacing['spacing-element-m'],
-    marginHorizontal: Spacing['spacing-group-s'],
-    marginBottom: Spacing['spacing-element-m'],
+    // ✅ CORREÇÃO 1: Removido espaçamentos que causam o bug
+    // marginHorizontal: Spacing['spacing-group-s'], (removido)
+    // marginBottom: Spacing['spacing-element-m'], (removido)
     borderRadius: Radius.medium,
   },
   content: {

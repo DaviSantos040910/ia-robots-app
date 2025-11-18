@@ -28,11 +28,11 @@ export const useAttachmentPicker = () => {
 
   /**
    * Abre o seletor de imagens
+   * ✅ RETORNA ARRAY DE ANEXOS
    */
-  const pickImage = async (): Promise<AttachmentPickerResult | null> => {
+  const pickImage = async (): Promise<AttachmentPickerResult[] | null> => {
     try {
       setIsPickerLoading(true);
-      
       const hasPermission = await requestPermissions('image');
       if (!hasPermission) return null;
 
@@ -41,22 +41,23 @@ export const useAttachmentPicker = () => {
         allowsEditing: false,
         quality: 0.8, // Comprime para reduzir tamanho
         exif: false,
+        allowsMultipleSelection: true, // ✅ HABILITA SELEÇÃO MÚLTIPLA
       });
 
-      if (!result.canceled && result.assets[0]) {
-        const asset = result.assets[0];
-        return {
+      if (!result.canceled && result.assets && result.assets.length > 0) {
+        // Mapeia todos os assets selecionados para o nosso formato
+        return result.assets.map(asset => ({
           uri: asset.uri,
           name: asset.fileName || `image_${Date.now()}.jpg`,
           type: asset.type === 'image' ? 'image/jpeg' : undefined,
           size: asset.fileSize,
-        };
+        }));
       }
 
       return null;
     } catch (error) {
       console.error('[AttachmentPicker] Image picker error:', error);
-      Alert.alert('Erro', 'Não foi possível selecionar a imagem');
+      Alert.alert('Erro', 'Não foi possível selecionar as imagens');
       return null;
     } finally {
       setIsPickerLoading(false);
@@ -65,30 +66,32 @@ export const useAttachmentPicker = () => {
 
   /**
    * Abre o seletor de documentos
+   * ✅ RETORNA ARRAY DE ANEXOS
    */
-  const pickDocument = async (): Promise<AttachmentPickerResult | null> => {
+  const pickDocument = async (): Promise<AttachmentPickerResult[] | null> => {
     try {
       setIsPickerLoading(true);
 
       const result = await DocumentPicker.getDocumentAsync({
         type: '*/*', // Permite qualquer tipo de arquivo
         copyToCacheDirectory: true,
+        multiple: true, // ✅ HABILITA SELEÇÃO MÚLTIPLA
       });
 
-      if (!result.canceled && result.assets && result.assets[0]) {
-        const asset = result.assets[0];
-        return {
+      if (!result.canceled && result.assets && result.assets.length > 0) {
+        // Mapeia todos os assets selecionados
+        return result.assets.map(asset => ({
           uri: asset.uri,
           name: asset.name,
           type: asset.mimeType,
           size: asset.size,
-        };
+        }));
       }
 
       return null;
     } catch (error) {
       console.error('[AttachmentPicker] Document picker error:', error);
-      Alert.alert('Erro', 'Não foi possível selecionar o arquivo');
+      Alert.alert('Erro', 'Não foi possível selecionar os arquivos');
       return null;
     } finally {
       setIsPickerLoading(false);
@@ -97,11 +100,11 @@ export const useAttachmentPicker = () => {
 
   /**
    * Abre a câmera para tirar foto
+   * ✅ RETORNA ARRAY DE ANEXOS (com 1 item)
    */
-  const takePhoto = async (): Promise<AttachmentPickerResult | null> => {
+  const takePhoto = async (): Promise<AttachmentPickerResult[] | null> => {
     try {
       setIsPickerLoading(true);
-      
       const { status } = await ImagePicker.requestCameraPermissionsAsync();
       if (status !== 'granted') {
         Alert.alert(
@@ -118,12 +121,13 @@ export const useAttachmentPicker = () => {
 
       if (!result.canceled && result.assets[0]) {
         const asset = result.assets[0];
-        return {
+        // ✅ Retorna como um array para consistência
+        return [{
           uri: asset.uri,
           name: `photo_${Date.now()}.jpg`,
           type: 'image/jpeg',
           size: asset.fileSize,
-        };
+        }];
       }
 
       return null;
@@ -143,4 +147,3 @@ export const useAttachmentPicker = () => {
     isPickerLoading,
   };
 };
-
