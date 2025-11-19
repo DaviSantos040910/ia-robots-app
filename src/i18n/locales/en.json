@@ -4,6 +4,7 @@
     "hide": "Hide",
     "cancel": "Cancel"
   },
+  "error": "Error",
   "chat": {
     "menuSettings": "Settings",
     "menuNewChat": "Start New Chat",
@@ -15,7 +16,20 @@
     "activateButton": "Make this conversation active",
     "activateConfirmTitle": "Activate this chat?",
     "activateConfirmMessage": "This will archive your current active chat with this bot and restore this one. Do you want to proceed?",
-    "activateSuccess": "Conversation is now active."
+    "activateSuccess": "Conversation is now active.",
+    "botTyping": "Bot is typing...",
+    "transcribing": "Transcribing audio...",
+    "typeMessage": "Send message...",
+    "recordingPermissionDenied": "Microphone permission is required to record audio.",
+    "recordingFailed": "Failed to save recording.",
+    "transcriptionFailed": "Failed to transcribe audio.",
+    "sendError": "Failed to send message.",
+    "readOnlyMessage": "This chat is archived.",
+    "attachmentMenu": {
+      "camera": "Camera",
+      "gallery": "Gallery",
+      "document": "Document"
+    }
   },
   "archivedChats": {
     "title": "Archived Chats",
@@ -40,13 +54,14 @@
     "followers": "{{value}} followers",
     "voice": "Voice",
     "language": "Language",
-    "publicity": "Publicity",
+    "publicity": "Visibility",
     "cleanup": "Clean up the full text",
     "deleteTitle": "Delete Bot",
     "deleteMessage": "Are you sure you want to delete this bot? This action cannot be undone.",
     "cleanupTitle": "Clean Up Text",
     "cleanupMessage": "This will clear the bot's context. Are you sure?",
     "delete": "Delete",
+    "proceed": "Proceed",
     "publicityPrivate": "Private",
     "publicityGuests": "Guests",
     "publicityPublic": "Public"
@@ -73,5 +88,15 @@
   "explore": {
     "searchPlaceholder": "Search for bots or people",
     "clearHistory": "Clear all search history"
+  },
+  "categories": {
+    "productivity": "Productivity",
+    "learning": "Learning",
+    "creativity": "Creativity",
+    "wellness": "Wellness",
+    "roleplay": "Roleplay",
+    "games": "Games",
+    "text": "Text",
+    "image": "Image"
   }
 }

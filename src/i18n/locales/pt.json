@@ -1,14 +1,52 @@
-
 {
   "common": {
     "show": "Mostrar",
     "hide": "Ocultar",
     "cancel": "Cancelar"
   },
+  "error": "Erro",
   "chat": {
     "menuSettings": "Configurações",
     "menuNewChat": "Novo Chat",
-    "inputPlaceholder": "Enviar mensagem..."
+    "menuArchivedChats": "Ver Chats Arquivados",
+    "inputPlaceholder": "Enviar mensagem...",
+    "newChatTitle": "Iniciar Novo Chat?",
+    "newChatMessage": "Isso arquivará a conversa atual e iniciará uma nova. Deseja prosseguir?",
+    "proceed": "Prosseguir",
+    "activateButton": "Tornar esta conversa ativa",
+    "activateConfirmTitle": "Ativar este chat?",
+    "activateConfirmMessage": "Isso arquivará seu chat ativo atual com este bot e restaurará este. Deseja prosseguir?",
+    "activateSuccess": "A conversa agora está ativa.",
+    "botTyping": "Bot está digitando...",
+    "transcribing": "Transcrevendo áudio...",
+    "typeMessage": "Enviar mensagem...",
+    "recordingPermissionDenied": "É necessária permissão do microfone para gravar áudio.",
+    "recordingFailed": "Falha ao salvar gravação.",
+    "transcriptionFailed": "Falha ao transcrever áudio.",
+    "sendError": "Não foi possível enviar a mensagem.",
+    "readOnlyMessage": "Este chat está arquivado.",
+    "attachmentMenu": {
+      "camera": "Câmera",
+      "gallery": "Galeria",
+      "document": "Documento"
+    }
+  },
+  "archivedChats": {
+    "title": "Chats Arquivados",
+    "empty": "Nenhum chat arquivado encontrado.",
+    "chatFrom": "Chat de"
+  },
+  "mainTabs": {
+    "chat": "Chat",
+    "explore": "Explorar",
+    "create": "Criar",
+    "bots": "Bots",
+    "me": "Eu"
+  },
+  "botsScreen": {
+    "title": "Meus Bots",
+    "emptyTitle": "Nenhum Bot Ainda",
+    "emptyMessage": "Bots que você criar ou adicionar da aba Explorar aparecerão aqui."
   },
   "botSettings": {
     "by": "Por",
@@ -16,7 +54,7 @@
     "followers": "{{value}} seguidores",
     "voice": "Voz",
     "language": "Idioma",
-    "publicity": "Publicidade",
+    "publicity": "Visibilidade",
     "cleanup": "Limpar texto completo",
     "deleteTitle": "Excluir Bot",
     "deleteMessage": "Tem certeza de que deseja excluir este bot? Esta ação não pode ser desfeita.",
@@ -50,7 +88,6 @@
   "explore": {
     "searchPlaceholder": "Buscar por bots ou pessoas",
     "clearHistory": "Limpar todo o histórico de busca"
-
   },
   "categories": {
     "productivity": "Produtividade",
