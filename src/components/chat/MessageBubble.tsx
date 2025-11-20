@@ -1,6 +1,6 @@
 // src/components/chat/MessageBubble.tsx
 
-import React from 'react';
+import React, { memo } from 'react';
 import { 
   ActivityIndicator, 
   Pressable, 
@@ -22,7 +22,7 @@ import { Radius } from '../../theme/radius';
 import { Typography } from '../../theme/typography';
 import { useChatController } from '../../contexts/chat/ChatProvider';
 
-export const MessageBubble: React.FC<{
+type MessageBubbleProps = {
   message: ChatMessage;
   conversationId: string;
   onCopy?: (m: ChatMessage) => void;
@@ -30,10 +30,12 @@ export const MessageBubble: React.FC<{
   onListen?: (m: ChatMessage) => void;
   onRewrite?: (m: ChatMessage) => void;
   onSuggestionPress?: (messageId: string, text: string) => void;
-  onImagePress?: (imageUrl: string) => void; // Nova prop para abrir imagem
+  onImagePress?: (imageUrl: string) => void;
   isLastMessage?: boolean;
   isSendingSuggestion?: boolean;
-}> = ({
+};
+
+const MessageBubbleComponent: React.FC<MessageBubbleProps> = ({
   message,
   conversationId,
   onCopy,
@@ -57,8 +59,6 @@ export const MessageBubble: React.FC<{
   const { playTTS, isTTSPlaying, currentTTSMessageId } = useChatController(conversationId);
   const isThisMessagePlaying = isTTSPlaying && currentTTSMessageId === message.id;
 
-  // Verifica se a mensagem é temporária (ainda enviando)
-  // No ChatProvider, IDs temporários começam com "temp"
   const isPending = message.id.toString().startsWith('temp');
 
   const markdownStyle = StyleSheet.create({
@@ -77,7 +77,6 @@ export const MessageBubble: React.FC<{
     message.attachment_type === 'image';
 
   const handleImagePress = () => {
-    // Só permite abrir se tiver URL e NÃO for uma mensagem pendente de envio
     if (message.attachment_url && onImagePress && !isPending) {
       onImagePress(message.attachment_url);
     }
@@ -97,16 +96,14 @@ export const MessageBubble: React.FC<{
         {hasAttachment && message.attachment_url && (
           <View style={attachmentStyles.container}>
             {isImageAttachment ? (
-              // Imagem
               <Pressable
                 onPress={handleImagePress}
                 style={({ pressed }) => ({ opacity: pressed ? 0.9 : 1 })}
               >
                 <Image
-                  source={{ uri: message.attachment_url }}
+                  source={{ uri: message.attachment_url! }}
                   style={[
                     attachmentStyles.image,
-                    // Adiciona uma leve opacidade se estiver pendente para indicar upload
                     { opacity: isPending ? 0.5 : 1 }
                   ]}
                   resizeMode="cover"
@@ -118,7 +115,6 @@ export const MessageBubble: React.FC<{
                 )}
               </Pressable>
             ) : (
-              // Documento
               <Pressable
                 onPress={() => {
                   if (message.attachment_url && !isPending) {
@@ -174,7 +170,7 @@ export const MessageBubble: React.FC<{
                   style={message.liked ? s.actionButtonFilled : s.actionButton}
                 >
                   <Feather 
-                    name={message.liked ? "thumbs-up" : "thumbs-up"} 
+                    name="thumbs-up" 
                     size={16} 
                     color={message.liked ? theme.brand.normal : theme.textSecondary} 
                   />
@@ -257,4 +253,26 @@ const attachmentStyles = StyleSheet.create({
   },
 });
 
+// --- OTIMIZAÇÃO DE PERFORMANCE ---
 
+const arePropsEqual = (prevProps: MessageBubbleProps, nextProps: MessageBubbleProps) => {
+  // 1. Verifica igualdade profunda dos dados da mensagem que afetam a renderização
+  const isMessageEqual = 
+    prevProps.message.id === nextProps.message.id &&
+    prevProps.message.content === nextProps.message.content &&
+    // Nota: Usamos 'liked' conforme definido em ChatMessage, em vez de 'is_liked'
+    prevProps.message.liked === nextProps.message.liked &&
+    // Adicionamos verificação de anexos pois eles alteram o visual
+    prevProps.message.attachment_url === nextProps.message.attachment_url &&
+    prevProps.message.rewriting === nextProps.message.rewriting;
+
+  // 2. Verifica props de estado da lista que afetam este item
+  const isStateEqual = 
+    prevProps.isLastMessage === nextProps.isLastMessage &&
+    prevProps.isSendingSuggestion === nextProps.isSendingSuggestion;
+
+  // Retorna true apenas se tudo for igual (evita re-render)
+  return isMessageEqual && isStateEqual;
+};
+
+export const MessageBubble = memo(MessageBubbleComponent, arePropsEqual);

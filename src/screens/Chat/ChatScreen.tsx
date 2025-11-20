@@ -1,12 +1,12 @@
 // src/screens/Chat/ChatScreen.tsx
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import {
   ActivityIndicator,
   FlatList,
   KeyboardAvoidingView,
   Platform,
-  Text,
   View,
+  Text,
   ScrollView,
   Alert,
 } from 'react-native';
@@ -38,6 +38,7 @@ import { useChatAudioLogic } from './hooks/useChatAudioLogic';
 import { createChatStyles, getTheme } from './Chat.styles';
 import { RootStackParamList } from '../../types/navigation';
 import { Spacing } from '../../theme/spacing';
+import { ChatMessage } from '../../types/chat';
 
 type ChatScreenProps = NativeStackScreenProps<RootStackParamList, 'ChatScreen'>;
 
@@ -63,9 +64,9 @@ const ChatScreen: React.FC = () => {
     bootstrap,
     isReadOnly,
     isScreenLoading,
+    setBootstrap,
     setIsReadOnly,
     setCurrentChatId,
-    setBootstrap,
     initialLoadDoneForCurrentId
   } = useChatBootstrap({
     ...route.params,
@@ -102,7 +103,6 @@ const ChatScreen: React.FC = () => {
 
   const {
     audioProps,
-    isTranscribing 
   } = useChatAudioLogic({
     chatId: currentChatId,
     setTextInput: setInputText,
@@ -110,25 +110,25 @@ const ChatScreen: React.FC = () => {
 
   // --- Handlers ---
 
-  const handleBackPress = () => {
+  const handleBackPress = useCallback(() => {
     if (isReadOnly) {
       navigation.goBack();
     } else {
       navigation.canGoBack() ? navigation.goBack() : navigation.navigate('Main', { screen: 'Chat' });
     }
-  };
+  }, [isReadOnly, navigation]);
 
-  const handleOpenSettings = () => {
+  const handleOpenSettings = useCallback(() => {
     setMenuOpen(false);
     navigation.navigate('BotSettings', { botId: route.params.botId });
-  };
+  }, [navigation, route.params.botId]);
 
-  const handleViewArchived = () => {
+  const handleViewArchived = useCallback(() => {
     setMenuOpen(false);
     navigation.navigate('ArchivedChats', { botId: route.params.botId });
-  };
+  }, [navigation, route.params.botId]);
 
-  const handleSend = async () => {
+  const handleSend = useCallback(async () => {
     if (isReadOnly || !currentChatId) return;
     
     const textToSend = inputText.trim();
@@ -150,14 +150,14 @@ const ChatScreen: React.FC = () => {
     } catch (error) {
       Alert.alert(t('error'), t('chat.sendError', { defaultValue: 'Failed to send message.' }));
     }
-  };
+  }, [isReadOnly, currentChatId, inputText, selectedAttachments, clearAttachments, sendAttachments, sendMessage, t]);
 
-  const handleSuggestionPress = (label: string) => {
+  const handleSuggestionPress = useCallback((label: string) => {
     if (isReadOnly || !currentChatId) return;
     sendMessage(label);
-  };
+  }, [isReadOnly, currentChatId, sendMessage]);
 
-  const handleArchiveAndStartNew = () => {
+  const handleArchiveAndStartNew = useCallback(() => {
     setMenuOpen(false);
     if (!currentChatId) return;
 
@@ -181,7 +181,7 @@ const ChatScreen: React.FC = () => {
         },
       ]
     );
-  };
+  }, [currentChatId, t, archiveAndStartNew, setBootstrap, setIsReadOnly, setCurrentChatId, initialLoadDoneForCurrentId]);
 
   const menuItems = useMemo(() => [
     {
@@ -199,12 +199,30 @@ const ChatScreen: React.FC = () => {
       onPress: handleViewArchived,
       icon: <Ionicons name="archive-outline" size={18} color={theme.textPrimary} />
     },
-  ], [isReadOnly, theme, t]);
+  ], [isReadOnly, theme, t, handleOpenSettings, handleArchiveAndStartNew, handleViewArchived]);
+
+  // --- Render Item Optimization ---
+
+  const renderMessage = useCallback(({ item, index }: { item: ChatMessage; index: number }) => {
+    if (!currentChatId) return null;
+    
+    return (
+      <MessageBubble
+        message={item}
+        conversationId={currentChatId}
+        onCopy={handleCopyMessage}
+        onLike={handleLikeMessage}
+        onSuggestionPress={(_, text) => handleSuggestionPress(text)}
+        onImagePress={onImagePress}
+        isLastMessage={index === 0}
+      />
+    );
+  }, [currentChatId, handleCopyMessage, handleLikeMessage, handleSuggestionPress, onImagePress]);
+
+  const keyExtractor = useCallback((item: ChatMessage) => item.id.toString(), []);
 
   // --- Render Logic ---
 
-  // Correção BUG 1: Layout de Loading corrigido
-  // Agora usamos 'flex: 1' para o container do indicador, em vez de centralizar a tela inteira.
   if (isScreenLoading || !bootstrap) {
     return (
       <SafeAreaView style={s.screen}>
@@ -222,7 +240,7 @@ const ChatScreen: React.FC = () => {
   }
 
   const showWelcome = !isReadOnly && messages.length === 0;
-  const invertedMessages = [...messages].reverse();
+  const invertedMessages = useMemo(() => [...messages].reverse(), [messages]);
 
   return (
     <SafeAreaView style={s.screen} edges={['top', 'bottom']}>
@@ -243,26 +261,23 @@ const ChatScreen: React.FC = () => {
       >
         <FlatList
           data={invertedMessages}
-          keyExtractor={(item) => item.id}
+          keyExtractor={keyExtractor}
+          renderItem={renderMessage}
           inverted
           style={{ flex: 1 }}
           contentContainerStyle={[s.listContent, { paddingTop: Spacing['spacing-element-m'] }]}
           
-          // Correção BUG 2: Permitir toque com teclado aberto
-          // 'handled' garante que o toque no suggestion chip seja processado mesmo se o teclado estiver visível.
+          // --- OTIMIZAÇÕES DE PERFORMANCE ---
+          initialNumToRender={15} // Renderiza a primeira tela rápido
+          maxToRenderPerBatch={10} // Evita travar a thread JS ao rolar
+          windowSize={5} // Mantém menos itens fora da tela na memória
+          removeClippedSubviews={Platform.OS === 'android'} // Ativa apenas no Android para evitar bugs visuais no iOS
+          maintainVisibleContentPosition={{ minIndexForVisible: 0 }} // Evita pulos na lista
+          
+          // UX
+          extraData={messages}
           keyboardShouldPersistTaps="handled"
 
-          renderItem={({ item, index }) => (
-            <MessageBubble
-              message={item}
-              conversationId={currentChatId || ''}
-              onCopy={handleCopyMessage}
-              onLike={handleLikeMessage}
-              onSuggestionPress={(_, text) => handleSuggestionPress(text)}
-              onImagePress={onImagePress}
-              isLastMessage={index === 0}
-            />
-          )}
           onEndReached={() => {
             if (!isReadOnly && !isLoadingMore && hasLoadedOnce) {
               loadMoreMessages();
@@ -299,8 +314,7 @@ const ChatScreen: React.FC = () => {
                paddingTop: Spacing['spacing-element-s'],
                paddingBottom: Spacing['spacing-element-s']
              }}
-             // Também adicionamos aqui por precaução, caso o usuário tente remover um anexo com teclado aberto
-             keyboardShouldPersistTaps="handled" 
+             keyboardShouldPersistTaps="handled"
            >
              {selectedAttachments.map((attachment) => (
                <View key={attachment.uri} style={{ marginRight: Spacing['spacing-element-m'] }}>

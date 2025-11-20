@@ -1,6 +1,6 @@
 // src/components/chat/ChatInput.tsx
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, memo } from 'react';
 import { 
   Pressable, 
   TextInput, 
@@ -26,7 +26,6 @@ type Props = {
   onMic: () => void;
   onPlus: () => void;
   onHeightChange?: (h: number) => void;
-  // Novas props para gravação
   recordingState: RecordingState;
   recordingDuration: string;
   onPauseRecording: () => void;
@@ -42,7 +41,7 @@ const MIN_LINES = 1;
 const MAX_INPUT_HEIGHT = LINE_HEIGHT * MAX_LINES;
 const MIN_INPUT_HEIGHT = LINE_HEIGHT * MIN_LINES;
 
-export const ChatInput: React.FC<Props> = ({ 
+const ChatInputComponent: React.FC<Props> = ({ 
   value, 
   onChangeText, 
   onSend, 
@@ -83,7 +82,7 @@ export const ChatInput: React.FC<Props> = ({
   const inputHeight = Math.min(MAX_INPUT_HEIGHT, Math.max(MIN_INPUT_HEIGHT, contentHeight));
   const enableScroll = contentHeight > MAX_INPUT_HEIGHT;
 
-  // Se estiver transcrevendo, mostra indicador de carregamento
+  // Estado de Transcrição
   if (isTranscribing) {
     return (
       <View style={s.inputWrap} onLayout={handleLayout}>
@@ -97,17 +96,15 @@ export const ChatInput: React.FC<Props> = ({
     );
   }
 
-  // Se estiver gravando, mostra UI de gravação
+  // Estado de Gravação
   if (recordingState !== 'idle') {
     return (
       <View style={s.inputWrap} onLayout={handleLayout}>
         <View style={s.recordingContainer}>
-          {/* Botão de cancelar */}
           <Pressable onPress={onCancelRecording} style={s.recordingButton}>
             <Feather name="x" size={24} color={Colors.semantic.error.normal} />
           </Pressable>
 
-          {/* Indicador visual de gravação */}
           <View style={s.recordingIndicator}>
             <View style={[
               s.recordingDot,
@@ -116,7 +113,6 @@ export const ChatInput: React.FC<Props> = ({
             <Text style={s.recordingDuration}>{recordingDuration}</Text>
           </View>
 
-          {/* Botão de pausar/retomar */}
           <Pressable 
             onPress={recordingState === 'recording' ? onPauseRecording : onResumeRecording} 
             style={s.recordingButton}
@@ -128,7 +124,6 @@ export const ChatInput: React.FC<Props> = ({
             />
           </Pressable>
 
-          {/* Botão de parar e enviar */}
           <Pressable onPress={onStopRecording} style={s.recordingButton}>
             <Feather name="check" size={24} color={Colors.semantic.success.normal} />
           </Pressable>
@@ -137,11 +132,11 @@ export const ChatInput: React.FC<Props> = ({
     );
   }
 
-  // UI normal do chat input
+  // UI Padrão
   return (
     <View style={s.inputWrap} onLayout={handleLayout}>
       <View style={s.inputContainer}>
-        <Pressable onPress={onPlus}>
+        <Pressable onPress={onPlus} hitSlop={10}>
           <Feather name="plus" size={24} color={theme.textSecondary} />
         </Pressable>
 
@@ -150,7 +145,7 @@ export const ChatInput: React.FC<Props> = ({
             s.textInput,
             { height: inputHeight }
           ]}
-          placeholder={t('chat.typeMessage', { defaultValue: 'Send message...' })}
+          placeholder={t('chat.inputPlaceholder', { defaultValue: 'Send message...' })}
           placeholderTextColor={theme.placeholder}
           value={value}
           onChangeText={onChangeText}
@@ -161,11 +156,11 @@ export const ChatInput: React.FC<Props> = ({
         />
 
         {canSend ? (
-          <Pressable onPress={onSend}>
+          <Pressable onPress={onSend} hitSlop={10}>
             <Feather name="send" size={24} color={theme.brand.normal} />
           </Pressable>
         ) : (
-          <Pressable onPress={onMic}>
+          <Pressable onPress={onMic} hitSlop={10}>
             <Feather name="mic" size={24} color={theme.textSecondary} />
           </Pressable>
         )}
@@ -173,3 +168,9 @@ export const ChatInput: React.FC<Props> = ({
     </View>
   );
 };
+
+// --- OTIMIZAÇÃO ---
+// Envolvemos o componente em memo.
+// Como não há props profundas complexas (funções são estáveis graças aos hooks otimizados),
+// a comparação rasa padrão é suficiente e eficiente.
+export const ChatInput = memo(ChatInputComponent);

@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import { Alert } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { useAudioRecorder } from '../../../hooks/useAudioRecorder';
@@ -6,17 +6,16 @@ import { chatService } from '../../../services/chatService';
 
 type UseChatAudioLogicProps = {
   chatId: string | null;
-  setTextInput: (text: string) => void; // Função para atualizar o estado do input na tela
+  setTextInput: (text: string) => void;
 };
 
 export const useChatAudioLogic = ({ chatId, setTextInput }: UseChatAudioLogicProps) => {
   const { t } = useTranslation();
   const [isTranscribing, setIsTranscribing] = useState(false);
 
-  // Usa o hook global de gravação
   const audioRecorder = useAudioRecorder();
 
-  // Inicia a gravação com verificação de permissão
+  // Handlers memoizados via useCallback
   const handleStartRecording = useCallback(async () => {
     const success = await audioRecorder.startRecording();
     if (!success) {
@@ -27,11 +26,9 @@ export const useChatAudioLogic = ({ chatId, setTextInput }: UseChatAudioLogicPro
     }
   }, [audioRecorder, t]);
 
-  // Para a gravação e inicia o fluxo de transcrição
   const handleStopRecording = useCallback(async () => {
     if (!chatId) return;
 
-    // 1. Para a gravação e pega o arquivo
     const audioUri = await audioRecorder.stopRecording();
 
     if (!audioUri) {
@@ -39,12 +36,10 @@ export const useChatAudioLogic = ({ chatId, setTextInput }: UseChatAudioLogicPro
       return;
     }
 
-    // 2. Inicia transcrição
     setIsTranscribing(true);
     try {
       const transcription = await chatService.transcribeAudio(chatId, audioUri);
       
-      // 3. Injeta o texto no input
       if (transcription) {
         setTextInput(transcription);
       }
@@ -56,19 +51,32 @@ export const useChatAudioLogic = ({ chatId, setTextInput }: UseChatAudioLogicPro
     }
   }, [audioRecorder, chatId, t, setTextInput]);
 
-  // Retorna um objeto pronto para ser espalhado {...audioProps} no componente ChatInput
+  // --- OTIMIZAÇÃO DE PERFORMANCE ---
+  // Memoizamos o objeto audioProps.
+  // Isso impede que o ChatInput re-renderize apenas porque o componente pai renderizou,
+  // a menos que o estado da gravação mude.
+  const audioProps = useMemo(() => ({
+    recordingState: audioRecorder.recordingState,
+    recordingDuration: audioRecorder.formattedDuration,
+    onMic: handleStartRecording,
+    onPauseRecording: audioRecorder.pauseRecording,
+    onResumeRecording: audioRecorder.resumeRecording,
+    onStopRecording: handleStopRecording,
+    onCancelRecording: audioRecorder.cancelRecording,
+    isTranscribing,
+  }), [
+    audioRecorder.recordingState,
+    audioRecorder.formattedDuration,
+    audioRecorder.pauseRecording,
+    audioRecorder.resumeRecording,
+    audioRecorder.cancelRecording,
+    handleStartRecording,
+    handleStopRecording,
+    isTranscribing
+  ]);
+
   return {
-    audioProps: {
-      recordingState: audioRecorder.recordingState,
-      recordingDuration: audioRecorder.formattedDuration,
-      onMic: handleStartRecording, // O botão de mic inicia a gravação
-      onPauseRecording: audioRecorder.pauseRecording,
-      onResumeRecording: audioRecorder.resumeRecording,
-      onStopRecording: handleStopRecording, // Parar dispara a transcrição
-      onCancelRecording: audioRecorder.cancelRecording,
-      isTranscribing,
-    },
-    // Exportamos também individualmente caso a tela precise acessar o estado fora do input
+    audioProps,
     isTranscribing,
     recordingState: audioRecorder.recordingState,
   };
