@@ -219,7 +219,27 @@ const ChatScreen: React.FC = () => {
     );
   }, [currentChatId, handleCopyMessage, handleLikeMessage, handleSuggestionPress, onImagePress]);
 
-  const keyExtractor = useCallback((item: ChatMessage) => item.id.toString(), []);
+  // --- FIX: Robust keyExtractor ---
+  const keyExtractor = useCallback((item: ChatMessage) => {
+    // Ensure ID is a string and fallback if missing (should not happen with correct types)
+    return item.id ? item.id.toString() : `temp-${Math.random()}`; 
+  }, []);
+
+  // --- Hooks de dados derivados ---
+  
+  // --- FIX: Filter duplicates here as a safety net ---
+  // While the provider should handle this, a final filter here ensures the UI never breaks
+  const uniqueMessages = useMemo(() => {
+    const seenIds = new Set();
+    return messages.filter(msg => {
+      if (seenIds.has(msg.id)) return false;
+      seenIds.add(msg.id);
+      return true;
+    });
+  }, [messages]);
+
+  const invertedMessages = useMemo(() => [...uniqueMessages].reverse(), [uniqueMessages]);
+  const showWelcome = !isReadOnly && uniqueMessages.length === 0;
 
   // --- Render Logic ---
 
@@ -238,9 +258,6 @@ const ChatScreen: React.FC = () => {
       </SafeAreaView>
     );
   }
-
-  const showWelcome = !isReadOnly && messages.length === 0;
-  const invertedMessages = useMemo(() => [...messages].reverse(), [messages]);
 
   return (
     <SafeAreaView style={s.screen} edges={['top', 'bottom']}>
@@ -268,14 +285,14 @@ const ChatScreen: React.FC = () => {
           contentContainerStyle={[s.listContent, { paddingTop: Spacing['spacing-element-m'] }]}
           
           // --- OTIMIZAÇÕES DE PERFORMANCE ---
-          initialNumToRender={15} // Renderiza a primeira tela rápido
-          maxToRenderPerBatch={10} // Evita travar a thread JS ao rolar
-          windowSize={5} // Mantém menos itens fora da tela na memória
-          removeClippedSubviews={Platform.OS === 'android'} // Ativa apenas no Android para evitar bugs visuais no iOS
-          maintainVisibleContentPosition={{ minIndexForVisible: 0 }} // Evita pulos na lista
+          initialNumToRender={15}
+          maxToRenderPerBatch={10}
+          windowSize={5}
+          removeClippedSubviews={Platform.OS === 'android'}
+          maintainVisibleContentPosition={{ minIndexForVisible: 0 }}
           
           // UX
-          extraData={messages}
+          extraData={uniqueMessages} // Use the unique list for change detection
           keyboardShouldPersistTaps="handled"
 
           onEndReached={() => {

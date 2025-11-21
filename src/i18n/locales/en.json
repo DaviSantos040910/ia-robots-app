@@ -2,7 +2,8 @@
   "common": {
     "show": "Show",
     "hide": "Hide",
-    "cancel": "Cancel"
+    "cancel": "Cancel",
+    "error": "Error"
   },
   "error": "Error",
   "chat": {
@@ -98,5 +99,60 @@
     "games": "Games",
     "text": "Text",
     "image": "Image"
+  },
+  "login": {
+      "emailOrUsername": "Email or Username",
+      "password": "Password",
+      "greeting": "Welcome Back",
+      "subtitle": "Log in to your account",
+      "description": "Enter your credentials to continue",
+      "signIn": "Sign In",
+      "forgotPassword": "Forgot Password?",
+      "forgotPasswordSuccess": "Reset email sent successfully.",
+      "forgotPasswordError": "Error sending reset email.",
+      "enterEmailOrUsernameForReset": "Enter your email or username to reset password.",
+      "continueWithGoogle": "Continue with Google",
+      "continueWithApple": "Continue with Apple",
+      "disclaimer": {
+        "part1": "By continuing, you agree to our",
+        "userAgreement": "User Agreement",
+        "and": "and",
+        "privacyPolicy": "Privacy Policy"
+      }
+  },
+  "signup": {
+      "title": "Create Account",
+      "subtitle": "Join our community",
+      "name": "Name",
+      "email": "Email",
+      "password": "Password",
+      "confirmPassword": "Confirm Password",
+      "namePlaceholder": "Your full name",
+      "emailPlaceholder": "your.email@example.com",
+      "passwordPlaceholder": "Min 8 characters",
+      "confirmPasswordPlaceholder": "Confirm your password",
+      "button": "Create Account",
+      "haveAccount": "Already have an account?",
+      "signIn": "Sign In"
+  },
+  "validation": {
+      "required": "{{field}} is required.",
+      "email": "Invalid email.",
+      "password": {
+          "minLength": "Password must be at least 8 characters.",
+          "complexity": "Password must contain uppercase, lowercase, numbers and special characters.",
+          "mismatch": "Passwords do not match."
+      }
+  },
+  "accessibility": {
+      "avatar": "User avatar",
+      "enterEmailOrUsername": "Enter your email or username",
+      "enterPassword": "Enter your password",
+      "showPassword": "Show password",
+      "hidePassword": "Hide password"
+  },
+  "errors": {
+      "generic": "An unexpected error occurred. Please try again later.",
+      "required": "Field required."
   }
 }

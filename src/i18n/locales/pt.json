@@ -2,7 +2,8 @@
   "common": {
     "show": "Mostrar",
     "hide": "Ocultar",
-    "cancel": "Cancelar"
+    "cancel": "Cancelar",
+    "error": "Erro"
   },
   "error": "Erro",
   "chat": {
@@ -98,5 +99,60 @@
     "games": "Jogos",
     "text": "Texto",
     "image": "Imagem"
+  },
+  "login": {
+      "emailOrUsername": "Email ou Usuário",
+      "password": "Password",
+      "greeting": "Bem-vindo de volta",
+      "subtitle": "Entre na sua conta",
+      "description": "Insira suas credenciais para continuar",
+      "signIn": "Entrar",
+      "forgotPassword": "Esqueceu a senha?",
+      "forgotPasswordSuccess": "Email de redefinição enviado com sucesso.",
+      "forgotPasswordError": "Erro ao enviar email de redefinição.",
+      "enterEmailOrUsernameForReset": "Insira seu email ou usuário para redefinir a senha.",
+      "continueWithGoogle": "Continuar com Google",
+      "continueWithApple": "Continuar com Apple",
+      "disclaimer": {
+        "part1": "Ao continuar, você concorda com nosso",
+        "userAgreement": "Contrato de Usuário",
+        "and": "e",
+        "privacyPolicy": "Política de Privacidade"
+      }
+  },
+  "signup": {
+      "title": "Crie sua conta",
+      "subtitle": "Junte-se à nossa comunidade",
+      "name": "Nome",
+      "email": "Email",
+      "password": "Password",
+      "confirmPassword": "Confirmar Password",
+      "namePlaceholder": "Seu nome completo",
+      "emailPlaceholder": "seu.email@exemplo.com",
+      "passwordPlaceholder": "Mínimo 8 caracteres",
+      "confirmPasswordPlaceholder": "Confirme sua senha",
+      "button": "Criar conta",
+      "haveAccount": "Já tem uma conta?",
+      "signIn": "Entrar"
+  },
+  "validation": {
+      "required": "{{field}} é obrigatório.",
+      "email": "Email inválido.",
+      "password": {
+          "minLength": "A senha deve ter pelo menos 8 caracteres.",
+          "complexity": "A senha deve conter letras maiúsculas, minúsculas, números e caracteres especiais.",
+          "mismatch": "As senhas não coincidem."
+      }
+  },
+  "accessibility": {
+      "avatar": "Avatar do usuário",
+      "enterEmailOrUsername": "Insira seu email ou nome de usuário",
+      "enterPassword": "Insira sua senha",
+      "showPassword": "Mostrar senha",
+      "hidePassword": "Ocultar senha"
+  },
+  "errors": {
+      "generic": "Ocorreu um erro inesperado. Tente novamente mais tarde.",
+      "required": "Campo obrigatório."
   }
 }
