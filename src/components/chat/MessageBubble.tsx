@@ -253,8 +253,7 @@ const attachmentStyles = StyleSheet.create({
   },
 });
 
-// --- OTIMIZAÇÃO DE PERFORMANCE ---
-
+// --- OTIMIZAÇÃO DE PERFORMANCE: arePropsEqual ---
 const arePropsEqual = (prevProps: MessageBubbleProps, nextProps: MessageBubbleProps) => {
   // 1. Verifica igualdade profunda dos dados da mensagem que afetam a renderização
   const isMessageEqual = 

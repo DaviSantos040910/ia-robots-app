@@ -2,14 +2,21 @@
 
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { Audio } from 'expo-av';
-import { chatService } from '../services/chatService'; // ✅ Usando chatService
+import { chatService } from '../services/chatService';
 
 export const useTTS = () => {
   const [isPlaying, setIsPlaying] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [currentMessageId, setCurrentMessageId] = useState<string | null>(null);
+  
   const soundRef = useRef<Audio.Sound | null>(null);
+  
+  // CORREÇÃO DE RACE CONDITION:
+  // Guarda o ID da mensagem que estamos tentando carregar no momento.
+  // Se o usuário mudar de mensagem enquanto carregamos, sabemos que devemos abortar.
+  const loadingMessageIdRef = useRef<string | null>(null);
 
+  // Cleanup ao desmontar
   useEffect(() => {
     return () => {
       if (soundRef.current) {
@@ -18,53 +25,94 @@ export const useTTS = () => {
     };
   }, []);
 
+  const stopTTS = useCallback(async () => {
+    // Cancela qualquer carregamento pendente
+    loadingMessageIdRef.current = null;
+    
+    if (soundRef.current) {
+      try {
+        await soundRef.current.stopAsync();
+        await soundRef.current.unloadAsync();
+      } catch (error) {
+        console.warn('Erro ao parar som:', error);
+      }
+      soundRef.current = null;
+    }
+    setIsPlaying(false);
+    setIsLoading(false);
+    setCurrentMessageId(null);
+  }, []);
+
   const playTTS = useCallback(
     async (conversationId: string, messageId: string) => {
       try {
+        // Se já estiver tocando ESTA mensagem, pausa/para
         if (isPlaying && currentMessageId === messageId) {
-          if (soundRef.current) {
-            await soundRef.current.pauseAsync();
-            setIsPlaying(false);
-          }
+          await stopTTS();
           return;
         }
 
-        if (soundRef.current) {
-          await soundRef.current.unloadAsync();
-          soundRef.current = null;
-        }
+        // Para qualquer som anterior antes de começar o novo
+        await stopTTS();
 
+        // Inicia estado de carregamento seguro
+        loadingMessageIdRef.current = messageId;
         setIsLoading(true);
         setCurrentMessageId(messageId);
 
-        // ✅ Usando chatService
         const audioBlob = await chatService.getMessageTTS(conversationId, messageId);
+
+        // VERIFICAÇÃO CRÍTICA:
+        // O usuário clicou em outra coisa ou cancelou enquanto baixávamos?
+        if (loadingMessageIdRef.current !== messageId) {
+          console.log('TTS cancelado ou trocado durante o download.');
+          return;
+        }
 
         const reader = new FileReader();
         reader.readAsDataURL(audioBlob);
 
         reader.onloadend = async () => {
+          // VERIFICAÇÃO CRÍTICA 2:
+          // O usuário cancelou enquanto líamos o blob?
+          if (loadingMessageIdRef.current !== messageId) return;
+
           const base64Audio = reader.result as string;
 
-          const { sound } = await Audio.Sound.createAsync(
-            { uri: base64Audio },
-            { shouldPlay: true },
-            (status: any) => {
-              if (status.isLoaded && status.didJustFinish) {
-                setIsPlaying(false);
-                setCurrentMessageId(null);
+          try {
+            const { sound } = await Audio.Sound.createAsync(
+              { uri: base64Audio },
+              { shouldPlay: true },
+              (status: any) => {
+                if (status.isLoaded && status.didJustFinish) {
+                  setIsPlaying(false);
+                  setCurrentMessageId(null);
+                  loadingMessageIdRef.current = null;
+                }
               }
-            }
-          );
+            );
 
-          soundRef.current = sound;
-          setIsPlaying(true);
-          setIsLoading(false);
+            // VERIFICAÇÃO FINAL:
+            // Se outro som começou a tocar nesse milissegundo, descarrega este imediatamente
+            if (loadingMessageIdRef.current !== messageId) {
+                await sound.unloadAsync();
+                return;
+            }
+
+            soundRef.current = sound;
+            setIsPlaying(true);
+            setIsLoading(false);
+          } catch (soundError) {
+             console.error('Erro ao criar som:', soundError);
+             setIsLoading(false);
+             setCurrentMessageId(null);
+          }
         };
 
         reader.onerror = () => {
-          console.error('Erro ao converter áudio');
+          console.error('Erro ao ler blob de áudio');
           setIsLoading(false);
+          setCurrentMessageId(null);
         };
       } catch (error) {
         console.error('Erro ao tocar TTS:', error);
@@ -72,18 +120,8 @@ export const useTTS = () => {
         setCurrentMessageId(null);
       }
     },
-    [isPlaying, currentMessageId]
+    [isPlaying, currentMessageId, stopTTS]
   );
-
-  const stopTTS = useCallback(async () => {
-    if (soundRef.current) {
-      await soundRef.current.stopAsync();
-      await soundRef.current.unloadAsync();
-      soundRef.current = null;
-    }
-    setIsPlaying(false);
-    setCurrentMessageId(null);
-  }, []);
 
   return {
     playTTS,

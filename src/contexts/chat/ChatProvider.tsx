@@ -5,13 +5,12 @@ import { ChatMessage } from '../../types/chat';
 import { AttachmentPickerResult } from '../../services/attachmentService';
 
 // Importação dos Hooks de Lógica (Camadas separadas)
-import { useChatState, ChatData } from './hooks/useChatState';
+import { useChatState, ChatData, initialChatData } from './hooks/useChatState';
 import { useChatLoader } from './hooks/useChatLoader';
 import { useChatSender } from './hooks/useChatSender';
 import { useChatInteractions } from './hooks/useChatInteractions';
 
 // --- DEFINIÇÃO DA INTERFACE DO CONTEXTO ---
-// Esta interface define o contrato público que o resto do app consome.
 export type ChatStore = {
   // Estado (Leitura)
   chats: Record<string, ChatData>;
@@ -43,7 +42,7 @@ export type ChatStore = {
 const ChatContext = createContext<ChatStore | null>(null);
 
 export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  // 1. Camada de Estado (State Layer)
+  // 1. Camada de Estado
   const { 
     chats, 
     setChats, 
@@ -53,13 +52,13 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
     updateChatData 
   } = useChatState();
 
-  // 2. Camada de Carregamento (Loader Layer)
+  // 2. Camada de Carregamento (Loader)
   const { loadInitialMessages, loadMoreMessages } = useChatLoader({ 
     chats, 
     updateChatData 
   });
 
-  // 3. Camada de Envio (Sender Layer)
+  // 3. Camada de Envio (Sender)
   const { 
     sendMessage, 
     archiveAndStartNew, 
@@ -71,7 +70,7 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
     activeSendPromises 
   });
 
-  // 4. Camada de Interações (Interactions Layer)
+  // 4. Camada de Interações
   const { 
     playTTS, 
     stopTTS, 
@@ -84,10 +83,9 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
     updateChatData 
   });
 
-  // 5. Função Utilitária para Limpar Estado
+  // 5. Utils
   const clearLocalChatState = React.useCallback((chatId: string) => {
     setChats(prev => {
-      // Remove a chave do chat do estado global
       const newState = { ...prev };
       delete newState[chatId];
       return newState;
@@ -99,42 +97,33 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
     });
   }, [setChats, setIsTypingById]);
 
-  // 6. Construção do Objeto de Valor (Memoizado para Performance)
+  // 6. Construção do Objeto de Valor (Memoizado)
   const value = useMemo<ChatStore>(() => ({
-    // Estado
+    // Dados (Mudam)
     chats,
     isTypingById,
+    isTTSPlaying,
+    isTTSLoading,
+    currentTTSMessageId,
 
-    // Loader
+    // Funções (Estáveis)
     loadInitialMessages,
     loadMoreMessages,
-
-    // Sender
     sendMessage,
     archiveAndStartNew,
     sendMultipleAttachments,
     sendAttachment,
-
-    // Interactions
     playTTS,
     stopTTS,
-    isTTSPlaying,
-    isTTSLoading,
-    currentTTSMessageId,
     handleCopyMessage,
     handleLikeMessage,
-    
-    // Utils
     clearLocalChatState,
   }), [
-    // Dependências de Estado (Mudam frequentemente)
     chats,
     isTypingById,
     isTTSPlaying,
     isTTSLoading,
     currentTTSMessageId,
-
-    // Dependências de Função (Estáveis graças aos hooks, mas incluídas por correção)
     loadInitialMessages,
     loadMoreMessages,
     sendMessage,
@@ -151,9 +140,7 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
   return <ChatContext.Provider value={value}>{children}</ChatContext.Provider>;
 };
 
-// --- HOOK DE CONSUMO (Mantido para compatibilidade) ---
-
-import { initialChatData } from './hooks/useChatState';
+// --- HOOK DE CONSUMO ---
 
 export const useChatController = (chatId: string | null) => {
   const ctx = useContext(ChatContext);
@@ -164,13 +151,10 @@ export const useChatController = (chatId: string | null) => {
   const chatData = chatId ? (ctx.chats[chatId] || initialChatData) : initialChatData;
   const isTyping = chatId ? !!ctx.isTypingById[chatId] : false;
 
-  // Memoiza as funções estáveis para evitar re-renders desnecessários nos componentes consumidores
-  // Isso injeta o chatId automaticamente (Currying)
   const controller = useMemo(() => ({
     ...chatData,
     isTyping,
     
-    // Métodos com chatId injetado
     loadInitialMessages: () => chatId ? ctx.loadInitialMessages(chatId) : Promise.resolve(),
     loadMoreMessages: () => chatId ? ctx.loadMoreMessages(chatId) : Promise.resolve(),
     sendMessage: (text: string) => chatId ? ctx.sendMessage(chatId, text) : Promise.resolve(),
@@ -179,7 +163,6 @@ export const useChatController = (chatId: string | null) => {
     sendAttachment: (file: AttachmentPickerResult) => chatId ? ctx.sendAttachment(chatId, file) : Promise.resolve(),
     handleLikeMessage: (msg: ChatMessage) => chatId ? ctx.handleLikeMessage(chatId, msg) : Promise.resolve(),
     
-    // Métodos globais (sem chatId ou com ID específico da mensagem)
     playTTS: ctx.playTTS,
     stopTTS: ctx.stopTTS,
     isTTSPlaying: ctx.isTTSPlaying,
@@ -189,9 +172,9 @@ export const useChatController = (chatId: string | null) => {
     clearLocalChatState: ctx.clearLocalChatState,
   }), [
     chatId, 
-    chatData, 
+    chatData,
     isTyping, 
-    ctx // O objeto ctx muda quando qualquer estado global muda, mas as funções internas são estáveis.
+    ctx
   ]);
 
   return controller;

@@ -1,5 +1,5 @@
 // src/screens/Chat/ChatScreen.tsx
-import React, { useState, useMemo, useCallback } from 'react';
+import React, { useState, useMemo, useCallback, useRef, useEffect } from 'react';
 import {
   ActivityIndicator,
   FlatList,
@@ -9,6 +9,7 @@ import {
   Text,
   ScrollView,
   Alert,
+  ListRenderItem
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useColorScheme } from 'react-native';
@@ -42,8 +43,10 @@ import { ChatMessage } from '../../types/chat';
 
 type ChatScreenProps = NativeStackScreenProps<RootStackParamList, 'ChatScreen'>;
 
+// Constante de tempo para o debounce (em ms)
+const TYPING_DEBOUNCE_DELAY = 1000;
+
 const ChatScreen: React.FC = () => {
-  // --- Hooks & Init ---
   const { t } = useTranslation();
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const route = useRoute<ChatScreenProps['route']>();
@@ -52,13 +55,15 @@ const ChatScreen: React.FC = () => {
   const theme = getTheme(scheme === 'dark');
   const s = createChatStyles(theme);
 
-  // --- Local State (Input & Menus) ---
   const [inputText, setInputText] = useState('');
   const [menuOpen, setMenuOpen] = useState(false);
   const [menuAnchor, setMenuAnchor] = useState<Anchor>(null);
-
-  // --- Custom Hooks ---
   
+  const [isSending, setIsSending] = useState(false);
+
+  // Ref para o timer de digitação (Debounce)
+  const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
   const {
     currentChatId,
     bootstrap,
@@ -101,14 +106,44 @@ const ChatScreen: React.FC = () => {
     onCloseImageViewer,
   } = useChatMediaLogic();
 
-  const {
-    audioProps,
-  } = useChatAudioLogic({
+  const { audioProps } = useChatAudioLogic({
     chatId: currentChatId,
     setTextInput: setInputText,
   });
 
-  // --- Handlers ---
+  // --- Effects ---
+
+  // Limpeza do timer de debounce ao desmontar o componente
+  useEffect(() => {
+    return () => {
+      if (typingTimeoutRef.current) {
+        clearTimeout(typingTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  // --- Handlers (Memoized) ---
+
+  // Novo handler com Debounce Manual
+  const handleInputChange = useCallback((text: string) => {
+    // 1. Atualização imediata da UI (Controlado)
+    setInputText(text);
+
+    // Se for readonly ou não tiver chat, não faz sentido notificar
+    if (isReadOnly || !currentChatId) return;
+
+    // 2. Limpa o timer anterior (cancela o envio pendente)
+    if (typingTimeoutRef.current) {
+      clearTimeout(typingTimeoutRef.current);
+    }
+
+    // 3. Configura o novo timer
+    typingTimeoutRef.current = setTimeout(() => {
+      // Aqui seria chamada a função real de notificação ao backend
+      // ex: chatService.notifyTyping(currentChatId);
+      console.log(`[Chat] Notificando servidor: 'Digitando...' no chat ${currentChatId}`);
+    }, TYPING_DEBOUNCE_DELAY);
+  }, [isReadOnly, currentChatId]);
 
   const handleBackPress = useCallback(() => {
     if (isReadOnly) {
@@ -129,14 +164,19 @@ const ChatScreen: React.FC = () => {
   }, [navigation, route.params.botId]);
 
   const handleSend = useCallback(async () => {
-    if (isReadOnly || !currentChatId) return;
+    if (isReadOnly || !currentChatId || isSending) return;
     
     const textToSend = inputText.trim();
     const attachmentsToSend = selectedAttachments;
 
     if (!textToSend && attachmentsToSend.length === 0) return;
 
-    setInputText('');
+    setIsSending(true);
+    setInputText(''); // Limpa input
+    
+    // Limpa qualquer timer de "digitando" pendente ao enviar
+    if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+
     clearAttachments();
     smoothLayout();
 
@@ -144,13 +184,22 @@ const ChatScreen: React.FC = () => {
       if (attachmentsToSend.length > 0) {
         await sendAttachments(attachmentsToSend);
       }
+      
       if (textToSend) {
         await sendMessage(textToSend);
       }
-    } catch (error) {
-      Alert.alert(t('error'), t('chat.sendError', { defaultValue: 'Failed to send message.' }));
+    } catch (error: any) {
+      console.error("Send failed:", error);
+      if (textToSend) setInputText(textToSend);
+      
+      Alert.alert(
+        t('error'), 
+        t('chat.sendError', { defaultValue: 'Failed to send message.' })
+      );
+    } finally {
+      setIsSending(false);
     }
-  }, [isReadOnly, currentChatId, inputText, selectedAttachments, clearAttachments, sendAttachments, sendMessage, t]);
+  }, [isReadOnly, currentChatId, isSending, inputText, selectedAttachments, clearAttachments, sendAttachments, sendMessage, t]);
 
   const handleSuggestionPress = useCallback((label: string) => {
     if (isReadOnly || !currentChatId) return;
@@ -201,9 +250,9 @@ const ChatScreen: React.FC = () => {
     },
   ], [isReadOnly, theme, t, handleOpenSettings, handleArchiveAndStartNew, handleViewArchived]);
 
-  // --- Render Item Optimization ---
+  // --- PERFORMANCE OPTIMIZATIONS ---
 
-  const renderMessage = useCallback(({ item, index }: { item: ChatMessage; index: number }) => {
+  const renderMessage: ListRenderItem<ChatMessage> = useCallback(({ item, index }) => {
     if (!currentChatId) return null;
     
     return (
@@ -219,16 +268,8 @@ const ChatScreen: React.FC = () => {
     );
   }, [currentChatId, handleCopyMessage, handleLikeMessage, handleSuggestionPress, onImagePress]);
 
-  // --- FIX: Robust keyExtractor ---
-  const keyExtractor = useCallback((item: ChatMessage) => {
-    // Ensure ID is a string and fallback if missing (should not happen with correct types)
-    return item.id ? item.id.toString() : `temp-${Math.random()}`; 
-  }, []);
+  const keyExtractor = useCallback((item: ChatMessage) => item.id ? item.id.toString() : `temp-${Math.random()}`, []);
 
-  // --- Hooks de dados derivados ---
-  
-  // --- FIX: Filter duplicates here as a safety net ---
-  // While the provider should handle this, a final filter here ensures the UI never breaks
   const uniqueMessages = useMemo(() => {
     const seenIds = new Set();
     return messages.filter(msg => {
@@ -239,9 +280,8 @@ const ChatScreen: React.FC = () => {
   }, [messages]);
 
   const invertedMessages = useMemo(() => [...uniqueMessages].reverse(), [uniqueMessages]);
+  
   const showWelcome = !isReadOnly && uniqueMessages.length === 0;
-
-  // --- Render Logic ---
 
   if (isScreenLoading || !bootstrap) {
     return (
@@ -275,6 +315,7 @@ const ChatScreen: React.FC = () => {
       <KeyboardAvoidingView
         style={{ flex: 1 }}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 60 : 0}
       >
         <FlatList
           data={invertedMessages}
@@ -284,15 +325,12 @@ const ChatScreen: React.FC = () => {
           style={{ flex: 1 }}
           contentContainerStyle={[s.listContent, { paddingTop: Spacing['spacing-element-m'] }]}
           
-          // --- OTIMIZAÇÕES DE PERFORMANCE ---
           initialNumToRender={15}
           maxToRenderPerBatch={10}
-          windowSize={5}
+          windowSize={10}
           removeClippedSubviews={Platform.OS === 'android'}
-          maintainVisibleContentPosition={{ minIndexForVisible: 0 }}
           
-          // UX
-          extraData={uniqueMessages} // Use the unique list for change detection
+          extraData={uniqueMessages}
           keyboardShouldPersistTaps="handled"
 
           onEndReached={() => {
@@ -349,13 +387,20 @@ const ChatScreen: React.FC = () => {
               </Text>
             </View>
           ) : (
-            <ChatInput
-              value={inputText}
-              onChangeText={setInputText}
-              onSend={handleSend}
-              onPlus={onAttachPress}
-              {...audioProps}
-            />
+            <View>
+               {isSending && (
+                  <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: 10, backgroundColor: 'rgba(255,255,255,0.5)', justifyContent: 'center', alignItems: 'center' }}>
+                    <ActivityIndicator size="small" color={theme.brand.normal} />
+                  </View>
+               )}
+               <ChatInput
+                value={inputText}
+                onChangeText={handleInputChange} // <-- Usando o novo handler
+                onSend={handleSend}
+                onPlus={onAttachPress}
+                {...audioProps}
+              />
+            </View>
           )}
         </View>
       </KeyboardAvoidingView>

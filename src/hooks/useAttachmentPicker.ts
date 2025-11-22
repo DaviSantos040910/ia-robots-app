@@ -1,13 +1,31 @@
 import { useState } from 'react';
 import * as ImagePicker from 'expo-image-picker';
 import * as DocumentPicker from 'expo-document-picker';
-import { Alert, Platform } from 'react-native';
+import { Alert } from 'react-native';
 import { AttachmentPickerResult } from '../services/attachmentService';
 
 export type PickerType = 'image' | 'document';
 
+// Limite de 50MB em bytes
+const MAX_FILE_SIZE_BYTES = 50 * 1024 * 1024;
+
 export const useAttachmentPicker = () => {
   const [isPickerLoading, setIsPickerLoading] = useState(false);
+
+  /**
+   * Valida se o tamanho do arquivo está dentro do limite permitido.
+   * Retorna true se válido, false caso contrário (e mostra alerta).
+   */
+  const validateFileSize = (fileSize?: number): boolean => {
+    if (fileSize && fileSize > MAX_FILE_SIZE_BYTES) {
+      Alert.alert(
+        'Arquivo muito grande',
+        'O tamanho máximo permitido para envio é de 50MB.'
+      );
+      return false;
+    }
+    return true;
+  };
 
   /**
    * Solicita permissões necessárias
@@ -45,13 +63,21 @@ export const useAttachmentPicker = () => {
       });
 
       if (!result.canceled && result.assets && result.assets.length > 0) {
-        // Mapeia todos os assets selecionados para o nosso formato
-        return result.assets.map(asset => ({
-          uri: asset.uri,
-          name: asset.fileName || `image_${Date.now()}.jpg`,
-          type: asset.type === 'image' ? 'image/jpeg' : undefined,
-          size: asset.fileSize,
-        }));
+        const validAssets: AttachmentPickerResult[] = [];
+
+        for (const asset of result.assets) {
+          // Valida tamanho antes de adicionar
+          if (validateFileSize(asset.fileSize)) {
+            validAssets.push({
+              uri: asset.uri,
+              name: asset.fileName || `image_${Date.now()}.jpg`,
+              type: asset.type === 'image' ? 'image/jpeg' : undefined,
+              size: asset.fileSize,
+            });
+          }
+        }
+
+        return validAssets.length > 0 ? validAssets : null;
       }
 
       return null;
@@ -79,13 +105,21 @@ export const useAttachmentPicker = () => {
       });
 
       if (!result.canceled && result.assets && result.assets.length > 0) {
-        // Mapeia todos os assets selecionados
-        return result.assets.map(asset => ({
-          uri: asset.uri,
-          name: asset.name,
-          type: asset.mimeType,
-          size: asset.size,
-        }));
+        const validAssets: AttachmentPickerResult[] = [];
+
+        for (const asset of result.assets) {
+          // Valida tamanho antes de adicionar
+          if (validateFileSize(asset.size)) {
+            validAssets.push({
+              uri: asset.uri,
+              name: asset.name,
+              type: asset.mimeType,
+              size: asset.size,
+            });
+          }
+        }
+
+        return validAssets.length > 0 ? validAssets : null;
       }
 
       return null;
@@ -121,6 +155,12 @@ export const useAttachmentPicker = () => {
 
       if (!result.canceled && result.assets[0]) {
         const asset = result.assets[0];
+        
+        // Valida tamanho da foto tirada (raro exceder 50MB, mas consistente)
+        if (!validateFileSize(asset.fileSize)) {
+          return null;
+        }
+
         // ✅ Retorna como um array para consistência
         return [{
           uri: asset.uri,
