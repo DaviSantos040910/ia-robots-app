@@ -1,5 +1,5 @@
 // src/screens/Chat/ChatScreen.tsx
-import React, { useState, useMemo, useCallback, useRef, useEffect } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import {
   ActivityIndicator,
   FlatList,
@@ -43,9 +43,6 @@ import { ChatMessage } from '../../types/chat';
 
 type ChatScreenProps = NativeStackScreenProps<RootStackParamList, 'ChatScreen'>;
 
-// Constante de tempo para o debounce (em ms)
-const TYPING_DEBOUNCE_DELAY = 1000;
-
 const ChatScreen: React.FC = () => {
   const { t } = useTranslation();
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
@@ -60,9 +57,6 @@ const ChatScreen: React.FC = () => {
   const [menuAnchor, setMenuAnchor] = useState<Anchor>(null);
   
   const [isSending, setIsSending] = useState(false);
-
-  // Ref para o timer de digitação (Debounce)
-  const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const {
     currentChatId,
@@ -111,39 +105,7 @@ const ChatScreen: React.FC = () => {
     setTextInput: setInputText,
   });
 
-  // --- Effects ---
-
-  // Limpeza do timer de debounce ao desmontar o componente
-  useEffect(() => {
-    return () => {
-      if (typingTimeoutRef.current) {
-        clearTimeout(typingTimeoutRef.current);
-      }
-    };
-  }, []);
-
-  // --- Handlers (Memoized) ---
-
-  // Novo handler com Debounce Manual
-  const handleInputChange = useCallback((text: string) => {
-    // 1. Atualização imediata da UI (Controlado)
-    setInputText(text);
-
-    // Se for readonly ou não tiver chat, não faz sentido notificar
-    if (isReadOnly || !currentChatId) return;
-
-    // 2. Limpa o timer anterior (cancela o envio pendente)
-    if (typingTimeoutRef.current) {
-      clearTimeout(typingTimeoutRef.current);
-    }
-
-    // 3. Configura o novo timer
-    typingTimeoutRef.current = setTimeout(() => {
-      // Aqui seria chamada a função real de notificação ao backend
-      // ex: chatService.notifyTyping(currentChatId);
-      console.log(`[Chat] Notificando servidor: 'Digitando...' no chat ${currentChatId}`);
-    }, TYPING_DEBOUNCE_DELAY);
-  }, [isReadOnly, currentChatId]);
+  // --- Handlers ---
 
   const handleBackPress = useCallback(() => {
     if (isReadOnly) {
@@ -172,11 +134,7 @@ const ChatScreen: React.FC = () => {
     if (!textToSend && attachmentsToSend.length === 0) return;
 
     setIsSending(true);
-    setInputText(''); // Limpa input
-    
-    // Limpa qualquer timer de "digitando" pendente ao enviar
-    if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
-
+    setInputText('');
     clearAttachments();
     smoothLayout();
 
@@ -250,7 +208,7 @@ const ChatScreen: React.FC = () => {
     },
   ], [isReadOnly, theme, t, handleOpenSettings, handleArchiveAndStartNew, handleViewArchived]);
 
-  // --- PERFORMANCE OPTIMIZATIONS ---
+  // --- Render Item Optimization ---
 
   const renderMessage: ListRenderItem<ChatMessage> = useCallback(({ item, index }) => {
     if (!currentChatId) return null;
@@ -312,10 +270,11 @@ const ChatScreen: React.FC = () => {
         }}
       />
 
+      {/* KeyboardAvoidingView Otimizado */}
       <KeyboardAvoidingView
         style={{ flex: 1 }}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 60 : 0}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
       >
         <FlatList
           data={invertedMessages}
@@ -325,10 +284,17 @@ const ChatScreen: React.FC = () => {
           style={{ flex: 1 }}
           contentContainerStyle={[s.listContent, { paddingTop: Spacing['spacing-element-m'] }]}
           
-          initialNumToRender={15}
-          maxToRenderPerBatch={10}
-          windowSize={10}
+          // --- PROPS DE PERFORMANCE ---
+          initialNumToRender={10}          // Reduzido para 10
+          maxToRenderPerBatch={5}          // Reduzido para 5 (menos carga na thread JS)
+          windowSize={11}                  // Janela menor para economizar memória
+          updateCellsBatchingPeriod={50}   // Intervalo maior entre batches de renderização
+          
+          // Otimização específica de Android
           removeClippedSubviews={Platform.OS === 'android'}
+          
+          // Estabilidade visual ao carregar histórico
+          maintainVisibleContentPosition={{ minIndexForVisible: 0 }}
           
           extraData={uniqueMessages}
           keyboardShouldPersistTaps="handled"
@@ -338,7 +304,7 @@ const ChatScreen: React.FC = () => {
               loadMoreMessages();
             }
           }}
-          onEndReachedThreshold={0.5}
+          onEndReachedThreshold={0.2}
           ListHeaderComponent={
             isLoadingMore ? <ActivityIndicator style={{ marginVertical: 16 }} color={theme.brand.normal} /> : null
           }
@@ -395,7 +361,7 @@ const ChatScreen: React.FC = () => {
                )}
                <ChatInput
                 value={inputText}
-                onChangeText={handleInputChange} // <-- Usando o novo handler
+                onChangeText={setInputText}
                 onSend={handleSend}
                 onPlus={onAttachPress}
                 {...audioProps}

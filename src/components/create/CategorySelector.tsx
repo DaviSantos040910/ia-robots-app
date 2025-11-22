@@ -1,15 +1,12 @@
 // src/components/create/CategorySelector.tsx
 import React from 'react';
-import { View, Text, LayoutAnimation, Platform, UIManager } from 'react-native';
+import { View, Text } from 'react-native';
 import { useColorScheme } from 'react-native';
 import { createCreateBotStyles, getTheme } from '../../screens/CreateBot/CreateBot.styles';
 import { ScalePressable } from '../shared/Motion';
 import { Category } from '../../services/exploreService';
 
-// Enable LayoutAnimation on Android
-if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
-  UIManager.setLayoutAnimationEnabledExperimental(true);
-}
+// Removido código de LayoutAnimation / UIManager
 
 interface CategorySelectorProps {
   allCategories: Category[];
@@ -25,9 +22,8 @@ const CategoryChip: React.FC<{
   const theme = getTheme(useColorScheme() === 'dark');
   const s = createCreateBotStyles(theme);
 
-  // Animate the change in selection state
   const handlePress = () => {
-    LayoutAnimation.configureNext(LayoutAnimation.Presets.spring);
+    // LayoutAnimation removido
     onPress();
   };
 

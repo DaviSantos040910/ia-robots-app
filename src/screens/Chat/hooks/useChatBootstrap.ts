@@ -37,9 +37,12 @@ export const useChatBootstrap = ({
   const [isReadOnly, setIsReadOnly] = useState(initialIsArchived ?? false);
   const [isScreenLoading, setIsScreenLoading] = useState(true);
 
-  // Refs para controle de fluxo e prevenção de loops
+  // --- CONTROLE DE CONCORRÊNCIA E CACHE (REFS) ---
+  const isFetchingRef = useRef(false);
+  const lastLoadedBotIdRef = useRef<string | null>(null);
+  
+  // Ref exposta para reset manual no componente pai se necessário
   const initialLoadDoneForCurrentId = useRef<string | null>(null);
-  const isLoadingData = useRef(false);
 
   const { 
     loadInitialMessages, 
@@ -47,126 +50,106 @@ export const useChatBootstrap = ({
   } = useChatController(currentChatId);
 
   // --- CORE LOGIC ---
-  // Esta função carrega os dados. Ela NÃO deve ser dependência de um useEffect que roda sem critérios.
   const loadChatData = useCallback(async (forceRefresh: boolean = false) => {
-    if (isLoadingData.current && !forceRefresh) return;
-    if (!botId) { setIsScreenLoading(false); return; }
+    // 1. Verificação de Segurança
+    if (isFetchingRef.current) {
+      console.log('[ChatBootstrap] Request ignorado: Já existe um fetch em andamento.');
+      return;
+    }
 
-    // Se já carregamos e não é um refresh forçado, apenas retorna
-    if (!forceRefresh && initialLoadDoneForCurrentId.current === currentChatId && hasLoadedOnce) {
+    // 2. Verificação de Cache em Memória
+    if (
+        !forceRefresh && 
+        lastLoadedBotIdRef.current === botId && 
+        hasLoadedOnce &&
+        bootstrap?.bot.name
+    ) {
+      console.log('[ChatBootstrap] Request ignorado: Dados já carregados e estáveis.');
       setIsScreenLoading(false);
       return;
     }
 
-    isLoadingData.current = true;
-    // Apenas mostra loading screen se realmente não tivermos dados carregados ainda
+    isFetchingRef.current = true;
+    
     if (!hasLoadedOnce) {
         setIsScreenLoading(true);
     }
 
     try {
       if (isReadOnly) {
-        // --- Modo Arquivado (Leitura) ---
-        
-        // Se o ID mudou, atualiza o estado e deixa o próximo render cuidar do resto
         if (currentChatId !== initialChatId) {
           setCurrentChatId(initialChatId ?? null);
-          isLoadingData.current = false;
-          return;
         }
 
-        // Monta bootstrap manual apenas se necessário
-        // Usamos setBootstrap funcional para evitar dependência do valor anterior
-        setBootstrap(prev => {
-            if (!prev || prev.conversationId !== initialChatId) {
-                return {
-                    conversationId: initialChatId || '',
-                    bot: { name: botName, handle: botHandle, avatarUrl: botAvatarUrl },
-                    welcome: t('archivedChats.title'),
-                    suggestions: []
-                };
-            }
-            return prev;
+        setBootstrap({
+            conversationId: initialChatId || '',
+            bot: { name: botName, handle: botHandle, avatarUrl: botAvatarUrl },
+            welcome: t('archivedChats.title'),
+            suggestions: []
         });
 
         if (initialChatId) {
           await loadInitialMessages();
-          initialLoadDoneForCurrentId.current = initialChatId;
         }
+
+        lastLoadedBotIdRef.current = botId;
+        initialLoadDoneForCurrentId.current = initialChatId || null;
 
       } else {
-        // --- Modo Ativo ---
-        
-        // Busca dados do servidor
+        console.log(`[ChatBootstrap] Iniciando fetch para BotID: ${botId}`);
         const fetchedBootstrapData = await botService.getChatBootstrap(botId);
         
-        // Atualiza bootstrap apenas se mudou (evita re-render desnecessário)
-        setBootstrap(prev => {
-            if (prev?.conversationId !== fetchedBootstrapData.conversationId) {
-                return fetchedBootstrapData;
-            }
-            return prev;
-        });
-
-        const chatDataToLoad = fetchedBootstrapData.conversationId;
-
-        // Se o ID do chat ativo mudou, atualiza o estado principal
-        if (currentChatId !== chatDataToLoad) {
-          setCurrentChatId(chatDataToLoad);
-          // Reseta a flag de carga para o novo ID
-          initialLoadDoneForCurrentId.current = null;
-          isLoadingData.current = false;
-          // O hook rodará novamente no próximo render devido à mudança de currentChatId
-          return; 
+        if (lastLoadedBotIdRef.current && lastLoadedBotIdRef.current !== botId) {
+             console.log('[ChatBootstrap] Descartando resultado: BotID mudou durante o fetch.');
+             return; 
         }
 
-        // Carrega mensagens
+        setBootstrap(fetchedBootstrapData);
+        const chatDataToLoad = fetchedBootstrapData.conversationId;
+
+        if (currentChatId !== chatDataToLoad) {
+          setCurrentChatId(chatDataToLoad);
+        }
+
         await loadInitialMessages();
+        
+        lastLoadedBotIdRef.current = botId;
         initialLoadDoneForCurrentId.current = chatDataToLoad;
       }
     } catch (error) {
       console.error("[useChatBootstrap] Failed to load chat data:", error);
     } finally {
-      isLoadingData.current = false;
+      isFetchingRef.current = false;
       setIsScreenLoading(false);
     }
   }, [
-    // Dependências Estáveis (Primitives ou Refs)
     botId,
-    currentChatId, // Importante: reage a mudanças de ID interno
     initialChatId,
     isReadOnly,
-    // Dependências de UI (apenas strings, não objetos complexos instáveis)
     botName,
     botHandle,
     botAvatarUrl,
-    // Funções do Controller (já são estáveis pelo useMemo do Provider)
     loadInitialMessages,
     hasLoadedOnce,
     t,
+    currentChatId,
+    bootstrap
   ]);
 
-  // --- EFEITO PRINCIPAL ---
-  // Este efeito dispara a carga inicial.
-  // REMOVIDO: loadChatData das dependências para quebrar o ciclo se ele for recriado.
-  // ADICIONADO: Flag lógica baseada em foco e IDs.
   useEffect(() => {
+    let isMounted = true;
+
     if (isFocused) {
-        // Só chama se o ID ainda não foi carregado ou se mudou
-        const shouldLoad = initialLoadDoneForCurrentId.current !== currentChatId || !hasLoadedOnce;
-        
-        if (shouldLoad) {
-            loadChatData(false);
-        }
+        loadChatData();
     }
+
+    return () => {
+        isMounted = false;
+        isFetchingRef.current = false;
+    };
   }, [
     isFocused, 
-    currentChatId, 
-    hasLoadedOnce, 
-    // loadChatData // <--- REMOVIDO INTENCIONALMENTE PARA EVITAR LOOP
-    // O useCallback do loadChatData já tem as dependências corretas para ser atualizado quando necessário.
-    // Mas como ele é recriado quando 'bootstrap' muda (e ele mesmo muda bootstrap), isso causava o loop.
-    // Ao removê-lo daqui, dependemos apenas das variáveis de controle (IDs, Foco).
+    botId,
   ]);
 
   return {
@@ -178,8 +161,8 @@ export const useChatBootstrap = ({
     setIsReadOnly,
     isScreenLoading,
     setIsScreenLoading,
-    initialLoadDoneForCurrentId,
-    // Exposto para refresh manual (pull-to-refresh, etc)
+    initialLoadDoneForCurrentId, // ADICIONADO AQUI
+    resetBootstrap: () => { lastLoadedBotIdRef.current = null; loadChatData(true); },
     loadChatData,
   };
 };

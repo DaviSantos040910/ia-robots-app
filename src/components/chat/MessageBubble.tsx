@@ -1,6 +1,6 @@
 // src/components/chat/MessageBubble.tsx
 
-import React, { memo } from 'react';
+import React, { memo, useState, useCallback, useMemo } from 'react';
 import { 
   ActivityIndicator, 
   Pressable, 
@@ -9,7 +9,7 @@ import {
   Text, 
   Image, 
   Linking, 
-  useColorScheme 
+  useColorScheme
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import Markdown from 'react-native-markdown-display';
@@ -35,6 +35,8 @@ type MessageBubbleProps = {
   isSendingSuggestion?: boolean;
 };
 
+const MAX_TEXT_LENGTH = 500;
+
 const MessageBubbleComponent: React.FC<MessageBubbleProps> = ({
   message,
   conversationId,
@@ -51,45 +53,56 @@ const MessageBubbleComponent: React.FC<MessageBubbleProps> = ({
   const theme = getTheme(scheme === 'dark');
   const s = createChatStyles(theme);
   const isUser = message.role === 'user';
+  
+  const [expanded, setExpanded] = useState(false);
+
+  // Otimização: Truncar texto longo para renderização inicial mais rápida
+  const shouldTruncate = message.content && message.content.length > MAX_TEXT_LENGTH;
+  const displayedContent = shouldTruncate && !expanded 
+    ? message.content.slice(0, MAX_TEXT_LENGTH) + '...' 
+    : message.content;
+
   const rowStyle = isUser ? s.rowRight : s.rowLeft;
   const bubbleStyle = isUser ? s.bubbleUser : s.bubbleBot;
   const textStyle = isUser ? s.userText : s.bubbleText;
 
-  // Hook para acessar o contexto de TTS
+  // Hook de TTS (Atenção: Isso conecta o componente ao contexto global. 
+  // Se isPlaying mudar, este componente re-renderiza. O memo abaixo mitiga isso se as props não mudarem)
   const { playTTS, isTTSPlaying, currentTTSMessageId } = useChatController(conversationId);
   const isThisMessagePlaying = isTTSPlaying && currentTTSMessageId === message.id;
 
   const isPending = message.id.toString().startsWith('temp');
 
-  const markdownStyle = StyleSheet.create({
-    body: {
-      ...textStyle,
-    },
-    strong: {
-      fontWeight: 'bold',
-    },
-  });
+  const markdownStyle = useMemo(() => StyleSheet.create({
+    body: { ...textStyle },
+    strong: { fontWeight: 'bold' },
+  }), [textStyle]);
 
   const shouldShowSuggestions = !isUser && !!message.suggestions?.length && isLastMessage;
-
   const hasAttachment = !!message.attachment_url;
-  const isImageAttachment = message.attachment_type?.startsWith('image/') ||
-    message.attachment_type === 'image';
+  const isImageAttachment = message.attachment_type?.startsWith('image/') || message.attachment_type === 'image';
 
-  const handleImagePress = () => {
+  const handleImagePress = useCallback(() => {
     if (message.attachment_url && onImagePress && !isPending) {
       onImagePress(message.attachment_url);
     }
-  };
+  }, [message.attachment_url, onImagePress, isPending]);
 
   return (
     <View style={rowStyle}>
       <View style={[s.bubbleContainer, bubbleStyle]}>
         {/* Conteúdo de Texto */}
         {message.content ? (
-          <Markdown style={markdownStyle}>
-            {message.content}
-          </Markdown>
+          <View>
+            <Markdown style={markdownStyle}>
+              {displayedContent}
+            </Markdown>
+            {shouldTruncate && !expanded && (
+              <Pressable onPress={() => setExpanded(true)} style={{ marginTop: 4 }}>
+                <Text style={s.readMore}>Ler mais</Text>
+              </Pressable>
+            )}
+          </View>
         ) : null}
 
         {/* Anexos */}
@@ -118,9 +131,7 @@ const MessageBubbleComponent: React.FC<MessageBubbleProps> = ({
               <Pressable
                 onPress={() => {
                   if (message.attachment_url && !isPending) {
-                    Linking.openURL(message.attachment_url).catch(err => {
-                      console.error('Falha ao abrir anexo:', err);
-                    });
+                    Linking.openURL(message.attachment_url).catch(console.error);
                   }
                 }}
                 style={[
@@ -145,12 +156,6 @@ const MessageBubbleComponent: React.FC<MessageBubbleProps> = ({
                     {message.original_filename || 'Arquivo anexo'}
                     </Text>
                 </View>
-                {!isPending && (
-                  <Feather name="external-link" size={16} color={isUser ? '#FFFFFF' : theme.textSecondary} />
-                )}
-                {isPending && (
-                   <ActivityIndicator size="small" color={isUser ? '#FFFFFF' : theme.textSecondary} />
-                )}
               </Pressable>
             )}
           </View>
@@ -228,7 +233,7 @@ const attachmentStyles = StyleSheet.create({
     minWidth: 200,
   },
   image: {
-    width: 220, 
+    width: 220,
     height: 220,
     borderRadius: Radius.medium,
     backgroundColor: 'rgba(0,0,0,0.05)',
@@ -253,24 +258,21 @@ const attachmentStyles = StyleSheet.create({
   },
 });
 
-// --- OTIMIZAÇÃO DE PERFORMANCE: arePropsEqual ---
+// --- CRÍTICO: Função de Comparação de Props ---
 const arePropsEqual = (prevProps: MessageBubbleProps, nextProps: MessageBubbleProps) => {
-  // 1. Verifica igualdade profunda dos dados da mensagem que afetam a renderização
   const isMessageEqual = 
     prevProps.message.id === nextProps.message.id &&
     prevProps.message.content === nextProps.message.content &&
-    // Nota: Usamos 'liked' conforme definido em ChatMessage, em vez de 'is_liked'
     prevProps.message.liked === nextProps.message.liked &&
-    // Adicionamos verificação de anexos pois eles alteram o visual
-    prevProps.message.attachment_url === nextProps.message.attachment_url &&
-    prevProps.message.rewriting === nextProps.message.rewriting;
+    prevProps.message.rewriting === nextProps.message.rewriting &&
+    prevProps.message.attachment_url === nextProps.message.attachment_url;
 
-  // 2. Verifica props de estado da lista que afetam este item
   const isStateEqual = 
     prevProps.isLastMessage === nextProps.isLastMessage &&
     prevProps.isSendingSuggestion === nextProps.isSendingSuggestion;
 
-  // Retorna true apenas se tudo for igual (evita re-render)
+  // Ignoramos propositalmente as funções (onLike, onCopy) e conversationId
+  // pois elas são estáveis ou não afetam o visual isoladamente.
   return isMessageEqual && isStateEqual;
 };
 

@@ -12,6 +12,9 @@ type UseChatLoaderDeps = {
 export const useChatLoader = ({ chats, updateChatData }: UseChatLoaderDeps) => {
   // Ref para acessar o estado mais recente sem recriar as funções
   const chatsRef = useRef(chats);
+  
+  // Ref para Throttle (Semáforo síncrono para evitar disparos múltiplos do onEndReached)
+  const isFetchingMoreRef = useRef(false);
 
   // Mantém a ref sincronizada com o estado
   useEffect(() => {
@@ -35,7 +38,6 @@ export const useChatLoader = ({ chats, updateChatData }: UseChatLoaderDeps) => {
   };
 
   const loadInitialMessages = useCallback(async (chatId: string) => {
-    // Acessa o valor atual via ref
     const currentChat = chatsRef.current[chatId];
 
     // Evita re-loading se já estiver em progresso
@@ -43,7 +45,6 @@ export const useChatLoader = ({ chats, updateChatData }: UseChatLoaderDeps) => {
 
     updateChatData(chatId, () => ({ 
       isLoadingInitial: true,
-      // Não resetamos hasLoadedOnce aqui para evitar "flicker"
     }));
 
     // --- 1. Estratégia de Cache (Imediato) ---
@@ -92,21 +93,28 @@ export const useChatLoader = ({ chats, updateChatData }: UseChatLoaderDeps) => {
       console.error(`[ChatLoader] Failed to fetch initial messages for ${chatId}:`, error);
       updateChatData(chatId, () => ({ isLoadingInitial: false }));
     }
-  }, [updateChatData]); // Removido 'chats' das dependências
+  }, [updateChatData]);
 
 
   const loadMoreMessages = useCallback(async (chatId: string) => {
-    // Acessa via ref
+    // 1. Throttle Check (Síncrono): Impede chamadas em rajada
+    if (isFetchingMoreRef.current) return;
+
     const currentChat = chatsRef.current[chatId];
     
+    // 2. State Check: Lógica de negócio
     if (!currentChat || currentChat.isLoadingMore || !currentChat.nextPage) {
       return;
     }
 
+    // Trava o semáforo
+    isFetchingMoreRef.current = true;
     updateChatData(chatId, () => ({ isLoadingMore: true }));
 
     try {
       const page = currentChat.nextPage;
+      console.log(`[ChatLoader] Loading page ${page} for chat ${chatId}`);
+      
       const response = await chatService.getMessages(chatId, page);
       const newMessages = response.results;
 
@@ -122,8 +130,15 @@ export const useChatLoader = ({ chats, updateChatData }: UseChatLoaderDeps) => {
     } catch (error) {
       console.error(`[ChatLoader] Error loading more messages:`, error);
       updateChatData(chatId, () => ({ isLoadingMore: false }));
+    } finally {
+      // 3. Throttle Release: Adiciona um atraso artificial antes de permitir nova paginação.
+      // Isso dá tempo para a FlatList renderizar os novos itens e recalcular o tamanho do conteúdo,
+      // evitando que o onEndReached dispare novamente imediatamente.
+      setTimeout(() => {
+        isFetchingMoreRef.current = false;
+      }, 500); // 500ms de respiro
     }
-  }, [updateChatData]); // Removido 'chats' das dependências
+  }, [updateChatData]);
 
   return { loadInitialMessages, loadMoreMessages };
 };

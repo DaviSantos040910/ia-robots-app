@@ -1,4 +1,3 @@
-
 // src/components/shared/Motion.tsx
 import React, { useEffect, useMemo, useRef } from 'react';
 import {
@@ -8,15 +7,12 @@ import {
   type PressableProps,
   type ViewStyle,
   type StyleProp,
-  LayoutAnimation,
+  // LayoutAnimation, // Removido
   Platform,
-  UIManager,
+  // UIManager, // Removido
 } from 'react-native';
 
-// Enable LayoutAnimation on Android
-if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
-  UIManager.setLayoutAnimationEnabledExperimental(true);
-}
+// Removido bloco de UIManager.setLayoutAnimationEnabledExperimental
 
 export type AnimatedViewStyle = StyleProp<ViewStyle> & {
   opacity?: Animated.Value | Animated.AnimatedInterpolation<number>;
@@ -112,4 +108,8 @@ export const useScaleOnPress = (opts?: { pressedScale?: number }) => {
   return { onPressIn, onPressOut, style } as const;
 };
 
-export const smoothLayout = () => LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+// Removido smoothLayout pois dependia de LayoutAnimation
+export const smoothLayout = () => {
+  // No-op na nova arquitetura ou substituído por Reanimated se necessário.
+  // Deixando vazio para não quebrar chamadas existentes.
+};

@@ -30,6 +30,17 @@
       "camera": "Camera",
       "gallery": "Gallery",
       "document": "Document"
+    },
+    "accessibility": {
+      "message": "Message from {{role}}: {{content}}",
+      "attachmentImage": "Attached image",
+      "openFile": "Open file: {{filename}}",
+      "copyMessage": "Copy message",
+      "likeMessage": "Like message",
+      "unlikeMessage": "Unlike message",
+      "readAloud": "Read aloud",
+      "stopReading": "Stop reading aloud",
+      "rewriteMessage": "Rewrite message"
     }
   },
   "archivedChats": {

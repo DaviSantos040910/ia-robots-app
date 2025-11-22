@@ -30,6 +30,17 @@
       "camera": "Câmera",
       "gallery": "Galeria",
       "document": "Documento"
+    },
+    "accessibility": {
+      "message": "Mensagem de {{role}}: {{content}}",
+      "attachmentImage": "Imagem anexada",
+      "openFile": "Abrir arquivo: {{filename}}",
+      "copyMessage": "Copiar mensagem",
+      "likeMessage": "Curtir mensagem",
+      "unlikeMessage": "Descurtir mensagem",
+      "readAloud": "Ler em voz alta",
+      "stopReading": "Parar leitura em voz alta",
+      "rewriteMessage": "Reescrever mensagem"
     }
   },
   "archivedChats": {
@@ -77,14 +88,14 @@
     "createButton": "Criar bot",
     "nameRequired": "O nome do bot é obrigatório.",
     "promptRequired": "As instruções (prompt) são obrigatórias.",
+    "categoryRequired": "Selecione pelo menos uma categoria.",
     "creationSuccess": "Bot criado com sucesso!",
     "creationError": "Falha ao criar o bot. Por favor, tente novamente.",
     "avatarActionSheetTitle": "Esta imagem será usada como avatar do bot.",
     "takeNewPhoto": "Tirar nova foto",
     "chooseFromGallery": "Escolher da Galeria",
     "categoryLabel": "Categoria", 
-    "categoryDescription": "Selecione até 3 categorias que melhor descrevem seu bot.", 
-    "categoryRequired": "Selecione pelo menos uma categoria."
+    "categoryDescription": "Selecione até 3 categorias que melhor descrevem seu bot."
   },
   "explore": {
     "searchPlaceholder": "Buscar por bots ou pessoas",
