@@ -3,7 +3,6 @@
 
 export const Typography = {
   bodySemiBold: {
-    // AJUSTE: Adicionada a variante 'large'.
     large: {
       fontSize: 16,
       lineHeight: 24,
@@ -26,7 +25,6 @@ export const Typography = {
       lineHeight: 28,
       fontFamily: 'Inter_600SemiBold',
     },
-    // AJUSTE: Adicionada a variante 'large'.
     large: {
       fontSize: 18,
       lineHeight: 26,
@@ -37,6 +35,13 @@ export const Typography = {
       lineHeight: 24,
       fontFamily: 'Inter_600SemiBold',
     },
+  },
+  // Adicionado Title3 conforme solicitado (estilo Apple HIG aproximado ou Figma)
+  title3: {
+    fontSize: 24,
+    lineHeight: 30,
+    fontFamily: 'Inter_600SemiBold',
+    fontWeight: '600' as const,
   },
   bodyMedium: {
     medium: {

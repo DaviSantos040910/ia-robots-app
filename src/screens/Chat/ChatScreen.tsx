@@ -116,15 +116,28 @@ const ChatScreen: React.FC = () => {
   }, [isReadOnly, navigation]);
 
   const handlePhonePress = useCallback(() => {
-    if (!currentChatId || !bootstrap) return;
+    console.log('[ChatScreen] Botão de telefone pressionado');
+    console.log('[ChatScreen] ID do Chat:', currentChatId);
+    console.log('[ChatScreen] Bootstrap carregado:', !!bootstrap);
+
+    if (!currentChatId || !bootstrap) {
+        console.warn('[ChatScreen] Não é possível iniciar chamada: Dados incompletos.');
+        return;
+    }
     
-    // Navega para a tela de Voice Call passando os dados necessários
-    navigation.navigate('VoiceCall', {
-      chatId: currentChatId,
-      botId: route.params.botId,
-      botName: bootstrap.bot.name,
-      botAvatarUrl: bootstrap.bot.avatarUrl,
-    });
+    try {
+        console.log('[ChatScreen] Navegando para VoiceCall...');
+        navigation.navigate('VoiceCall', {
+            chatId: currentChatId,
+            botId: route.params.botId,
+            botName: bootstrap.bot.name,
+            botHandle: bootstrap.bot.handle, // CORREÇÃO: Adicionado botHandle
+            botAvatarUrl: bootstrap.bot.avatarUrl,
+        });
+    } catch (error) {
+        console.error('[ChatScreen] Erro ao navegar:', error);
+        Alert.alert('Erro', 'Não foi possível abrir a tela de chamada. Verifique se a rota VoiceCall está registrada no RootNavigator.');
+    }
   }, [currentChatId, bootstrap, route.params.botId, navigation]);
 
   const handleOpenSettings = useCallback(() => {
@@ -281,10 +294,8 @@ const ChatScreen: React.FC = () => {
         subtitle={bootstrap.bot.handle}
         avatarUrl={bootstrap.bot.avatarUrl}
         onBack={handleBackPress}
-        onMorePress={(anchor) => {
-          setMenuAnchor(anchor);
-          setMenuOpen(true);
-        }}
+        onPhone={handlePhonePress}
+
       />
 
       {/* KeyboardAvoidingView Otimizado */}

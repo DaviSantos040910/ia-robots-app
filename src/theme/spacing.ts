@@ -1,3 +1,4 @@
+// src/theme/spacing.ts
 // spacing.ts - Figma spacing scale
 export const Spacing = {
   'spacing-none': 0,
@@ -16,4 +17,10 @@ export const Spacing = {
   'spacing-card-m': 32,
   'spacing-card-l': 36,
   'spacing-card-xl': 40,
+  
+  // Adicionados para layout de tela cheia
+  'spacing-layout-m': 24,
+  'spacing-layout-l': 32,
+  'spacing-layout-xl': 48,
+  'spacing-layout-xxl': 64,
 };

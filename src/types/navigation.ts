@@ -28,6 +28,7 @@ export type RootStackParamList = {
     chatId: string;
     botId: string;
     botName: string;
+    botHandle: string; // Adicionado
     botAvatarUrl?: string | null;
   };
 

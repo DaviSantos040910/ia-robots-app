@@ -7,6 +7,13 @@ import config from '../config';
 
 const env = config();
 
+export interface VoiceInteractionResponse {
+  transcription: string;
+  ai_response_text: string;
+  user_message: ChatMessage;
+  ai_messages: ChatMessage[];
+}
+
 const realChatService = {
   /**
    * Fetches a specific page of messages for a given chat.
@@ -165,6 +172,42 @@ const realChatService = {
       throw new Error('Failed to transcribe audio. Please try again.');
     }
   },
+
+async sendVoiceInteraction(
+    chatId: string, 
+    audioUri: string, 
+    options?: { signal?: AbortSignal }
+  ): Promise<VoiceInteractionResponse> {
+    console.log(`[ChatService] Sending voice interaction for chat ${chatId}`);
+    
+    const formData = new FormData();
+    // @ts-ignore
+    formData.append('audio', {
+      uri: audioUri,
+      type: 'audio/m4a',
+      name: 'voice_input.m4a',
+    });
+
+    const token = await import('expo-secure-store').then(m => m.getItemAsync('authToken'));
+
+    // Usamos fetch diretamente para suportar AbortSignal e FormData nativo mais facilmente
+    const response = await fetch(`${env.api.baseUrl}/api/v1/chats/${chatId}/voice/`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        // Content-Type é deixado para o fetch definir boundary do multipart
+      },
+      body: formData,
+      signal: options?.signal
+    });
+
+    if (!response.ok) {
+       const errorData = await response.json().catch(() => ({}));
+       throw new Error(errorData.detail || 'Failed to process voice interaction');
+    }
+
+    return await response.json();
+  }
 };
 
 // Mocks for development
@@ -215,6 +258,16 @@ const mockChatService = {
     await new Promise(resolve => setTimeout(resolve, 1000));
     return 'Este é um texto transcrito de exemplo do áudio mockado.';
   },
+
+async sendVoiceInteraction(chatId: string, audioUri: string): Promise<VoiceInteractionResponse> {
+        await new Promise(resolve => setTimeout(resolve, 2000));
+        return {
+            transcription: "Olá, tudo bem?",
+            ai_response_text: "Estou bem! Como posso ajudar?",
+            user_message: { id: '1', role: 'user', content: 'Olá', created_at: '' },
+            ai_messages: [{ id: '2', role: 'assistant', content: 'Estou bem!', created_at: '' }]
+        };
+    }
 };
 
 const USE_MOCK_API = false;
