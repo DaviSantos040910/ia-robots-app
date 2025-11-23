@@ -21,6 +21,8 @@ import { Spacing } from '../../theme/spacing';
 import { Radius } from '../../theme/radius';
 import { Typography } from '../../theme/typography';
 import { useChatController } from '../../contexts/chat/ChatProvider';
+// Importa o novo player
+import { AudioMessagePlayer } from './AudioMessagePlayer';
 
 type MessageBubbleProps = {
   message: ChatMessage;
@@ -56,7 +58,6 @@ const MessageBubbleComponent: React.FC<MessageBubbleProps> = ({
   
   const [expanded, setExpanded] = useState(false);
 
-  // Otimização: Truncar texto longo para renderização inicial mais rápida
   const shouldTruncate = message.content && message.content.length > MAX_TEXT_LENGTH;
   const displayedContent = shouldTruncate && !expanded 
     ? message.content.slice(0, MAX_TEXT_LENGTH) + '...' 
@@ -66,12 +67,10 @@ const MessageBubbleComponent: React.FC<MessageBubbleProps> = ({
   const bubbleStyle = isUser ? s.bubbleUser : s.bubbleBot;
   const textStyle = isUser ? s.userText : s.bubbleText;
 
-  // Hook de TTS (Atenção: Isso conecta o componente ao contexto global. 
-  // Se isPlaying mudar, este componente re-renderiza. O memo abaixo mitiga isso se as props não mudarem)
   const { playTTS, isTTSPlaying, currentTTSMessageId } = useChatController(conversationId);
   const isThisMessagePlaying = isTTSPlaying && currentTTSMessageId === message.id;
 
-  const isPending = message.id.toString().startsWith('temp');
+  const isPending = message.id.toString().startsWith('temp') || message.id.toString().length > 30; // UUIDs são longos, IDs de banco geralmente numéricos curtos (se string), mas UUID v4 é 36 chars.
 
   const markdownStyle = useMemo(() => StyleSheet.create({
     body: { ...textStyle },
@@ -79,8 +78,11 @@ const MessageBubbleComponent: React.FC<MessageBubbleProps> = ({
   }), [textStyle]);
 
   const shouldShowSuggestions = !isUser && !!message.suggestions?.length && isLastMessage;
+  
+  // Verificações de tipo de anexo
   const hasAttachment = !!message.attachment_url;
-  const isImageAttachment = message.attachment_type?.startsWith('image/') || message.attachment_type === 'image';
+  const isAudioMessage = message.attachment_type === 'audio';
+  const isImageAttachment = message.attachment_type === 'image' || message.attachment_type?.startsWith('image/');
 
   const handleImagePress = useCallback(() => {
     if (message.attachment_url && onImagePress && !isPending) {
@@ -91,22 +93,40 @@ const MessageBubbleComponent: React.FC<MessageBubbleProps> = ({
   return (
     <View style={rowStyle}>
       <View style={[s.bubbleContainer, bubbleStyle]}>
-        {/* Conteúdo de Texto */}
-        {message.content ? (
-          <View>
-            <Markdown style={markdownStyle}>
-              {displayedContent}
-            </Markdown>
-            {shouldTruncate && !expanded && (
-              <Pressable onPress={() => setExpanded(true)} style={{ marginTop: 4 }}>
-                <Text style={s.readMore}>Ler mais</Text>
-              </Pressable>
-            )}
+        
+        {/* 1. Mensagem de Áudio (Prioridade Visual) */}
+        {isAudioMessage && message.attachment_url ? (
+          <View style={{ marginBottom: message.content ? 8 : 0 }}>
+            <AudioMessagePlayer 
+              uri={message.attachment_url} 
+              isUser={isUser}
+              // Se tivermos a duração salva no futuro, passamos aqui. O player descobre sozinho se não.
+            />
+            {/* Se for transcrição, mostra o texto abaixo do player */}
+            {message.content ? (
+                <Text style={[textStyle, { marginTop: 4, opacity: 0.8, fontSize: 12 }]}>
+                    {message.content}
+                </Text>
+            ) : null}
           </View>
-        ) : null}
+        ) : (
+            /* 2. Conteúdo de Texto Padrão (se não for áudio ou se tiver texto junto) */
+            message.content ? (
+            <View>
+                <Markdown style={markdownStyle}>
+                {displayedContent}
+                </Markdown>
+                {shouldTruncate && !expanded && (
+                <Pressable onPress={() => setExpanded(true)} style={{ marginTop: 4 }}>
+                    <Text style={s.readMore}>Ler mais</Text>
+                </Pressable>
+                )}
+            </View>
+            ) : null
+        )}
 
-        {/* Anexos */}
-        {hasAttachment && message.attachment_url && (
+        {/* 3. Anexos de Imagem/Arquivo (Se não for áudio) */}
+        {hasAttachment && !isAudioMessage && message.attachment_url && (
           <View style={attachmentStyles.container}>
             {isImageAttachment ? (
               <Pressable
@@ -162,7 +182,7 @@ const MessageBubbleComponent: React.FC<MessageBubbleProps> = ({
         )}
 
         {/* Ações do Bot */}
-        {!isUser && (
+        {!isUser && !isPending && (
           <>
             <View style={s.bubbleDivider} />
             <View style={s.actionRow}>
@@ -180,19 +200,22 @@ const MessageBubbleComponent: React.FC<MessageBubbleProps> = ({
                     color={message.liked ? theme.brand.normal : theme.textSecondary} 
                   />
                 </Pressable>
-                <Pressable 
-                  onPress={() => playTTS(conversationId, message.id)}
-                  style={[
-                    s.actionButton,
-                    isThisMessagePlaying && s.actionButtonFilled
-                  ]}
-                >
-                  <Feather 
-                    name={isThisMessagePlaying ? "volume-2" : "volume-1"} 
-                    size={16} 
-                    color={isThisMessagePlaying ? theme.brand.normal : theme.textSecondary} 
-                  />
-                </Pressable>
+                {/* Só mostra botão de ouvir se NÃO for mensagem de áudio (pois ela já tem player) */}
+                {!isAudioMessage && (
+                    <Pressable 
+                    onPress={() => playTTS(conversationId, message.id)}
+                    style={[
+                        s.actionButton,
+                        isThisMessagePlaying && s.actionButtonFilled
+                    ]}
+                    >
+                    <Feather 
+                        name={isThisMessagePlaying ? "volume-2" : "volume-1"} 
+                        size={16} 
+                        color={isThisMessagePlaying ? theme.brand.normal : theme.textSecondary} 
+                    />
+                    </Pressable>
+                )}
               </View>
               <View style={s.rightActions}>
                 <Pressable onPress={() => onRewrite?.(message)} style={s.actionButton}>
@@ -258,27 +281,17 @@ const attachmentStyles = StyleSheet.create({
   },
 });
 
-// --- CRÍTICO: Função de Comparação de Props ---
-// Esta função determina se o componente DEVE ou NÃO re-renderizar.
-// Retornar 'true' significa "props são iguais, NÃO re-renderize".
-// Retornar 'false' significa "props mudaram, re-renderize".
 const arePropsEqual = (prevProps: MessageBubbleProps, nextProps: MessageBubbleProps) => {
-  // 1. Verificação Básica de Conteúdo da Mensagem
   const isMessageContentEqual = 
     prevProps.message.id === nextProps.message.id &&
     prevProps.message.content === nextProps.message.content &&
     prevProps.message.liked === nextProps.message.liked &&
     prevProps.message.rewriting === nextProps.message.rewriting &&
-    prevProps.message.attachment_url === nextProps.message.attachment_url;
+    prevProps.message.attachment_url === nextProps.message.attachment_url &&
+    prevProps.message.attachment_type === nextProps.message.attachment_type; // Check type too
 
-  // 2. Verificação Crítica: isLastMessage
-  // Se uma mensagem deixa de ser a última (ou passa a ser), PRECISA re-renderizar
-  // para mostrar/esconder os chips de sugestão.
   const isLastMessageEqual = prevProps.isLastMessage === nextProps.isLastMessage;
 
-  // 3. Verificação de Sugestões
-  // Se as sugestões chegarem via streaming ou update tardio, o balão precisa atualizar.
-  // Comparação segura: se ambos forem undefined/null, são iguais.
   const prevSuggestions = prevProps.message.suggestions || [];
   const nextSuggestions = nextProps.message.suggestions || [];
   
@@ -286,14 +299,9 @@ const arePropsEqual = (prevProps: MessageBubbleProps, nextProps: MessageBubblePr
     prevSuggestions.length === nextSuggestions.length &&
     prevSuggestions.every((val, index) => val === nextSuggestions[index]);
 
-  // 4. Estado de Envio de Sugestão (para desabilitar botões)
   const isSendingStateEqual = prevProps.isSendingSuggestion === nextProps.isSendingSuggestion;
 
-  // Combina todas as condições
-  return isMessageContentEqual && 
-         isLastMessageEqual && 
-         isSuggestionsEqual && 
-         isSendingStateEqual;
+  return isMessageContentEqual && isLastMessageEqual && isSuggestionsEqual && isSendingStateEqual;
 };
 
 export const MessageBubble = memo(MessageBubbleComponent, arePropsEqual);

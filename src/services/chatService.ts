@@ -2,7 +2,6 @@
 
 import api from './api';
 import { ChatMessage, PaginatedMessages, ChatListItem } from '../types/chat';
-import { string } from 'yup';
 import config from '../config';
 
 const env = config();
@@ -117,9 +116,6 @@ const realChatService = {
       console.log(`[ChatService] Transcribing audio for chat ${chatId}`);
       console.log(`[ChatService] Audio URI: ${audioUri}`);
 
-      // ✅ CORRIGIDO: Não precisa verificar se existe, apenas envia diretamente
-      console.log(`[ChatService] Preparing audio file for upload`);
-
       // Cria FormData para enviar o arquivo de áudio
       const formData = new FormData();
       
@@ -173,7 +169,56 @@ const realChatService = {
     }
   },
 
-async sendVoiceInteraction(
+  /**
+   * Envia uma mensagem de voz (arquivo de áudio) para o backend.
+   * @param chatId ID do chat
+   * @param audioUri URI do arquivo local
+   * @param replyWithAudio Se o bot deve responder com áudio
+   */
+  async sendVoiceMessage(chatId: string, audioUri: string, replyWithAudio: boolean = false): Promise<ChatMessage[]> {
+    try {
+      console.log(`[ChatService] Sending voice message to chat ${chatId}`);
+      
+      const formData = new FormData();
+      // @ts-ignore
+      formData.append('audio', {
+        uri: audioUri,
+        type: 'audio/m4a',
+        name: 'voice_message.m4a',
+      });
+      
+      formData.append('reply_with_audio', String(replyWithAudio));
+
+      const token = await import('expo-secure-store').then(m => m.getItemAsync('authToken'));
+
+      const response = await fetch(`${env.api.baseUrl}/api/v1/chats/${chatId}/voice-message/`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          // Content-Type é automático no fetch com FormData
+        },
+        body: formData,
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.detail || 'Failed to send voice message');
+      }
+
+      // O backend retorna array: [user_message, ai_message]
+      const messages = await response.json();
+      return messages;
+      
+    } catch (error: any) {
+      console.error('[ChatService] Send voice message error:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * Envia áudio para interação completa de voz (STT -> LLM -> TTS Logic)
+   */
+  async sendVoiceInteraction(
     chatId: string, 
     audioUri: string, 
     options?: { signal?: AbortSignal }
@@ -218,7 +263,7 @@ const mockChatService = {
 
   async sendMessage(chatId: string, content: string): Promise<ChatMessage[]> {
     return [{
-      id: 'mock',
+      id: `mock_bot_reply_${Date.now()}`,
       role: 'assistant',
       content: 'Mock response',
       created_at: new Date().toISOString()
@@ -258,16 +303,61 @@ const mockChatService = {
     await new Promise(resolve => setTimeout(resolve, 1000));
     return 'Este é um texto transcrito de exemplo do áudio mockado.';
   },
+  
+  // Mock para interação de voz ao vivo (necessário para VoiceCallScreen)
+  async sendVoiceInteraction(chatId: string, audioUri: string): Promise<VoiceInteractionResponse> {
+    console.log(`[MOCK] Voice Interaction for chat ${chatId}`);
+    await new Promise(resolve => setTimeout(resolve, 2000));
+    return {
+        transcription: "Olá, tudo bem? (MOCK)",
+        ai_response_text: "Estou bem! Como posso ajudar? (MOCK)",
+        user_message: { 
+            id: `user_voice_call_${Date.now()}`, 
+            role: 'user', 
+            content: 'Olá', 
+            created_at: new Date().toISOString() 
+        },
+        ai_messages: [{ 
+            id: `ai_voice_call_${Date.now()}`, 
+            role: 'assistant', 
+            content: 'Estou bem! Como posso ajudar?', 
+            created_at: new Date().toISOString() 
+        }]
+    };
+  },
 
-async sendVoiceInteraction(chatId: string, audioUri: string): Promise<VoiceInteractionResponse> {
-        await new Promise(resolve => setTimeout(resolve, 2000));
-        return {
-            transcription: "Olá, tudo bem?",
-            ai_response_text: "Estou bem! Como posso ajudar?",
-            user_message: { id: '1', role: 'user', content: 'Olá', created_at: '' },
-            ai_messages: [{ id: '2', role: 'assistant', content: 'Estou bem!', created_at: '' }]
-        };
+  // Mock novo para mensagens de voz estilo WhatsApp (necessário para ChatScreen)
+  async sendVoiceMessage(chatId: string, audioUri: string, replyWithAudio: boolean = false): Promise<ChatMessage[]> {
+    console.log(`[MOCK] Sending voice message to chat ${chatId}. Reply with audio: ${replyWithAudio}`);
+    await new Promise(resolve => setTimeout(resolve, 1500));
+
+    // Mensagem do usuário
+    const userMsg: ChatMessage = {
+      id: `mock_user_voice_${Date.now()}`,
+      role: 'user',
+      content: 'Mensagem de voz transcrita (MOCK)',
+      created_at: new Date().toISOString(),
+      attachment_type: 'audio',
+      attachment_url: audioUri, // URI local para simulação
+    };
+
+    // Resposta do Bot
+    const botMsg: ChatMessage = {
+      id: `mock_bot_voice_${Date.now()}`,
+      role: 'assistant',
+      content: 'Entendi sua mensagem de voz. Aqui está minha resposta simulada.',
+      created_at: new Date(Date.now() + 100).toISOString(),
+    };
+    
+    if (replyWithAudio) {
+        botMsg.attachment_type = 'audio';
+        // URL de exemplo para áudio
+        botMsg.attachment_url = 'https://www2.cs.uic.edu/~i101/SoundFiles/BabyElephantWalk60.wav'; 
+        botMsg.content = 'Entendi. Respondendo com áudio simulado.';
     }
+
+    return [userMsg, botMsg];
+  },
 };
 
 const USE_MOCK_API = false;

@@ -80,6 +80,71 @@ export const useChatSender = ({
     activeSendPromises.current[chatId] = sendPromise;
   }, [updateChatData, setIsTypingById, activeSendPromises]);
 
+const sendVoiceMessage = useCallback(async (chatId: string, audioUri: string, durationMs: number, replyWithAudio: boolean) => {
+    if (!audioUri) return;
+
+    const tempId = uuidv4();
+    
+    // 1. Optimistic UI: Adiciona mensagem de áudio temporária
+    const tempMessage: ChatMessage = {
+      id: tempId,
+      role: 'user',
+      content: '', // Conteúdo vazio ou placeholder, o componente de áudio usará o attachment
+      created_at: new Date().toISOString(),
+      attachment_type: 'audio',
+      attachment_url: audioUri, // Usa o URI local
+      // Podemos passar a duração num campo auxiliar se quisermos, mas o player descobre
+    };
+
+    updateChatData(chatId, (prev) => ({
+      messages: [...prev.messages, tempMessage],
+    }));
+
+    setIsTypingById((prev) => ({ ...prev, [chatId]: true }));
+
+    try {
+      // 2. Chamada ao Backend
+      const apiMessages = await chatService.sendVoiceMessage(chatId, audioUri, replyWithAudio);
+
+      // 3. Sucesso: Substitui temp pela real e adiciona resposta
+      updateChatData(chatId, (prev) => {
+        // Remove a temporária
+        const messagesWithoutTemp = prev.messages.filter(m => m.id !== tempId);
+        
+        // Filtra duplicatas (caso backend retorne algo que já temos)
+        const existingIds = new Set(messagesWithoutTemp.map(m => m.id));
+        const uniqueNewMessages = apiMessages.filter(r => !existingIds.has(r.id));
+        
+        const finalMessages = [...messagesWithoutTemp, ...uniqueNewMessages];
+
+        // Atualiza cache
+        setCachedChatData(chatId, {
+          messages: finalMessages,
+          nextPage: prev.nextPage,
+          timestamp: Date.now(),
+        }).catch(console.error);
+
+        return { messages: finalMessages };
+      });
+
+    } catch (error) {
+      console.error('[ChatSender] Voice message failed:', error);
+      
+      // 4. Erro: Marca a mensagem como erro ou remove (aqui estamos substituindo por msg de erro)
+      const errorMsg: ChatMessage = {
+        id: uuidv4(),
+        role: 'assistant',
+        content: 'Falha ao enviar áudio. Tente novamente.',
+        created_at: new Date().toISOString()
+      };
+
+      updateChatData(chatId, (prev) => ({
+        messages: prev.messages.map(m => m.id === tempId ? errorMsg : m)
+      }));
+    } finally {
+      setIsTypingById((prev) => ({ ...prev, [chatId]: false }));
+    }
+  }, [updateChatData, setIsTypingById]);
 
   const archiveAndStartNew = useCallback(async (chatId: string): Promise<string | null> => {
     try {
@@ -154,6 +219,7 @@ export const useChatSender = ({
 
   return {
     sendMessage,
+    sendVoiceMessage,
     archiveAndStartNew,
     sendMultipleAttachments,
     sendAttachment,

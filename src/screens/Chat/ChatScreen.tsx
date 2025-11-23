@@ -82,6 +82,9 @@ const ChatScreen: React.FC = () => {
     sendAttachments, 
     handleCopyMessage,
     handleLikeMessage,
+    isBotVoiceMode,
+    toggleBotVoiceMode,
+    sendVoiceMessage, 
   } = useChatController(currentChatId);
 
   const {
@@ -101,8 +104,7 @@ const ChatScreen: React.FC = () => {
   } = useChatMediaLogic();
 
   const { audioProps } = useChatAudioLogic({
-    chatId: currentChatId,
-    setTextInput: setInputText,
+    onSendVoice: sendVoiceMessage, 
   });
 
   // --- Handlers ---
@@ -274,7 +276,9 @@ const ChatScreen: React.FC = () => {
           subtitle={route.params.botHandle}
           avatarUrl={route.params.botAvatarUrl}
           onBack={handleBackPress}
-          onPhone={handlePhonePress} 
+          onPhone={handlePhonePress}
+          onVolume={toggleBotVoiceMode} // Conecta a função de toggle
+          isVoiceModeEnabled={isBotVoiceMode} // Passa o estado visual
           onMorePress={(anchor) => {
           setMenuAnchor(anchor);
           setMenuOpen(true);

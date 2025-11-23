@@ -2,17 +2,17 @@ import { useState, useCallback, useMemo } from 'react';
 import { Alert } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { useAudioRecorder } from '../../../hooks/useAudioRecorder';
-import { chatService } from '../../../services/chatService';
+// Removemos a dependência direta do chatService aqui para usar a função injetada
 
 type UseChatAudioLogicProps = {
-  chatId: string | null;
-  setTextInput: (text: string) => void;
+  // Removemos chatId e setTextInput, agora recebemos a função de envio direto
+  onSendVoice: (uri: string, duration: number) => Promise<void>;
 };
 
-export const useChatAudioLogic = ({ chatId, setTextInput }: UseChatAudioLogicProps) => {
+export const useChatAudioLogic = ({ onSendVoice }: UseChatAudioLogicProps) => {
   const { t } = useTranslation();
-  const [isTranscribing, setIsTranscribing] = useState(false);
-
+  // isTranscribing não é mais necessário aqui pois o loading é tratado pelo ChatProvider (isTyping)
+  
   const audioRecorder = useAudioRecorder();
 
   // Handlers memoizados via useCallback
@@ -27,34 +27,26 @@ export const useChatAudioLogic = ({ chatId, setTextInput }: UseChatAudioLogicPro
   }, [audioRecorder, t]);
 
   const handleStopRecording = useCallback(async () => {
-    if (!chatId) return;
-
+    // Para a gravação
     const audioUri = await audioRecorder.stopRecording();
+    const duration = audioRecorder.duration; // Pega a duração final
 
     if (!audioUri) {
-      Alert.alert(t('error', { defaultValue: 'Erro' }), t('chat.recordingFailed', { defaultValue: 'Falha ao salvar gravação.' }));
+      // Se cancelou ou deu erro silencioso
       return;
     }
 
-    setIsTranscribing(true);
+    // Chama a função injetada (que fará o optimistic UI e envio)
     try {
-      const transcription = await chatService.transcribeAudio(chatId, audioUri);
-      
-      if (transcription) {
-        setTextInput(transcription);
-      }
+      await onSendVoice(audioUri, duration);
     } catch (error) {
-      console.error('[useChatAudioLogic] Transcription failed', error);
-      Alert.alert(t('error', { defaultValue: 'Erro' }), t('chat.transcriptionFailed', { defaultValue: 'Falha ao transcrever áudio.' }));
-    } finally {
-      setIsTranscribing(false);
+      // O tratamento de erro principal já deve ser feito no Provider/Service, 
+      // mas aqui pegamos falhas residuais.
+      console.error('[useChatAudioLogic] Send failed', error);
+      Alert.alert(t('error'), t('chat.sendError'));
     }
-  }, [audioRecorder, chatId, t, setTextInput]);
+  }, [audioRecorder, onSendVoice, t]);
 
-  // --- OTIMIZAÇÃO DE PERFORMANCE ---
-  // Memoizamos o objeto audioProps.
-  // Isso impede que o ChatInput re-renderize apenas porque o componente pai renderizou,
-  // a menos que o estado da gravação mude.
   const audioProps = useMemo(() => ({
     recordingState: audioRecorder.recordingState,
     recordingDuration: audioRecorder.formattedDuration,
@@ -63,7 +55,7 @@ export const useChatAudioLogic = ({ chatId, setTextInput }: UseChatAudioLogicPro
     onResumeRecording: audioRecorder.resumeRecording,
     onStopRecording: handleStopRecording,
     onCancelRecording: audioRecorder.cancelRecording,
-    isTranscribing,
+    isTranscribing: false, // Campo mantido por compatibilidade com componente UI, mas sempre falso agora
   }), [
     audioRecorder.recordingState,
     audioRecorder.formattedDuration,
@@ -72,12 +64,10 @@ export const useChatAudioLogic = ({ chatId, setTextInput }: UseChatAudioLogicPro
     audioRecorder.cancelRecording,
     handleStartRecording,
     handleStopRecording,
-    isTranscribing
   ]);
 
   return {
     audioProps,
-    isTranscribing,
     recordingState: audioRecorder.recordingState,
   };
 };

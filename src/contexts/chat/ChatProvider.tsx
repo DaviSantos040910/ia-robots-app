@@ -15,6 +15,7 @@ export type ChatStore = {
   // Estado (Leitura)
   chats: Record<string, ChatData>;
   isTypingById: Record<string, boolean>;
+  isBotVoiceMode: boolean; // NOVO
   
   // Carregamento (Loader)
   loadInitialMessages: (chatId: string) => Promise<void>;
@@ -22,6 +23,7 @@ export type ChatStore = {
   
   // Envio (Sender)
   sendMessage: (chatId: string, text: string) => Promise<void>;
+  sendVoiceMessage: (chatId: string, audioUri: string, durationMs: number, replyWithAudio: boolean) => Promise<void>; // NOVO
   archiveAndStartNew: (chatId: string) => Promise<string | null>;
   sendMultipleAttachments: (chatId: string, files: AttachmentPickerResult[]) => Promise<void>;
   sendAttachment: (chatId: string, file: AttachmentPickerResult) => Promise<void>;
@@ -34,6 +36,7 @@ export type ChatStore = {
   currentTTSMessageId: string | null;
   handleCopyMessage: (message: ChatMessage) => void;
   handleLikeMessage: (chatId: string, message: ChatMessage) => Promise<void>;
+  toggleBotVoiceMode: () => void; // NOVO
   
   // Utilitários de Estado
   clearLocalChatState: (chatId: string) => void;
@@ -48,6 +51,8 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setChats, 
     isTypingById, 
     setIsTypingById, 
+    isBotVoiceMode, // NOVO
+    setIsBotVoiceMode, // NOVO
     activeSendPromises, 
     updateChatData 
   } = useChatState();
@@ -61,6 +66,7 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // 3. Camada de Envio (Sender)
   const { 
     sendMessage, 
+    sendVoiceMessage, // NOVO
     archiveAndStartNew, 
     sendMultipleAttachments, 
     sendAttachment 
@@ -78,9 +84,11 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
     isTTSLoading, 
     currentTTSMessageId, 
     handleCopyMessage, 
-    handleLikeMessage 
+    handleLikeMessage,
+    toggleBotVoiceMode // NOVO
   } = useChatInteractions({ 
-    updateChatData 
+    updateChatData,
+    setIsBotVoiceMode // Injeta o setter
   });
 
   // 5. Utils
@@ -102,6 +110,7 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
     // Dados (Mudam)
     chats,
     isTypingById,
+    isBotVoiceMode, // Exportado
     isTTSPlaying,
     isTTSLoading,
     currentTTSMessageId,
@@ -110,6 +119,7 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
     loadInitialMessages,
     loadMoreMessages,
     sendMessage,
+    sendVoiceMessage, // Exportado
     archiveAndStartNew,
     sendMultipleAttachments,
     sendAttachment,
@@ -117,16 +127,19 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
     stopTTS,
     handleCopyMessage,
     handleLikeMessage,
+    toggleBotVoiceMode, // Exportado
     clearLocalChatState,
   }), [
     chats,
     isTypingById,
+    isBotVoiceMode, // Dependência
     isTTSPlaying,
     isTTSLoading,
     currentTTSMessageId,
     loadInitialMessages,
     loadMoreMessages,
     sendMessage,
+    sendVoiceMessage, // Dependência
     archiveAndStartNew,
     sendMultipleAttachments,
     sendAttachment,
@@ -134,6 +147,7 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
     stopTTS,
     handleCopyMessage,
     handleLikeMessage,
+    toggleBotVoiceMode, // Dependência
     clearLocalChatState
   ]);
 
@@ -154,10 +168,16 @@ export const useChatController = (chatId: string | null) => {
   const controller = useMemo(() => ({
     ...chatData,
     isTyping,
+    // Propriedades globais
+    isBotVoiceMode: ctx.isBotVoiceMode,
     
     loadInitialMessages: () => chatId ? ctx.loadInitialMessages(chatId) : Promise.resolve(),
     loadMoreMessages: () => chatId ? ctx.loadMoreMessages(chatId) : Promise.resolve(),
     sendMessage: (text: string) => chatId ? ctx.sendMessage(chatId, text) : Promise.resolve(),
+    // NOVO: Wrapper seguro
+    sendVoiceMessage: (audioUri: string, durationMs: number) => 
+      chatId ? ctx.sendVoiceMessage(chatId, audioUri, durationMs, ctx.isBotVoiceMode) : Promise.resolve(),
+
     archiveAndStartNew: () => chatId ? ctx.archiveAndStartNew(chatId) : Promise.resolve(null),
     sendAttachments: (files: AttachmentPickerResult[]) => chatId ? ctx.sendMultipleAttachments(chatId, files) : Promise.resolve(),
     sendAttachment: (file: AttachmentPickerResult) => chatId ? ctx.sendAttachment(chatId, file) : Promise.resolve(),
@@ -165,6 +185,7 @@ export const useChatController = (chatId: string | null) => {
     
     playTTS: ctx.playTTS,
     stopTTS: ctx.stopTTS,
+    toggleBotVoiceMode: ctx.toggleBotVoiceMode,
     isTTSPlaying: ctx.isTTSPlaying,
     isTTSLoading: ctx.isTTSLoading,
     currentTTSMessageId: ctx.currentTTSMessageId,
@@ -174,7 +195,7 @@ export const useChatController = (chatId: string | null) => {
     chatId, 
     chatData,
     isTyping, 
-    ctx
+    ctx // Como o contexto já é memoizado, é seguro usar como dependência
   ]);
 
   return controller;

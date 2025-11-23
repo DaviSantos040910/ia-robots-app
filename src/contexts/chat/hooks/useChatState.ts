@@ -30,26 +30,23 @@ export const useChatState = () => {
   // Armazena o estado de digitação (loading de envio) por ID de chat
   const [isTypingById, setIsTypingById] = useState<Record<string, boolean>>({});
   
+  // --- NOVO: Estado do Modo de Voz ---
+  const [isBotVoiceMode, setIsBotVoiceMode] = useState(false);
+
   // Ref para evitar envios duplicados (race conditions), não dispara re-render
   const activeSendPromises = useRef<Record<string, Promise<void>>>({});
 
   /**
    * Atualiza atomicamente os dados de um chat específico.
-   * Usa a forma funcional do setState para garantir que não dependemos
-   * de closures obsoletos (stale closures) em operações assíncronas.
    */
   const updateChatData = useCallback((
     chatId: string, 
     updater: (prevData: ChatData) => Partial<ChatData>
   ) => {
     setChats(prevChats => {
-      // Recupera o estado atual ou inicializa se não existir
       const currentChatState = prevChats[chatId] || initialChatData;
-      
-      // Calcula as atualizações baseadas no estado anterior
       const updates = updater(currentChatState);
       
-      // Garante que a lista de mensagens seja preservada se não for atualizada
       const newMessages = updates.messages !== undefined 
         ? updates.messages 
         : currentChatState.messages;
@@ -67,10 +64,13 @@ export const useChatState = () => {
 
   return {
     chats,
-    setChats, // Exposto caso precise de reset total
+    setChats, 
     isTypingById,
     setIsTypingById,
     activeSendPromises,
     updateChatData,
+    // Exporta o estado de voz
+    isBotVoiceMode,
+    setIsBotVoiceMode,
   };
 };
