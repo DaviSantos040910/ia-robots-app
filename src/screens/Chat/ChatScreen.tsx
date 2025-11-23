@@ -115,6 +115,18 @@ const ChatScreen: React.FC = () => {
     }
   }, [isReadOnly, navigation]);
 
+  const handlePhonePress = useCallback(() => {
+    if (!currentChatId || !bootstrap) return;
+    
+    // Navega para a tela de Voice Call passando os dados necessários
+    navigation.navigate('VoiceCall', {
+      chatId: currentChatId,
+      botId: route.params.botId,
+      botName: bootstrap.bot.name,
+      botAvatarUrl: bootstrap.bot.avatarUrl,
+    });
+  }, [currentChatId, bootstrap, route.params.botId, navigation]);
+
   const handleOpenSettings = useCallback(() => {
     setMenuOpen(false);
     navigation.navigate('BotSettings', { botId: route.params.botId });
@@ -249,6 +261,11 @@ const ChatScreen: React.FC = () => {
           subtitle={route.params.botHandle}
           avatarUrl={route.params.botAvatarUrl}
           onBack={handleBackPress}
+          onPhone={handlePhonePress} 
+          onMorePress={(anchor) => {
+          setMenuAnchor(anchor);
+          setMenuOpen(true);
+        }}
         />
         <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
           <ActivityIndicator size="large" color={theme.brand.normal} />

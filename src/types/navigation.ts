@@ -1,31 +1,35 @@
 // src/types/navigation.ts
-import type { ChatMessage, ChatBootstrap, ChatListItem } from '../types/chat';
-import type { NavigatorScreenParams } from '@react-navigation/native'; // <-- Adicione esta importação
+import type { NavigatorScreenParams } from '@react-navigation/native';
 import type { MainTabParamList } from '../navigation/MainTabNavigator';
 
 export type RootStackParamList = {
   Login: undefined;
   SignUp: undefined;
-  Main: NavigatorScreenParams<MainTabParamList>; // Indica que 'Main' aceita params para suas telas internas  
-  // Tab Navigator Screens
-  Chat: undefined; // Renamed from AllChats
-  Explore: undefined;
-  Create: undefined;
-  Bots: undefined; // New Screen
-  Me: undefined;
+  // Main contém as abas
+  Main: NavigatorScreenParams<MainTabParamList>;
   
-  // Stack Screens
+  // Telas do Stack Principal (que ficam "acima" das abas)
   ChatScreen: { 
     chatId: string;
-    botId: string; // --- ADICIONADO: Garante que sabemos qual bot está no chat ---
-    botName: string; // Pass bot name for the header
-    botHandle: string; // Pass bot handle for the header
+    botId: string; 
+    botName: string; 
+    botHandle: string; 
     botAvatarUrl?: string | null; 
-    isArchived?: boolean;// Pass avatar for the header
+    isArchived?: boolean;
   };
   
   BotSettings: { botId: string };
+  
+  // Rota para criar bot (fora das abas para ser modal/full screen se quiser)
+  Create: undefined;
 
-  // New Screen for archived conversations
+  // Nova rota para Voice Call
+  VoiceCall: {
+    chatId: string;
+    botId: string;
+    botName: string;
+    botAvatarUrl?: string | null;
+  };
+
   ArchivedChats: { botId: string }; 
 };

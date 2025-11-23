@@ -2,7 +2,7 @@
 import React, { useRef } from 'react';
 import { View, Text, Pressable, Image, useColorScheme, UIManager, findNodeHandle } from 'react-native';
 import { getTheme } from '../../screens/Chat/Chat.styles';
-import { Feather } from '@expo/vector-icons';
+import { Feather, Ionicons } from '@expo/vector-icons'; // Importei Ionicons para consistência se preferir, mas Feather tem phone-call
 import { Typography } from '../../theme/typography';
 import type { Anchor } from './ActionSheetMenu';
 
@@ -11,7 +11,7 @@ export const ChatHeader: React.FC<{
   title: string;
   subtitle?: string;
   onBack?: () => void;
-  onPhone?: () => void;
+  onPhone?: () => void; // Esta prop já existia na interface, agora será usada
   onVolume?: () => void;
   onMorePress?: (anchor: Anchor) => void;
 }> = ({ avatarUrl, title, subtitle, onBack, onPhone, onVolume, onMorePress }) => {
@@ -45,17 +45,27 @@ export const ChatHeader: React.FC<{
 
       {/* Titles */}
       <View style={{ flex: 1 }}>
-        <Text style={{ ...Typography.bodySemiBold.medium, color: t.textPrimary }}>{title}</Text>
-        {!!subtitle && <Text style={{ ...Typography.bodyRegular.small, color: t.textSecondary }}>{subtitle}</Text>}
+        <Text style={{ ...Typography.bodySemiBold.medium, color: t.textPrimary }} numberOfLines={1}>{title}</Text>
+        {!!subtitle && <Text style={{ ...Typography.bodyRegular.small, color: t.textSecondary }} numberOfLines={1}>{subtitle}</Text>}
       </View>
 
       {/* Actions */}
-      <Pressable onPress={onPhone} hitSlop={10} style={{ padding: 6, marginHorizontal: 4 }}>
-        <Feather name="phone" size={20} color={t.textPrimary} />
+      {/* Botão de Chamada de Voz */}
+      <Pressable 
+        onPress={onPhone} 
+        hitSlop={10} 
+        style={{ padding: 6, marginHorizontal: 4 }}
+        accessibilityRole="button"
+        accessibilityLabel="Iniciar chamada de voz"
+      >
+        <Feather name="phone-call" size={20} color={t.textPrimary} />
       </Pressable>
+
+      {/* Botão de Volume (pode ser útil para o TTS global) */}
       <Pressable onPress={onVolume} hitSlop={10} style={{ padding: 6, marginHorizontal: 4 }}>
         <Feather name="volume-2" size={20} color={t.textPrimary} />
       </Pressable>
+      
       <Pressable ref={moreRef} onPress={openMenu} hitSlop={10} style={{ padding: 6, marginLeft: 4 }}>
         <Feather name="more-vertical" size={22} color={t.textPrimary} />
       </Pressable>

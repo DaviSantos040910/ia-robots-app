@@ -13,6 +13,8 @@ import SignUpScreen from '../screens/SignUpScreen';
 import CreateBotScreen from '../screens/CreateBot/CreateBotScreen';
 import ArchivedChatsScreen from '../screens/ArchivedChats/ArchivedChatsScreen'; // New Screen
 import { useAuth } from '../contexts/auth/AuthProvider';
+import VoiceCallScreen from '../screens/VoiceCall/VoiceCallScreen';
+
 
 const AppStack = createNativeStackNavigator<RootStackParamList>();
 const AuthStack = createNativeStackNavigator<RootStackParamList>();
@@ -25,6 +27,14 @@ const AppStackNavigator: React.FC = () => (
     <AppStack.Screen name="BotSettings" component={BotSettingsScreen} />
     <AppStack.Screen name="Create" component={CreateBotScreen} />
     <AppStack.Screen name="ArchivedChats" component={ArchivedChatsScreen} /> 
+    <AppStack.Screen 
+      name="VoiceCall" 
+      component={VoiceCallScreen} 
+      options={{
+        animation: 'slide_from_bottom', // Animação estilo modal iOS para chamadas
+        presentation: 'fullScreenModal' // Garante que cubra tudo
+      }}
+    />
   </AppStack.Navigator>
 );
 

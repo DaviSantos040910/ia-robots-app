@@ -259,21 +259,41 @@ const attachmentStyles = StyleSheet.create({
 });
 
 // --- CRÍTICO: Função de Comparação de Props ---
+// Esta função determina se o componente DEVE ou NÃO re-renderizar.
+// Retornar 'true' significa "props são iguais, NÃO re-renderize".
+// Retornar 'false' significa "props mudaram, re-renderize".
 const arePropsEqual = (prevProps: MessageBubbleProps, nextProps: MessageBubbleProps) => {
-  const isMessageEqual = 
+  // 1. Verificação Básica de Conteúdo da Mensagem
+  const isMessageContentEqual = 
     prevProps.message.id === nextProps.message.id &&
     prevProps.message.content === nextProps.message.content &&
     prevProps.message.liked === nextProps.message.liked &&
     prevProps.message.rewriting === nextProps.message.rewriting &&
     prevProps.message.attachment_url === nextProps.message.attachment_url;
 
-  const isStateEqual = 
-    prevProps.isLastMessage === nextProps.isLastMessage &&
-    prevProps.isSendingSuggestion === nextProps.isSendingSuggestion;
+  // 2. Verificação Crítica: isLastMessage
+  // Se uma mensagem deixa de ser a última (ou passa a ser), PRECISA re-renderizar
+  // para mostrar/esconder os chips de sugestão.
+  const isLastMessageEqual = prevProps.isLastMessage === nextProps.isLastMessage;
 
-  // Ignoramos propositalmente as funções (onLike, onCopy) e conversationId
-  // pois elas são estáveis ou não afetam o visual isoladamente.
-  return isMessageEqual && isStateEqual;
+  // 3. Verificação de Sugestões
+  // Se as sugestões chegarem via streaming ou update tardio, o balão precisa atualizar.
+  // Comparação segura: se ambos forem undefined/null, são iguais.
+  const prevSuggestions = prevProps.message.suggestions || [];
+  const nextSuggestions = nextProps.message.suggestions || [];
+  
+  const isSuggestionsEqual = 
+    prevSuggestions.length === nextSuggestions.length &&
+    prevSuggestions.every((val, index) => val === nextSuggestions[index]);
+
+  // 4. Estado de Envio de Sugestão (para desabilitar botões)
+  const isSendingStateEqual = prevProps.isSendingSuggestion === nextProps.isSendingSuggestion;
+
+  // Combina todas as condições
+  return isMessageContentEqual && 
+         isLastMessageEqual && 
+         isSuggestionsEqual && 
+         isSendingStateEqual;
 };
 
 export const MessageBubble = memo(MessageBubbleComponent, arePropsEqual);
