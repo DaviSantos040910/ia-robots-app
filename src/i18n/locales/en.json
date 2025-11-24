@@ -3,7 +3,8 @@
     "show": "Show",
     "hide": "Hide",
     "cancel": "Cancel",
-    "error": "Error"
+    "error": "Error",
+    "ops": "Oops"
   },
   "error": "Error",
   "chat": {
@@ -25,7 +26,13 @@
     "recordingFailed": "Failed to save recording.",
     "transcriptionFailed": "Failed to transcribe audio.",
     "sendError": "Failed to send message.",
+    "audioSendError": "Failed to send audio. Please try again.",
+    "voiceCallNavigationError": "Could not open call screen.",
+    "voiceModeOn": "Voice mode enabled",
+    "voiceModeOff": "Voice mode disabled",
     "readOnlyMessage": "This chat is archived.",
+    "showTranscription": "Transcribe",
+    "hideTranscription": "Hide transcription",
     "attachmentMenu": {
       "camera": "Camera",
       "gallery": "Gallery",
@@ -41,6 +48,18 @@
       "readAloud": "Read aloud",
       "stopReading": "Stop reading aloud",
       "rewriteMessage": "Rewrite message"
+    }
+  },
+  "voiceCall": {
+    "status": {
+      "listening": "Listening...",
+      "processing": "Thinking...",
+      "speaking": "Speaking...",
+      "idle": "Hold to speak"
+    },
+    "errors": {
+      "permission": "Microphone permission denied.",
+      "processing": "I didn't catch that. Please try again."
     }
   },
   "archivedChats": {

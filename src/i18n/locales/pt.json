@@ -3,7 +3,8 @@
     "show": "Mostrar",
     "hide": "Ocultar",
     "cancel": "Cancelar",
-    "error": "Erro"
+    "error": "Erro",
+    "ops": "Ops"
   },
   "error": "Erro",
   "chat": {
@@ -25,7 +26,13 @@
     "recordingFailed": "Falha ao salvar gravação.",
     "transcriptionFailed": "Falha ao transcrever áudio.",
     "sendError": "Não foi possível enviar a mensagem.",
+    "audioSendError": "Falha ao enviar áudio. Tente novamente.",
+    "voiceCallNavigationError": "Não foi possível abrir a tela de chamada.",
+    "voiceModeOn": "Modo de voz ativado",
+    "voiceModeOff": "Modo de voz desativado",
     "readOnlyMessage": "Este chat está arquivado.",
+    "showTranscription": "Transcrever",
+    "hideTranscription": "Ocultar transcrição",
     "attachmentMenu": {
       "camera": "Câmera",
       "gallery": "Galeria",
@@ -41,6 +48,18 @@
       "readAloud": "Ler em voz alta",
       "stopReading": "Parar leitura em voz alta",
       "rewriteMessage": "Reescrever mensagem"
+    }
+  },
+  "voiceCall": {
+    "status": {
+      "listening": "Ouvindo...",
+      "processing": "Pensando...",
+      "speaking": "Falando...",
+      "idle": "Toque e segure para falar"
+    },
+    "errors": {
+      "permission": "Permissão de microfone negada.",
+      "processing": "Não entendi. Tente novamente."
     }
   },
   "archivedChats": {

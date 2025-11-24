@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef, useCallback } from 'react';
+import React, { useEffect, useState } from 'react';
 import { 
   View, 
   Text, 
@@ -14,7 +14,6 @@ import { Feather } from '@expo/vector-icons';
 import { getTheme } from '../../screens/Chat/Chat.styles';
 import { Typography } from '../../theme/typography';
 import { Spacing } from '../../theme/spacing';
-import { Radius } from '../../theme/radius';
 
 type AudioMessagePlayerProps = {
   uri: string;
@@ -39,6 +38,8 @@ export const AudioMessagePlayer: React.FC<AudioMessagePlayerProps> = ({
   const [barWidth, setBarWidth] = useState(0);
 
   // Cores dinâmicas baseadas em quem enviou a mensagem
+  // Se for User (fundo colorido), usamos branco/transparente.
+  // Se for Bot (fundo neutro), usamos cores do tema.
   const colors = isUser ? {
     icon: '#FFFFFF',
     text: '#FFFFFF',
@@ -48,7 +49,7 @@ export const AudioMessagePlayer: React.FC<AudioMessagePlayerProps> = ({
   } : {
     icon: theme.textSecondary,
     text: theme.textSecondary,
-    track: theme.surfaceAlt, // ou um cinza claro
+    track: theme.surfaceAlt,
     fill: theme.brand.normal,
     thumb: theme.brand.normal
   };
@@ -61,7 +62,7 @@ export const AudioMessagePlayer: React.FC<AudioMessagePlayerProps> = ({
 
     const loadAudio = async () => {
       try {
-        // Configura modo de áudio para tocar mesmo no silencioso (iOS)
+        // Configura modo de áudio para tocar alto mesmo no modo silencioso (iOS)
         await Audio.setAudioModeAsync({
           allowsRecordingIOS: false,
           playsInSilentModeIOS: true,
@@ -88,11 +89,12 @@ export const AudioMessagePlayer: React.FC<AudioMessagePlayerProps> = ({
       }
     };
 
-    loadAudio();
+    if (uri) loadAudio();
 
     return () => {
       isMounted = false;
       if (soundInstance) {
+        // Importante: Descarregar para liberar memória
         soundInstance.unloadAsync();
       }
     };
@@ -103,7 +105,7 @@ export const AudioMessagePlayer: React.FC<AudioMessagePlayerProps> = ({
   const onPlaybackStatusUpdate = (status: AVPlaybackStatus) => {
     if (status.isLoaded) {
       setPositionMillis(status.positionMillis);
-      setDurationMillis(status.durationMillis || initialDuration);
+      if (status.durationMillis) setDurationMillis(status.durationMillis);
       setIsPlaying(status.isPlaying);
 
       if (status.didJustFinish) {
@@ -136,7 +138,7 @@ export const AudioMessagePlayer: React.FC<AudioMessagePlayerProps> = ({
     const percentage = Math.max(0, Math.min(1, locationX / barWidth));
     const seekPosition = percentage * durationMillis;
 
-    setPositionMillis(seekPosition); // Update visual imediato
+    setPositionMillis(seekPosition); // Update visual imediato (Optimistic)
     await sound.setPositionAsync(seekPosition);
   };
 
@@ -181,10 +183,12 @@ export const AudioMessagePlayer: React.FC<AudioMessagePlayerProps> = ({
 
       {/* Barra de Progresso Interativa */}
       <View style={styles.progressContainer}>
+        {/* Trilho (Track) */}
         <View 
           style={[styles.track, { backgroundColor: colors.track }]} 
           onLayout={handleLayout}
         >
+          {/* Preenchimento (Fill) */}
           <View 
             style={[
               styles.fill, 
@@ -201,7 +205,7 @@ export const AudioMessagePlayer: React.FC<AudioMessagePlayerProps> = ({
               { 
                 left: `${progressPercent}%`,
                 backgroundColor: colors.thumb,
-                // Esconde a bolinha se estiver no 0%
+                // Esconde a bolinha se estiver no 0% para estética
                 opacity: progressPercent > 0 ? 1 : 0 
               }
             ]} 
@@ -212,7 +216,6 @@ export const AudioMessagePlayer: React.FC<AudioMessagePlayerProps> = ({
         <Pressable 
           style={styles.seekTouchArea} 
           onPress={handleSeek}
-          // Opcional: onPanResponder para arrastar (drag) pode ser adicionado aqui futuramente
         />
       </View>
 
@@ -231,8 +234,8 @@ const styles = StyleSheet.create({
   container: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 4, // Espaço interno leve
-    minWidth: 200,      // Largura mínima para o balão de áudio não ficar esmagado
+    paddingVertical: 4,
+    minWidth: 220, // Largura mínima para não comprimir
   },
   playButton: {
     paddingRight: Spacing['spacing-element-m'],
@@ -248,7 +251,7 @@ const styles = StyleSheet.create({
     borderRadius: 2,
     width: '100%',
     position: 'relative',
-    overflow: 'visible', // Permite que o thumb saia um pouco se necessário (embora usemos absolute positioning)
+    overflow: 'visible',
   },
   fill: {
     height: '100%',
@@ -259,11 +262,11 @@ const styles = StyleSheet.create({
     width: 12,
     height: 12,
     borderRadius: 6,
-    top: -4, // (12 - 4) / 2 * -1 para centralizar verticalmente na track de 4px
+    top: -4, // Centraliza verticalmente na track de 4px ((12 - 4) / 2 * -1)
     marginLeft: -6, // Centraliza o ponto no fim da barra
   },
   seekTouchArea: {
-    ...StyleSheet.absoluteFillObject, // Cobre todo o progressContainer
+    ...StyleSheet.absoluteFillObject,
     zIndex: 1,
   },
   durationText: {

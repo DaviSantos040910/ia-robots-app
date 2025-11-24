@@ -13,6 +13,7 @@ import {
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import Markdown from 'react-native-markdown-display';
+import { useTranslation } from 'react-i18next'; // Importe o hook
 
 import { ChatMessage } from '../../types/chat';
 import { createChatStyles, getTheme } from '../../screens/Chat/Chat.styles';
@@ -51,12 +52,16 @@ const MessageBubbleComponent: React.FC<MessageBubbleProps> = ({
   isLastMessage,
   isSendingSuggestion,
 }) => {
+  const { t } = useTranslation(); // Uso do hook de tradução
   const scheme = useColorScheme();
   const theme = getTheme(scheme === 'dark');
   const s = createChatStyles(theme);
   const isUser = message.role === 'user';
   
   const [expanded, setExpanded] = useState(false);
+  
+  // Novo estado para controlar a visibilidade da transcrição
+  const [showTranscription, setShowTranscription] = useState(false);
 
   const shouldTruncate = message.content && message.content.length > MAX_TEXT_LENGTH;
   const displayedContent = shouldTruncate && !expanded 
@@ -70,7 +75,7 @@ const MessageBubbleComponent: React.FC<MessageBubbleProps> = ({
   const { playTTS, isTTSPlaying, currentTTSMessageId } = useChatController(conversationId);
   const isThisMessagePlaying = isTTSPlaying && currentTTSMessageId === message.id;
 
-  const isPending = message.id.toString().startsWith('temp') || message.id.toString().length > 30; // UUIDs são longos, IDs de banco geralmente numéricos curtos (se string), mas UUID v4 é 36 chars.
+  const isPending = message.id.toString().startsWith('temp') || message.id.toString().length > 30;
 
   const markdownStyle = useMemo(() => StyleSheet.create({
     body: { ...textStyle },
@@ -79,7 +84,6 @@ const MessageBubbleComponent: React.FC<MessageBubbleProps> = ({
 
   const shouldShowSuggestions = !isUser && !!message.suggestions?.length && isLastMessage;
   
-  // Verificações de tipo de anexo
   const hasAttachment = !!message.attachment_url;
   const isAudioMessage = message.attachment_type === 'audio';
   const isImageAttachment = message.attachment_type === 'image' || message.attachment_type?.startsWith('image/');
@@ -100,13 +104,35 @@ const MessageBubbleComponent: React.FC<MessageBubbleProps> = ({
             <AudioMessagePlayer 
               uri={message.attachment_url} 
               isUser={isUser}
-              // Se tivermos a duração salva no futuro, passamos aqui. O player descobre sozinho se não.
             />
-            {/* Se for transcrição, mostra o texto abaixo do player */}
+            
+            {/* Se houver transcrição, mostra o botão de toggle */}
             {message.content ? (
-                <Text style={[textStyle, { marginTop: 4, opacity: 0.8, fontSize: 12 }]}>
-                    {message.content}
-                </Text>
+              <View>
+                {/* Texto da transcrição - Visível apenas se o estado permitir */}
+                {showTranscription && (
+                  <Text style={[textStyle, { marginTop: 8, marginBottom: 4, opacity: 0.9, fontSize: 14 }]}>
+                      {message.content}
+                  </Text>
+                )}
+
+                {/* Botão para mostrar/esconder a transcrição */}
+                <Pressable 
+                  onPress={() => setShowTranscription(!showTranscription)}
+                  hitSlop={10}
+                  style={{ marginTop: 4 }}
+                >
+                  <Text style={[
+                    Typography.bodyRegular.small, 
+                    { 
+                      color: isUser ? 'rgba(255,255,255,0.8)' : theme.textSecondary,
+                      textDecorationLine: 'underline'
+                    }
+                  ]}>
+                    {showTranscription ? t('chat.hideTranscription') : t('chat.showTranscription')}
+                  </Text>
+                </Pressable>
+              </View>
             ) : null}
           </View>
         ) : (
@@ -288,7 +314,7 @@ const arePropsEqual = (prevProps: MessageBubbleProps, nextProps: MessageBubblePr
     prevProps.message.liked === nextProps.message.liked &&
     prevProps.message.rewriting === nextProps.message.rewriting &&
     prevProps.message.attachment_url === nextProps.message.attachment_url &&
-    prevProps.message.attachment_type === nextProps.message.attachment_type; // Check type too
+    prevProps.message.attachment_type === nextProps.message.attachment_type;
 
   const isLastMessageEqual = prevProps.isLastMessage === nextProps.isLastMessage;
 

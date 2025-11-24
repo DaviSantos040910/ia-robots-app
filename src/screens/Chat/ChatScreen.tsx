@@ -276,13 +276,6 @@ const ChatScreen: React.FC = () => {
           subtitle={route.params.botHandle}
           avatarUrl={route.params.botAvatarUrl}
           onBack={handleBackPress}
-          onPhone={handlePhonePress}
-          onVolume={toggleBotVoiceMode} // Conecta a função de toggle
-          isVoiceModeEnabled={isBotVoiceMode} // Passa o estado visual
-          onMorePress={(anchor) => {
-          setMenuAnchor(anchor);
-          setMenuOpen(true);
-        }}
         />
         <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
           <ActivityIndicator size="large" color={theme.brand.normal} />
@@ -299,13 +292,20 @@ const ChatScreen: React.FC = () => {
         avatarUrl={bootstrap.bot.avatarUrl}
         onBack={handleBackPress}
         onPhone={handlePhonePress}
-
+        onVolume={toggleBotVoiceMode}
+          isVoiceModeEnabled={isBotVoiceMode}
+          onMorePress={(anchor) => {
+          setMenuAnchor(anchor);
+          setMenuOpen(true);
+        }}
       />
 
       {/* KeyboardAvoidingView Otimizado */}
       <KeyboardAvoidingView
         style={{ flex: 1 }}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        // Android lida nativamente com 'adjustResize' (default do Expo), então 'undefined' é melhor para evitar duplicação
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        // Ajuste fino para iOS (altura do header aprox)
         keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
       >
         <FlatList

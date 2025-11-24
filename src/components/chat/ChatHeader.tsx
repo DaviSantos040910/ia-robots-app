@@ -2,7 +2,7 @@
 import React, { useRef } from 'react';
 import { View, Text, Pressable, Image, useColorScheme, UIManager, findNodeHandle, StyleSheet } from 'react-native';
 import { getTheme } from '../../screens/Chat/Chat.styles';
-import { Feather, Ionicons } from '@expo/vector-icons';
+import { Feather } from '@expo/vector-icons';
 import { Typography } from '../../theme/typography';
 import type { Anchor } from './ActionSheetMenu';
 
@@ -13,7 +13,7 @@ export const ChatHeader: React.FC<{
   onBack?: () => void;
   onPhone?: () => void;
   onVolume?: () => void;
-  isVoiceModeEnabled?: boolean; // NOVO: Estado visual do botão
+  isVoiceModeEnabled?: boolean; // Nova prop para controlar o ícone
   onMorePress?: (anchor: Anchor) => void;
 }> = ({ 
   avatarUrl, 
@@ -22,7 +22,7 @@ export const ChatHeader: React.FC<{
   onBack, 
   onPhone, 
   onVolume, 
-  isVoiceModeEnabled = false, // Default false
+  isVoiceModeEnabled = false, 
   onMorePress 
 }) => {
   const scheme = useColorScheme();
@@ -61,7 +61,7 @@ export const ChatHeader: React.FC<{
 
       {/* Actions */}
       
-      {/* 1. Botão de Chamada (Telefone) */}
+      {/* Botão de Chamada */}
       <Pressable 
         onPress={onPhone} 
         hitSlop={10} 
@@ -72,23 +72,23 @@ export const ChatHeader: React.FC<{
         <Feather name="phone-call" size={20} color={t.textPrimary} />
       </Pressable>
 
-      {/* 2. Botão de Modo de Voz (Volume) - Toggle */}
+      {/* Botão de Volume (Toggle Voice Mode) */}
       <Pressable 
         onPress={onVolume} 
         hitSlop={10} 
         style={styles.actionButton}
         accessibilityRole="button"
-        accessibilityLabel={isVoiceModeEnabled ? "Disable voice mode" : "Enable voice mode"}
+        accessibilityLabel={isVoiceModeEnabled ? "Desativar voz" : "Ativar voz"}
       >
-        {/* Muda o ícone e a cor se estiver ativo */}
+        {/* Alterna ícone e cor para dar feedback visual */}
         <Feather 
           name={isVoiceModeEnabled ? "volume-2" : "volume-x"} 
           size={20} 
-          color={isVoiceModeEnabled ? t.brand.normal : t.textPrimary} 
+          color={isVoiceModeEnabled ? t.brand.normal : t.textSecondary} 
         />
       </Pressable>
       
-      {/* 3. Menu Mais */}
+      {/* Menu Mais */}
       <Pressable ref={moreRef} onPress={openMenu} hitSlop={10} style={[styles.actionButton, { marginRight: 0 }]}>
         <Feather name="more-vertical" size={22} color={t.textPrimary} />
       </Pressable>
