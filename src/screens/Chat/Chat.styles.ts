@@ -302,7 +302,7 @@ export const createChatStyles = (t: ChatTheme) =>
     // --- ESTILOS DE GRAVAÇÃO DE ÁUDIO ---
     recordingContainer: {
       backgroundColor: t.surfaceAlt,
-      borderRadius: Radius.round, // ✅ CORRIGIDO: era Radius.full
+      borderRadius: Radius.round,
       paddingHorizontal: Spacing["spacing-element-m"],
       paddingVertical: Spacing["spacing-element-l"],
       flexDirection: "row",
@@ -347,4 +347,91 @@ export const createChatStyles = (t: ChatTheme) =>
       color: t.textSecondary,
       marginLeft: Spacing["spacing-element-s"],
     },
+
+    // --- ESTILOS DO AUDIO PLAYER ---
+    audioPlayerContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingVertical: 4,
+        minWidth: 220,
+    },
+    audioPlayButton: {
+        paddingRight: Spacing['spacing-element-m'],
+    },
+    audioProgressContainer: {
+        flex: 1,
+        height: 30, 
+        justifyContent: 'center',
+        marginRight: Spacing['spacing-element-m'],
+    },
+    audioTrack: {
+        height: 4,
+        borderRadius: 2,
+        width: '100%',
+        position: 'relative',
+        overflow: 'visible',
+    },
+    audioFill: {
+        height: '100%',
+        borderRadius: 2,
+    },
+    audioThumb: {
+        position: 'absolute',
+        width: 12,
+        height: 12,
+        borderRadius: 6,
+        top: -4,
+        marginLeft: -6,
+    },
+    audioSeekTouchArea: {
+        ...StyleSheet.absoluteFillObject,
+        zIndex: 1,
+    },
+    audioDurationText: {
+        ...Typography.bodyRegular.small,
+        fontVariant: ['tabular-nums'],
+        minWidth: 35,
+        textAlign: 'right',
+    },
+
+    // --- ESTILOS DE ANEXOS (MessageBubble) ---
+    attachmentContainer: {
+        marginTop: Spacing['spacing-element-s'],
+        borderRadius: Radius.medium,
+        overflow: 'hidden',
+        minWidth: 200,
+    },
+    attachmentImage: {
+        width: 220,
+        height: 220,
+        borderRadius: Radius.medium,
+        backgroundColor: 'rgba(0,0,0,0.05)',
+    },
+    attachmentLoadingOverlay: {
+        ...StyleSheet.absoluteFillObject,
+        backgroundColor: 'rgba(0,0,0,0.3)',
+        justifyContent: 'center',
+        alignItems: 'center',
+        borderRadius: Radius.medium,
+    },
+    attachmentDocument: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        padding: Spacing['spacing-element-l'],
+        borderRadius: Radius.medium,
+        borderWidth: StyleSheet.hairlineWidth,
+        width: 220,
+    },
+    attachmentDocumentText: {
+        ...Typography.bodyRegular.medium,
+    },
+    transcriptionToggle: {
+        marginTop: 4,
+    },
+    transcriptionText: {
+        marginTop: 8,
+        marginBottom: 4, 
+        opacity: 0.9, 
+        fontSize: 14
+    }
   });

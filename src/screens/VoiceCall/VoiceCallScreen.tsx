@@ -1,23 +1,24 @@
 import React, { useMemo } from 'react';
-import { View, Text, StyleSheet, StatusBar, Image, Pressable, useColorScheme, Platform, ActivityIndicator, Alert } from 'react-native';
+import { View, Text, StatusBar, Image, Pressable, useColorScheme, ActivityIndicator, Alert } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
+import { useTranslation } from 'react-i18next'; // Import i18n
 
 import { RootStackParamList } from '../../types/navigation';
-import { getTheme } from '../Chat/Chat.styles';
-import { Typography } from '../../theme/typography';
-import { Spacing } from '../../theme/spacing';
-import { useVoiceCallLogic, VoiceCallState } from './hooks/useVoiceCallLogic';
-import { useFadeScale } from '../../components/shared/Motion';
+import { getTheme, createVoiceCallStyles } from './VoiceCall.styles'; // Use novos estilos
+import { useVoiceCallLogic } from './hooks/useVoiceCallLogic';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'VoiceCall'>;
 
 const VoiceCallScreen: React.FC<Props> = ({ route, navigation }) => {
-  const { botName, botAvatarUrl, botHandle, chatId, botId } = route.params;
+  const { botName, botAvatarUrl, chatId } = route.params;
+  const { t } = useTranslation(); // Hook i18n
   const scheme = useColorScheme();
   const isDark = scheme === 'dark';
+  
   const theme = getTheme(isDark);
+  const styles = createVoiceCallStyles(theme);
 
   // --- Hook de Lógica ---
   const { 
@@ -28,11 +29,11 @@ const VoiceCallScreen: React.FC<Props> = ({ route, navigation }) => {
     feedbackText
   } = useVoiceCallLogic({
     chatId,
-    onError: (msg) => Alert.alert('Ops', msg)
+    onError: (msg) => Alert.alert(t('common.ops'), msg) // Traduzido
   });
 
   const handleGoBack = () => {
-    cancelInteraction(); // Garante que para tudo ao sair
+    cancelInteraction(); 
     navigation.goBack();
   };
 
@@ -40,16 +41,16 @@ const VoiceCallScreen: React.FC<Props> = ({ route, navigation }) => {
   const statusConfig = useMemo(() => {
     switch (callState) {
       case 'RECORDING':
-        return { text: 'Ouvindo...', color: '#FF4B4B' }; // Vermelho suave
+        return { text: t('voiceCall.status.listening'), color: '#FF4B4B' };
       case 'PROCESSING':
-        return { text: 'Pensando...', color: theme.brand.normal };
+        return { text: t('voiceCall.status.processing'), color: theme.brand.normal };
       case 'PLAYING':
-        return { text: 'Falando...', color: '#10B981' }; // Verde
+        return { text: t('voiceCall.status.speaking'), color: '#10B981' }; 
       case 'IDLE':
       default:
-        return { text: 'Toque e segure para falar', color: theme.textSecondary };
+        return { text: t('voiceCall.status.idle'), color: theme.textSecondary };
     }
-  }, [callState, theme]);
+  }, [callState, theme, t]);
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]} edges={['top', 'bottom']}>
@@ -57,7 +58,6 @@ const VoiceCallScreen: React.FC<Props> = ({ route, navigation }) => {
 
       {/* Área Superior: Avatar e Informações */}
       <View style={styles.infoContainer}>
-        {/* Avatar Hero com Animação de Borda (Opcional/Simples por enquanto) */}
         <View style={[
           styles.avatarContainer, 
           { 
@@ -73,17 +73,14 @@ const VoiceCallScreen: React.FC<Props> = ({ route, navigation }) => {
           )}
         </View>
 
-        {/* Nome e Handle */}
         <Text style={[styles.botName, { color: theme.textPrimary }]} numberOfLines={1}>
           {botName}
         </Text>
         
-        {/* Status Dinâmico */}
         <Text style={[styles.statusText, { color: statusConfig.color, fontWeight: callState !== 'IDLE' ? '700' : '400' }]}>
           {statusConfig.text}
         </Text>
 
-        {/* Texto de Feedback (Transcrição) - Aparece quando processando ou falando */}
         {!!feedbackText && (
            <View style={styles.feedbackContainer}>
              <Text style={[styles.feedbackText, { color: theme.textSecondary }]}>
@@ -95,33 +92,33 @@ const VoiceCallScreen: React.FC<Props> = ({ route, navigation }) => {
 
       {/* Rodapé: Controles */}
       <View style={styles.controlsContainer}>
-        {/* Botão Secundário (Esquerda - Fechar) */}
+        {/* Botão Secundário (Fechar) */}
         <Pressable
           onPress={handleGoBack}
           style={({ pressed }) => [
             styles.secondaryButton,
             { backgroundColor: theme.surfaceAlt, opacity: pressed ? 0.7 : 1 }
           ]}
-          accessibilityLabel="Fechar chamada"
+          accessibilityLabel={t('voiceCall.accessibility.close')}
           accessibilityRole="button"
         >
           <Feather name="x" size={24} color={theme.textPrimary} />
         </Pressable>
 
-        {/* Botão Principal (Centro - PTT) */}
+        {/* Botão Principal (PTT) */}
         <Pressable
           onPressIn={startRecordingInCall}
           onPressOut={stopRecordingAndSend}
-          disabled={callState === 'PROCESSING'} // Desabilita durante processamento
+          disabled={callState === 'PROCESSING'}
           style={({ pressed }) => [
             styles.primaryButton,
             { 
               backgroundColor: callState === 'RECORDING' ? '#FF4B4B' : theme.brand.normal,
-              transform: [{ scale: pressed ? 1.1 : 1 }], // Cresce ao tocar
+              transform: [{ scale: pressed ? 1.1 : 1 }],
               opacity: callState === 'PROCESSING' ? 0.5 : 1
             }
           ]}
-          accessibilityLabel="Toque e segure para falar"
+          accessibilityLabel={t('voiceCall.accessibility.mic')}
           accessibilityRole="button"
         >
             {callState === 'PROCESSING' ? (
@@ -131,107 +128,10 @@ const VoiceCallScreen: React.FC<Props> = ({ route, navigation }) => {
             )}
         </Pressable>
 
-         {/* Espaçador invisível */}
          <View style={styles.secondaryButtonPlaceholder} />
       </View>
     </SafeAreaView>
   );
 };
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  infoContainer: {
-    flex: 1, 
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: Spacing['spacing-layout-m'],
-    paddingBottom: Spacing['spacing-layout-xl'],
-  },
-  avatarContainer: {
-    width: 160,
-    height: 160,
-    borderRadius: 80, 
-    justifyContent: 'center',
-    alignItems: 'center',
-    overflow: 'hidden',
-    marginBottom: Spacing['spacing-layout-m'],
-    ...Platform.select({
-      ios: {
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.1,
-        shadowRadius: 8,
-      },
-      android: {
-        elevation: 4,
-      },
-    }),
-  },
-  avatarImage: {
-    width: '100%',
-    height: '100%',
-  },
-  botName: {
-    ...Typography.title3, 
-    textAlign: 'center',
-    marginBottom: Spacing['spacing-element-xs'],
-  },
-  statusText: {
-    ...Typography.bodyRegular.medium, 
-    textAlign: 'center',
-    marginTop: 4,
-  },
-  feedbackContainer: {
-    marginTop: Spacing['spacing-layout-m'],
-    paddingHorizontal: Spacing['spacing-group-m'],
-    paddingVertical: Spacing['spacing-element-m'],
-    borderRadius: 16,
-    backgroundColor: 'rgba(0,0,0,0.03)',
-  },
-  feedbackText: {
-    ...Typography.bodyRegular.medium,
-    textAlign: 'center',
-    fontStyle: 'italic',
-  },
-  controlsContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: Spacing['spacing-layout-xl'],
-    paddingBottom: Spacing['spacing-layout-xl'],
-    paddingTop: Spacing['spacing-layout-m'],
-  },
-  secondaryButton: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  secondaryButtonPlaceholder: {
-    width: 48,
-    height: 48,
-  },
-  primaryButton: {
-    width: 88, 
-    height: 88,
-    borderRadius: 44,
-    justifyContent: 'center',
-    alignItems: 'center',
-    ...Platform.select({
-      ios: {
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.3,
-        shadowRadius: 10,
-      },
-      android: {
-        elevation: 8,
-      },
-    }),
-  },
-});
 
 export default VoiceCallScreen;

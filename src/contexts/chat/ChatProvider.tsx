@@ -15,7 +15,7 @@ export type ChatStore = {
   // Estado (Leitura)
   chats: Record<string, ChatData>;
   isTypingById: Record<string, boolean>;
-  isBotVoiceMode: boolean; // NOVO
+  isBotVoiceMode: boolean; 
   
   // Carregamento (Loader)
   loadInitialMessages: (chatId: string) => Promise<void>;
@@ -23,7 +23,7 @@ export type ChatStore = {
   
   // Envio (Sender)
   sendMessage: (chatId: string, text: string) => Promise<void>;
-  sendVoiceMessage: (chatId: string, audioUri: string, durationMs: number, replyWithAudio: boolean) => Promise<void>; // NOVO
+  sendVoiceMessage: (chatId: string, audioUri: string, durationMs: number, replyWithAudio: boolean) => Promise<void>; 
   archiveAndStartNew: (chatId: string) => Promise<string | null>;
   sendMultipleAttachments: (chatId: string, files: AttachmentPickerResult[]) => Promise<void>;
   sendAttachment: (chatId: string, file: AttachmentPickerResult) => Promise<void>;
@@ -36,7 +36,7 @@ export type ChatStore = {
   currentTTSMessageId: string | null;
   handleCopyMessage: (message: ChatMessage) => void;
   handleLikeMessage: (chatId: string, message: ChatMessage) => Promise<void>;
-  toggleBotVoiceMode: () => void; // NOVO
+  toggleBotVoiceMode: () => void; 
   
   // Utilitários de Estado
   clearLocalChatState: (chatId: string) => void;
@@ -51,8 +51,8 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setChats, 
     isTypingById, 
     setIsTypingById, 
-    isBotVoiceMode, // NOVO
-    setIsBotVoiceMode, // NOVO
+    isBotVoiceMode, 
+    setIsBotVoiceMode, 
     activeSendPromises, 
     updateChatData 
   } = useChatState();
@@ -66,14 +66,15 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // 3. Camada de Envio (Sender)
   const { 
     sendMessage, 
-    sendVoiceMessage, // NOVO
+    sendVoiceMessage, 
     archiveAndStartNew, 
     sendMultipleAttachments, 
     sendAttachment 
   } = useChatSender({ 
     updateChatData, 
     setIsTypingById, 
-    activeSendPromises 
+    activeSendPromises,
+    isBotVoiceMode, // --- AQUI: Passando o estado de voz para o sender
   });
 
   // 4. Camada de Interações
@@ -85,10 +86,10 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
     currentTTSMessageId, 
     handleCopyMessage, 
     handleLikeMessage,
-    toggleBotVoiceMode // NOVO
+    toggleBotVoiceMode
   } = useChatInteractions({ 
     updateChatData,
-    setIsBotVoiceMode // Injeta o setter
+    setIsBotVoiceMode 
   });
 
   // 5. Utils
@@ -110,7 +111,7 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
     // Dados (Mudam)
     chats,
     isTypingById,
-    isBotVoiceMode, // Exportado
+    isBotVoiceMode, 
     isTTSPlaying,
     isTTSLoading,
     currentTTSMessageId,
@@ -119,7 +120,7 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
     loadInitialMessages,
     loadMoreMessages,
     sendMessage,
-    sendVoiceMessage, // Exportado
+    sendVoiceMessage, 
     archiveAndStartNew,
     sendMultipleAttachments,
     sendAttachment,
@@ -127,19 +128,19 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
     stopTTS,
     handleCopyMessage,
     handleLikeMessage,
-    toggleBotVoiceMode, // Exportado
+    toggleBotVoiceMode, 
     clearLocalChatState,
   }), [
     chats,
     isTypingById,
-    isBotVoiceMode, // Dependência
+    isBotVoiceMode, 
     isTTSPlaying,
     isTTSLoading,
     currentTTSMessageId,
     loadInitialMessages,
     loadMoreMessages,
     sendMessage,
-    sendVoiceMessage, // Dependência
+    sendVoiceMessage, 
     archiveAndStartNew,
     sendMultipleAttachments,
     sendAttachment,
@@ -147,7 +148,7 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
     stopTTS,
     handleCopyMessage,
     handleLikeMessage,
-    toggleBotVoiceMode, // Dependência
+    toggleBotVoiceMode, 
     clearLocalChatState
   ]);
 
@@ -173,8 +174,10 @@ export const useChatController = (chatId: string | null) => {
     
     loadInitialMessages: () => chatId ? ctx.loadInitialMessages(chatId) : Promise.resolve(),
     loadMoreMessages: () => chatId ? ctx.loadMoreMessages(chatId) : Promise.resolve(),
+    
+    // --- AQUI: sendMessage não precisa mais receber isBotVoiceMode manual, o hook interno já usa
     sendMessage: (text: string) => chatId ? ctx.sendMessage(chatId, text) : Promise.resolve(),
-    // NOVO: Wrapper seguro
+    
     sendVoiceMessage: (audioUri: string, durationMs: number) => 
       chatId ? ctx.sendVoiceMessage(chatId, audioUri, durationMs, ctx.isBotVoiceMode) : Promise.resolve(),
 
@@ -195,7 +198,7 @@ export const useChatController = (chatId: string | null) => {
     chatId, 
     chatData,
     isTyping, 
-    ctx // Como o contexto já é memoizado, é seguro usar como dependência
+    ctx 
   ]);
 
   return controller;

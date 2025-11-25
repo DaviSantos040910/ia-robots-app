@@ -1,4 +1,4 @@
-import 'react-native-get-random-values'; // <--- POLYFILL ESSENCIAL PARA UUID
+import 'react-native-get-random-values';
 import { useCallback } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { ChatMessage } from '../../../types/chat';
@@ -11,14 +11,17 @@ type UseChatSenderDeps = {
   updateChatData: (chatId: string, updater: (prevData: ChatData) => Partial<ChatData>) => void;
   setIsTypingById: React.Dispatch<React.SetStateAction<Record<string, boolean>>>;
   activeSendPromises: React.MutableRefObject<Record<string, Promise<void>>>;
+  isBotVoiceMode: boolean; 
 };
 
 export const useChatSender = ({
   updateChatData,
   setIsTypingById,
   activeSendPromises,
+  isBotVoiceMode, 
 }: UseChatSenderDeps) => {
 
+  // --- MEMOIZAÇÃO CORRETA ---
   const sendMessage = useCallback(async (chatId: string, text: string) => {
     if (activeSendPromises.current[chatId] !== undefined) return;
 
@@ -37,16 +40,14 @@ export const useChatSender = ({
 
     setIsTypingById((prev) => ({ ...prev, [chatId]: true }));
 
-    const sendPromise = chatService.sendMessage(chatId, text)
+    const sendPromise = chatService.sendMessage(chatId, text, isBotVoiceMode)
       .then((apiReplies) => {
         setIsTypingById((prev) => ({ ...prev, [chatId]: false }));
 
         updateChatData(chatId, (prev) => {
           const messagesWithoutTemp = prev.messages.filter(m => m.id !== tempUserMsgId);
-          
           const existingIds = new Set(messagesWithoutTemp.map(m => m.id));
           const uniqueReplies = apiReplies.filter(r => !existingIds.has(r.id));
-
           const newFinalMessages = [...messagesWithoutTemp, ...uniqueReplies];
 
           setCachedChatData(chatId, {
@@ -78,69 +79,35 @@ export const useChatSender = ({
       });
 
     activeSendPromises.current[chatId] = sendPromise;
-  }, [updateChatData, setIsTypingById, activeSendPromises]);
+  }, [updateChatData, setIsTypingById, activeSendPromises, isBotVoiceMode]); // Dependências OK
 
-const sendVoiceMessage = useCallback(async (chatId: string, audioUri: string, durationMs: number, replyWithAudio: boolean) => {
+  const sendVoiceMessage = useCallback(async (chatId: string, audioUri: string, durationMs: number, replyWithAudio: boolean) => {
     if (!audioUri) return;
-
     const tempId = uuidv4();
-    
-    // 1. Optimistic UI: Adiciona mensagem de áudio temporária
     const tempMessage: ChatMessage = {
-      id: tempId,
-      role: 'user',
-      content: '', // Conteúdo vazio ou placeholder, o componente de áudio usará o attachment
-      created_at: new Date().toISOString(),
-      attachment_type: 'audio',
-      attachment_url: audioUri, // Usa o URI local
-      // Podemos passar a duração num campo auxiliar se quisermos, mas o player descobre
+      id: tempId, role: 'user', content: '', created_at: new Date().toISOString(),
+      attachment_type: 'audio', attachment_url: audioUri
     };
 
-    updateChatData(chatId, (prev) => ({
-      messages: [...prev.messages, tempMessage],
-    }));
-
+    updateChatData(chatId, (prev) => ({ messages: [...prev.messages, tempMessage] }));
     setIsTypingById((prev) => ({ ...prev, [chatId]: true }));
 
     try {
-      // 2. Chamada ao Backend
       const apiMessages = await chatService.sendVoiceMessage(chatId, audioUri, replyWithAudio);
-
-      // 3. Sucesso: Substitui temp pela real e adiciona resposta
       updateChatData(chatId, (prev) => {
-        // Remove a temporária
         const messagesWithoutTemp = prev.messages.filter(m => m.id !== tempId);
-        
-        // Filtra duplicatas (caso backend retorne algo que já temos)
         const existingIds = new Set(messagesWithoutTemp.map(m => m.id));
         const uniqueNewMessages = apiMessages.filter(r => !existingIds.has(r.id));
-        
         const finalMessages = [...messagesWithoutTemp, ...uniqueNewMessages];
-
-        // Atualiza cache
-        setCachedChatData(chatId, {
-          messages: finalMessages,
-          nextPage: prev.nextPage,
-          timestamp: Date.now(),
-        }).catch(console.error);
-
+        setCachedChatData(chatId, { messages: finalMessages, nextPage: prev.nextPage, timestamp: Date.now() }).catch(console.error);
         return { messages: finalMessages };
       });
-
     } catch (error) {
       console.error('[ChatSender] Voice message failed:', error);
-      
-      // 4. Erro: Marca a mensagem como erro ou remove (aqui estamos substituindo por msg de erro)
       const errorMsg: ChatMessage = {
-        id: uuidv4(),
-        role: 'assistant',
-        content: 'Falha ao enviar áudio. Tente novamente.',
-        created_at: new Date().toISOString()
+        id: uuidv4(), role: 'assistant', content: 'Falha ao enviar áudio.', created_at: new Date().toISOString()
       };
-
-      updateChatData(chatId, (prev) => ({
-        messages: prev.messages.map(m => m.id === tempId ? errorMsg : m)
-      }));
+      updateChatData(chatId, (prev) => ({ messages: prev.messages.map(m => m.id === tempId ? errorMsg : m) }));
     } finally {
       setIsTypingById((prev) => ({ ...prev, [chatId]: false }));
     }
@@ -151,64 +118,31 @@ const sendVoiceMessage = useCallback(async (chatId: string, audioUri: string, du
       const { new_chat_id } = await chatService.archiveAndCreateNewChat(chatId);
       updateChatData(chatId, () => ({ messages: [], nextPage: 1 })); 
       return new_chat_id;
-    } catch (error) {
-      console.error(`[ChatSender] Failed to archive chat:`, error);
-      return null;
-    }
+    } catch (error) { return null; }
   }, [updateChatData]);
-
 
   const sendMultipleAttachments = useCallback(async (chatId: string, files: AttachmentPickerResult[]) => {
     if (!files.length) return;
-
-    // Usa UUID seguro aqui também
     const tempMessages: ChatMessage[] = files.map(file => ({
-      id: uuidv4(),
-      role: 'user',
-      content: '',
-      created_at: new Date().toISOString(),
-      attachment_url: file.uri,
-      attachment_type: file.type || 'application/octet-stream',
-      original_filename: file.name,
+      id: uuidv4(), role: 'user', content: '', created_at: new Date().toISOString(),
+      attachment_url: file.uri, attachment_type: file.type || 'application/octet-stream', original_filename: file.name,
     }));
-
     const tempIds = new Set(tempMessages.map(m => m.id));
-
-    updateChatData(chatId, (prev) => ({
-      messages: [...prev.messages, ...tempMessages],
-    }));
+    updateChatData(chatId, (prev) => ({ messages: [...prev.messages, ...tempMessages] }));
 
     try {
       const apiReplies = await attachmentService.uploadBatchAttachments(chatId, files);
-      
-      if (!Array.isArray(apiReplies)) {
-        throw new Error('Resposta inválida do servidor para upload em lote');
-      }
-
       updateChatData(chatId, (prev) => {
         const messagesClean = prev.messages.filter(m => !tempIds.has(m.id));
-        
         const existingIds = new Set(messagesClean.map(m => m.id));
         const uniqueReplies = apiReplies.filter(r => !existingIds.has(r.id));
-
         const finalMessages = [...messagesClean, ...uniqueReplies];
-
-        setCachedChatData(chatId, {
-          messages: finalMessages,
-          nextPage: prev.nextPage,
-          timestamp: Date.now(),
-        }).catch(console.error);
-
+        setCachedChatData(chatId, { messages: finalMessages, nextPage: prev.nextPage, timestamp: Date.now() }).catch(console.error);
         return { messages: finalMessages };
       });
-
-    } catch (error: any) {
+    } catch (error) {
       console.error('[ChatSender] Batch upload failed:', error);
-      
-      updateChatData(chatId, (prev) => ({
-        messages: prev.messages.filter(m => !tempIds.has(m.id)),
-      }));
-      
+      updateChatData(chatId, (prev) => ({ messages: prev.messages.filter(m => !tempIds.has(m.id)) }));
       throw error;
     }
   }, [updateChatData]);
@@ -217,11 +151,5 @@ const sendVoiceMessage = useCallback(async (chatId: string, audioUri: string, du
     return sendMultipleAttachments(chatId, [file]);
   }, [sendMultipleAttachments]);
 
-  return {
-    sendMessage,
-    sendVoiceMessage,
-    archiveAndStartNew,
-    sendMultipleAttachments,
-    sendAttachment,
-  };
+  return { sendMessage, sendVoiceMessage, archiveAndStartNew, sendMultipleAttachments, sendAttachment };
 };

@@ -4,7 +4,9 @@
     "hide": "Hide",
     "cancel": "Cancel",
     "error": "Error",
-    "ops": "Oops"
+    "ops": "Oops",
+    "play": "Play",
+    "pause": "Pause"
   },
   "error": "Error",
   "chat": {
@@ -60,6 +62,10 @@
     "errors": {
       "permission": "Microphone permission denied.",
       "processing": "I didn't catch that. Please try again."
+    },
+    "accessibility": {
+        "close": "Close call",
+        "mic": "Microphone to speak"
     }
   },
   "archivedChats": {

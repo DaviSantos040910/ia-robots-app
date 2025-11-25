@@ -118,29 +118,24 @@ const ChatScreen: React.FC = () => {
   }, [isReadOnly, navigation]);
 
   const handlePhonePress = useCallback(() => {
-    console.log('[ChatScreen] Botão de telefone pressionado');
-    console.log('[ChatScreen] ID do Chat:', currentChatId);
-    console.log('[ChatScreen] Bootstrap carregado:', !!bootstrap);
-
     if (!currentChatId || !bootstrap) {
         console.warn('[ChatScreen] Não é possível iniciar chamada: Dados incompletos.');
         return;
     }
     
     try {
-        console.log('[ChatScreen] Navegando para VoiceCall...');
         navigation.navigate('VoiceCall', {
             chatId: currentChatId,
             botId: route.params.botId,
             botName: bootstrap.bot.name,
-            botHandle: bootstrap.bot.handle, // CORREÇÃO: Adicionado botHandle
+            botHandle: bootstrap.bot.handle, 
             botAvatarUrl: bootstrap.bot.avatarUrl,
         });
     } catch (error) {
         console.error('[ChatScreen] Erro ao navegar:', error);
-        Alert.alert('Erro', 'Não foi possível abrir a tela de chamada. Verifique se a rota VoiceCall está registrada no RootNavigator.');
+        Alert.alert(t('common.error'), t('chat.voiceCallNavigationError'));
     }
-  }, [currentChatId, bootstrap, route.params.botId, navigation]);
+  }, [currentChatId, bootstrap, route.params.botId, navigation, t]);
 
   const handleOpenSettings = useCallback(() => {
     setMenuOpen(false);
@@ -178,7 +173,7 @@ const ChatScreen: React.FC = () => {
       if (textToSend) setInputText(textToSend);
       
       Alert.alert(
-        t('error'), 
+        t('common.error'), 
         t('chat.sendError', { defaultValue: 'Failed to send message.' })
       );
     } finally {
@@ -234,8 +229,6 @@ const ChatScreen: React.FC = () => {
       icon: <Ionicons name="archive-outline" size={18} color={theme.textPrimary} />
     },
   ], [isReadOnly, theme, t, handleOpenSettings, handleArchiveAndStartNew, handleViewArchived]);
-
-  // --- Render Item Optimization ---
 
   const renderMessage: ListRenderItem<ChatMessage> = useCallback(({ item, index }) => {
     if (!currentChatId) return null;
@@ -300,13 +293,12 @@ const ChatScreen: React.FC = () => {
         }}
       />
 
-      {/* KeyboardAvoidingView Otimizado */}
+      {/* CORREÇÃO TECLADO: Ajustes de behavior e offset */}
       <KeyboardAvoidingView
         style={{ flex: 1 }}
-        // Android lida nativamente com 'adjustResize' (default do Expo), então 'undefined' é melhor para evitar duplicação
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        // Ajuste fino para iOS (altura do header aprox)
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
+        // 100 = Aprox Header (60) + SafeArea Top (40)
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 100 : 0}
       >
         <FlatList
           data={invertedMessages}
@@ -316,16 +308,11 @@ const ChatScreen: React.FC = () => {
           style={{ flex: 1 }}
           contentContainerStyle={[s.listContent, { paddingTop: Spacing['spacing-element-m'] }]}
           
-          // --- PROPS DE PERFORMANCE ---
-          initialNumToRender={10}          // Reduzido para 10
-          maxToRenderPerBatch={5}          // Reduzido para 5 (menos carga na thread JS)
-          windowSize={11}                  // Janela menor para economizar memória
-          updateCellsBatchingPeriod={50}   // Intervalo maior entre batches de renderização
-          
-          // Otimização específica de Android
+          initialNumToRender={10}          
+          maxToRenderPerBatch={5}          
+          windowSize={11}                  
+          updateCellsBatchingPeriod={50}   
           removeClippedSubviews={Platform.OS === 'android'}
-          
-          // Estabilidade visual ao carregar histórico
           maintainVisibleContentPosition={{ minIndexForVisible: 0 }}
           
           extraData={uniqueMessages}

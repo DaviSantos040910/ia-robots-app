@@ -4,7 +4,9 @@
     "hide": "Ocultar",
     "cancel": "Cancelar",
     "error": "Erro",
-    "ops": "Ops"
+    "ops": "Ops",
+    "play": "Reproduzir",
+    "pause": "Pausar"
   },
   "error": "Erro",
   "chat": {
@@ -36,7 +38,7 @@
     "attachmentMenu": {
       "camera": "Câmera",
       "gallery": "Galeria",
-      "document": "Documento"
+      "document": "Document"
     },
     "accessibility": {
       "message": "Mensagem de {{role}}: {{content}}",
@@ -60,6 +62,10 @@
     "errors": {
       "permission": "Permissão de microfone negada.",
       "processing": "Não entendi. Tente novamente."
+    },
+    "accessibility": {
+        "close": "Fechar chamada",
+        "mic": "Microfone para falar"
     }
   },
   "archivedChats": {
