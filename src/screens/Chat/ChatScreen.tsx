@@ -1,5 +1,5 @@
 // src/screens/Chat/ChatScreen.tsx
-import React, { useState, useMemo, useCallback } from 'react';
+import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import {
   ActivityIndicator,
   FlatList,
@@ -10,9 +10,10 @@ import {
   ScrollView,
   Alert,
   ListRenderItem,
-  StyleSheet
+  StyleSheet,
+  Keyboard
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, Edge } from 'react-native-safe-area-context';
 import { useColorScheme } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { useNavigation, useRoute } from '@react-navigation/native';
@@ -58,6 +59,28 @@ const ChatScreen: React.FC = () => {
   const [menuAnchor, setMenuAnchor] = useState<Anchor>(null);
   
   const [isSending, setIsSending] = useState(false);
+  const [isKeyboardVisible, setKeyboardVisible] = useState(false);
+
+  // Ref para o FlatList
+  const flatListRef = useRef<FlatList<ChatMessage>>(null);
+
+  useEffect(() => {
+    const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
+    const hideEvent = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
+
+    const showSub = Keyboard.addListener(showEvent, () => setKeyboardVisible(true));
+    const hideSub = Keyboard.addListener(hideEvent, () => setKeyboardVisible(false));
+
+    return () => {
+      showSub.remove();
+      hideSub.remove();
+    };
+  }, []);
+
+  // Borda inferior segura é removida quando teclado abre para evitar double padding
+  const safeAreaEdges: Edge[] = isKeyboardVisible 
+    ? ['top', 'left', 'right'] 
+    : ['top', 'bottom', 'left', 'right'];
 
   const {
     currentChatId,
@@ -108,8 +131,6 @@ const ChatScreen: React.FC = () => {
     onSendVoice: sendVoiceMessage, 
   });
 
-  // --- Handlers ---
-
   const handleBackPress = useCallback(() => {
     if (isReadOnly) {
       navigation.goBack();
@@ -123,7 +144,6 @@ const ChatScreen: React.FC = () => {
         console.warn('[ChatScreen] Incomplete data for call.');
         return;
     }
-    
     try {
         navigation.navigate('VoiceCall', {
             chatId: currentChatId,
@@ -165,18 +185,17 @@ const ChatScreen: React.FC = () => {
       if (attachmentsToSend.length > 0) {
         await sendAttachments(attachmentsToSend);
       }
-      
       if (textToSend) {
         await sendMessage(textToSend);
       }
+      // Scroll to bottom after sending
+      setTimeout(() => {
+          flatListRef.current?.scrollToOffset({ offset: 0, animated: true });
+      }, 100);
     } catch (error: any) {
       console.error("Send failed:", error);
       if (textToSend) setInputText(textToSend);
-      
-      Alert.alert(
-        t('common.error'), 
-        t('chat.sendError', { defaultValue: 'Failed to send message.' })
-      );
+      Alert.alert(t('common.error'), t('chat.sendError', { defaultValue: 'Failed to send message.' }));
     } finally {
       setIsSending(false);
     }
@@ -185,6 +204,10 @@ const ChatScreen: React.FC = () => {
   const handleSuggestionPress = useCallback((label: string) => {
     if (isReadOnly || !currentChatId) return;
     sendMessage(label);
+    // Scroll to bottom after suggestion press
+    setTimeout(() => {
+        flatListRef.current?.scrollToOffset({ offset: 0, animated: true });
+    }, 100);
   }, [isReadOnly, currentChatId, sendMessage]);
 
   const handleArchiveAndStartNew = useCallback(() => {
@@ -249,9 +272,7 @@ const ChatScreen: React.FC = () => {
 
   const keyExtractor = useCallback((item: ChatMessage) => item.id ? item.id.toString() : `temp-${Math.random()}`, []);
 
-  // --- FASE 2.1: Performance da Lista (getItemLayout) ---
-  // Estimativa de altura para evitar cálculos pesados de layout durante o scroll rápido.
-  // 100px é uma média razoável para mensagens de texto curtas/médias.
+  // --- OTIMIZAÇÃO FLATLIST (Estimativa de altura) ---
   const getItemLayout = useCallback((data: any, index: number) => (
     { length: 100, offset: 100 * index, index }
   ), []);
@@ -286,10 +307,7 @@ const ChatScreen: React.FC = () => {
   }
 
   return (
-    // --- FASE 2.2: Correção do Teclado ---
-    // Usamos edges apenas 'top' para que a SafeAreaView não adicione padding inferior duplo
-    // quando combinada com o KeyboardAvoidingView e o Bottom Navigation.
-    <SafeAreaView style={s.screen} edges={['top']}>
+    <SafeAreaView style={s.screen} edges={safeAreaEdges}>
       <ChatHeader
         title={bootstrap.bot.name}
         subtitle={bootstrap.bot.handle}
@@ -304,30 +322,27 @@ const ChatScreen: React.FC = () => {
         }}
       />
 
-      {/* CORREÇÃO CRÍTICA TECLADO:
-         1. No Android, 'behavior' undefined é melhor com 'windowSoftInputMode="adjustResize"' no app.json.
-         2. No iOS, 'padding' é necessário, e o offset compensa o header.
-      */}
       <KeyboardAvoidingView
-        style={s.keyboardAvoidingView}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        style={{ flex: 1 }}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
       >
         <FlatList
+          ref={flatListRef}
           data={invertedMessages}
           keyExtractor={keyExtractor}
           renderItem={renderMessage}
           inverted
           style={s.flatList}
-          // --- FASE 2.1: Tuning de Performance e Padding ---
-          contentContainerStyle={[s.flatListContent, { paddingBottom: 16 }]} 
+          contentContainerStyle={[s.flatListContent, { paddingBottom: 24 }]} // Aumentado para evitar corte
           
-          initialNumToRender={15}          
-          maxToRenderPerBatch={10}          
-          windowSize={21}                  
+          // --- OTIMIZAÇÕES DE PERFORMANCE PARA LISTA GRANDE ---
+          initialNumToRender={10}          
+          maxToRenderPerBatch={5}          
+          windowSize={5} 
           updateCellsBatchingPeriod={50}   
-          removeClippedSubviews={Platform.OS === 'android'}
-          getItemLayout={getItemLayout}
+          removeClippedSubviews={true} 
+          getItemLayout={getItemLayout} 
           maintainVisibleContentPosition={{ minIndexForVisible: 0 }}
           
           extraData={uniqueMessages}

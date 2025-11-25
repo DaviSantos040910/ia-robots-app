@@ -52,8 +52,7 @@ const MessageBubbleComponent: React.FC<MessageBubbleProps> = ({
   const scheme = useColorScheme();
   const isDark = scheme === 'dark';
 
-  // --- FASE 2.4: Memoização de Estilos e Tema ---
-  // Isso evita recalcular estilos complexos a cada render se o tema não mudou
+  // Memoização de Estilos e Tema
   const theme = useMemo(() => getTheme(isDark), [isDark]);
   const s = useMemo(() => createChatStyles(theme), [theme]);
 
@@ -62,26 +61,27 @@ const MessageBubbleComponent: React.FC<MessageBubbleProps> = ({
   const [expanded, setExpanded] = useState(false);
   const [showTranscription, setShowTranscription] = useState(false);
 
-  // O hook useChatController pode disparar re-renders se o contexto mudar.
-  // Como só precisamos dessas funções/estados específicos, garantimos que eles venham do Contexto otimizado.
   const { playTTS, isTTSPlaying, currentTTSMessageId } = useChatController(conversationId);
   
   const isThisMessagePlaying = isTTSPlaying && currentTTSMessageId === message.id;
   
-  // Computações Simples (Memoizadas para segurança, embora baratas)
+  // Otimização: Calcular apenas se não for mensagem de áudio para evitar processamento desnecessário
+  const isAudioMessage = message.attachment_type === 'audio';
+  
   const displayedContent = useMemo(() => {
+    if (isAudioMessage) return ''; // Não precisa calcular para áudio
     const shouldTruncate = message.content && message.content.length > MAX_TEXT_LENGTH;
     return shouldTruncate && !expanded 
       ? message.content.slice(0, MAX_TEXT_LENGTH) + '...' 
       : message.content;
-  }, [message.content, expanded]);
+  }, [message.content, expanded, isAudioMessage]);
 
-  const shouldTruncate = message.content && message.content.length > MAX_TEXT_LENGTH;
+  const shouldTruncate = !isAudioMessage && message.content && message.content.length > MAX_TEXT_LENGTH;
   const isPending = message.id.toString().startsWith('temp') || message.id.toString().length > 30;
   const shouldShowSuggestions = !isUser && !!message.suggestions?.length && isLastMessage;
   
   const hasAttachment = !!message.attachment_url;
-  const isAudioMessage = message.attachment_type === 'audio';
+  // isAudioMessage já calculado acima
   const isImageAttachment = message.attachment_type === 'image' || message.attachment_type?.startsWith('image/');
 
   // Estilos condicionados
@@ -131,13 +131,14 @@ const MessageBubbleComponent: React.FC<MessageBubbleProps> = ({
   const handleRewrite = useCallback(() => onRewrite?.(message), [onRewrite, message]);
   const handlePlayTTS = useCallback(() => playTTS(conversationId, message.id), [playTTS, conversationId, message.id]);
 
-  return (
-    <View style={rowStyle}>
-      <View style={[s.bubbleContainer, bubbleStyle]}>
-        
-        {/* 1. Áudio */}
-        {isAudioMessage && message.attachment_url ? (
-          <View style={{ marginBottom: message.content ? 8 : 0 }}>
+  // --- PERFORMANCE OPTIMIZATION ---
+  // Memoize heavy rendering parts to prevent re-layout/re-render when Context updates (e.g. isTyping)
+  // but this specific message hasn't changed.
+
+  const renderedContent = useMemo(() => {
+    if (isAudioMessage && message.attachment_url) {
+      return (
+        <View style={{ marginBottom: message.content ? 8 : 0 }}>
             <AudioMessagePlayer 
               uri={message.attachment_url} 
               isUser={isUser}
@@ -168,25 +169,47 @@ const MessageBubbleComponent: React.FC<MessageBubbleProps> = ({
               </View>
             ) : null}
           </View>
-        ) : (
-            /* 2. Texto */
-            message.content ? (
-            <View>
-                <Markdown style={markdownStyle}>
-                  {displayedContent}
-                </Markdown>
-                {shouldTruncate && !expanded && (
-                <Pressable onPress={handleReadMore} style={{ marginTop: 4 }}>
-                    <Text style={s.readMore}>Ler mais</Text>
-                </Pressable>
-                )}
-            </View>
-            ) : null
-        )}
+      );
+    }
 
-        {/* 3. Anexos */}
-        {hasAttachment && !isAudioMessage && message.attachment_url && (
-          <View style={s.attachmentContainer}>
+    if (message.content) {
+      return (
+        <View>
+            <Markdown style={markdownStyle}>
+              {displayedContent}
+            </Markdown>
+            {shouldTruncate && !expanded && (
+            <Pressable onPress={handleReadMore} style={{ marginTop: 4 }}>
+                <Text style={s.readMore}>Ler mais</Text>
+            </Pressable>
+            )}
+        </View>
+      );
+    }
+    return null;
+  }, [
+    isAudioMessage, 
+    message.attachment_url, 
+    message.content, 
+    isUser, 
+    showTranscription, 
+    textStyle, 
+    s, 
+    handleToggleTranscription, 
+    theme.textSecondary, 
+    t, 
+    markdownStyle, 
+    displayedContent, 
+    shouldTruncate, 
+    expanded, 
+    handleReadMore
+  ]);
+
+  const renderedAttachment = useMemo(() => {
+    if (!hasAttachment || isAudioMessage || !message.attachment_url) return null;
+
+    return (
+      <View style={s.attachmentContainer}>
             {isImageAttachment ? (
               <Pressable
                 onPress={handleImagePress}
@@ -224,11 +247,27 @@ const MessageBubbleComponent: React.FC<MessageBubbleProps> = ({
               </Pressable>
             )}
           </View>
-        )}
+    );
+  }, [
+    hasAttachment, 
+    isAudioMessage, 
+    message.attachment_url, 
+    s, 
+    isImageAttachment, 
+    handleImagePress, 
+    isPending, 
+    handleLinkPress, 
+    documentStyle, 
+    isUser, 
+    theme.textSecondary, 
+    documentTextStyle, 
+    message.original_filename
+  ]);
 
-        {/* Ações do Bot */}
-        {!isUser && !isPending && (
-          <>
+  const renderedActions = useMemo(() => {
+    if (isUser || isPending) return null;
+    return (
+        <>
             <View style={s.bubbleDivider} />
             <View style={s.actionRow}>
               <View style={s.leftActions}>
@@ -272,7 +311,29 @@ const MessageBubbleComponent: React.FC<MessageBubbleProps> = ({
               </View>
             </View>
           </>
-        )}
+    );
+  }, [
+    isUser, 
+    isPending, 
+    s, 
+    handleCopy, 
+    theme, 
+    handleLike, 
+    message.liked, 
+    isAudioMessage, 
+    handlePlayTTS, 
+    isThisMessagePlaying, 
+    handleRewrite, 
+    message.rewriting
+  ]);
+
+  return (
+    <View style={rowStyle}>
+      <View style={[s.bubbleContainer, bubbleStyle]}>
+        
+        {renderedContent}
+        {renderedAttachment}
+        {renderedActions}
 
         {/* Sugestões */}
         {shouldShowSuggestions && (
@@ -293,7 +354,6 @@ const MessageBubbleComponent: React.FC<MessageBubbleProps> = ({
   );
 };
 
-// Subcomponente para evitar criação de função anônima no render
 const SuggestionItem = memo(({ label, messageId, onPress, disabled }: any) => {
     const handlePress = useCallback(() => onPress?.(messageId, label), [onPress, messageId, label]);
     return (
@@ -305,41 +365,32 @@ const SuggestionItem = memo(({ label, messageId, onPress, disabled }: any) => {
     );
 });
 
-// --- FASE 2.4: Comparação Rigorosa ---
+// --- OTIMIZAÇÃO CRÍTICA: Comparação Rigorosa ---
 const arePropsEqual = (prev: MessageBubbleProps, next: MessageBubbleProps) => {
   const { message: m1 } = prev;
   const { message: m2 } = next;
 
-  // 1. Identidade e Conteúdo
-  const contentChanged = m1.content !== m2.content;
-  const idChanged = m1.id !== m2.id;
+  // 1. IDs diferentes = re-render obrigatório
+  if (m1.id !== m2.id) return false;
+
+  // 2. Conteúdo alterado (texto, anexo)
+  // Comparação simples de string é rápida. Se for igual, economiza render.
+  if (m1.content !== m2.content) return false;
+  if (m1.attachment_url !== m2.attachment_url) return false;
+
+  // 3. Estados de interação que afetam a UI (Like, Rewrite)
+  if (m1.liked !== m2.liked) return false;
+  if (m1.rewriting !== m2.rewriting) return false;
+
+  // 4. Props contextuais
+  if (prev.isLastMessage !== next.isLastMessage) return false;
+  if (prev.isSendingSuggestion !== next.isSendingSuggestion) return false;
   
-  // 2. Estados de interação (Like, Rewrite, TTS)
-  const likedChanged = m1.liked !== m2.liked;
-  const rewritingChanged = m1.rewriting !== m2.rewriting;
+  // 5. Evitar re-render se apenas o contexto mudou mas não afeta este bubble
+  // Nota: Como usamos useChatController internamente, o componente ainda pode renderizar
+  // se o contexto mudar. O memo aqui protege apenas contra props do pai.
+  // Para proteção total, a lógica de contexto deveria ser elevada ou seletora.
   
-  // 3. Anexos
-  const attachmentChanged = m1.attachment_url !== m2.attachment_url;
-
-  // 4. Props de contexto do componente
-  const isLastChanged = prev.isLastMessage !== next.isLastMessage;
-  const sendingSuggestionChanged = prev.isSendingSuggestion !== next.isSendingSuggestion;
-  const conversationChanged = prev.conversationId !== next.conversationId;
-
-  // Se qualquer um desses mudou, RETORNA FALSE (deve renderizar)
-  if (
-    idChanged || 
-    contentChanged || 
-    likedChanged || 
-    rewritingChanged || 
-    attachmentChanged ||
-    isLastChanged ||
-    sendingSuggestionChanged || 
-    conversationChanged
-  ) {
-    return false;
-  }
-
   return true;
 };
 

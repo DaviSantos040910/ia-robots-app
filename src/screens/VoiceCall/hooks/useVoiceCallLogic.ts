@@ -19,7 +19,6 @@ export const useVoiceCallLogic = ({ chatId, onError }: UseVoiceCallLogicProps) =
   const [feedbackText, setFeedbackText] = useState<string>('');
   const abortControllerRef = useRef<AbortController | null>(null);
   
-  // Agora expomos o recordingState do hook de áudio
   const { 
     startRecording, 
     stopRecording, 
@@ -70,27 +69,28 @@ export const useVoiceCallLogic = ({ chatId, onError }: UseVoiceCallLogicProps) =
 
       Vibration.vibrate(50);
 
-      // --- FASE 1.2: Validação de Nulo (Early Return) ---
+      // --- CRASH FIX: Lidar com retorno nulo silenciosamente ---
+      // Se stopRecording retornar null (devido a erro "no valid audio data" ou tempo curto),
+      // apenas resetamos o estado para IDLE sem mostrar erro para o usuário.
       if (!audioUri) {
-        console.warn('[VoiceLogic] Stop retornou null ou foi cancelado. Resetando para IDLE.');
+        console.log('[VoiceLogic] Gravação inválida ou cancelada. Resetando para IDLE.');
         setCallState('IDLE');
         return;
       }
 
-      // --- FASE 1.2: Validação de Duração Mínima (500ms) ---
       if (finalDuration < 500) { 
         console.warn(`[VoiceLogic] Áudio muito curto (${finalDuration}ms). Descarte silencioso.`);
         setCallState('IDLE');
         return;
       }
 
-      // --- FASE 1.3: Validação de Arquivo (Integridade) ---
       try {
         const fileInfo = await FileSystem.getInfoAsync(audioUri);
-        if (!fileInfo.exists || fileInfo.size <= 1024) { // < 1KB é provavelmente cabeçalho vazio
+        if (!fileInfo.exists || fileInfo.size <= 1024) {
             console.warn(`[VoiceLogic] Arquivo inválido ou muito pequeno (${fileInfo.exists ? fileInfo.size : '0'} bytes).`);
             setCallState('IDLE');
-            if (onError) onError(t('voiceCall.errors.emptyAudio'));
+            // Aqui podemos optar por não mostrar erro para ser menos intrusivo em falhas de micro-áudio
+            // if (onError) onError(t('voiceCall.errors.emptyAudio'));
             return;
         }
       } catch (fsError) {
@@ -148,7 +148,7 @@ export const useVoiceCallLogic = ({ chatId, onError }: UseVoiceCallLogicProps) =
 
   return {
     callState,
-    recordingState, // --- FASE 1.2: Exposição do estado do gravador
+    recordingState, 
     startRecordingInCall,
     stopRecordingAndSend,
     cancelInteraction,
