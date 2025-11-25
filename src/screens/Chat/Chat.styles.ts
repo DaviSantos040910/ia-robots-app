@@ -7,6 +7,8 @@ import { Spacing } from "../../theme/spacing";
 import { Radius } from "../../theme/radius";
 import { Typography } from "../../theme/typography";
 
+// ... (Funções e tipos existentes mantidos) ...
+
 const getFontColors = (isDark: boolean) => {
   if (isDark) {
     return {
@@ -56,6 +58,54 @@ export type ChatTheme = ReturnType<typeof getTheme>;
 export const createChatStyles = (t: ChatTheme) =>
   StyleSheet.create({
     screen: { flex: 1, backgroundColor: t.background },
+    
+    // --- NOVOS ESTILOS PARA LIMPEZA DO JSX ---
+    keyboardAvoidingView: { 
+      flex: 1 
+    },
+    loadingContainer: {
+      flex: 1,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    flatList: {
+      flex: 1,
+    },
+    flatListContent: {
+      paddingHorizontal: Spacing["spacing-group-s"],
+      paddingTop: Spacing['spacing-element-m'],
+      // O paddingBottom será dinâmico no componente se necessário, 
+      // mas podemos ter um base aqui.
+    },
+    attachmentsScrollView: {
+      paddingHorizontal: Spacing['spacing-group-s'],
+      paddingTop: Spacing['spacing-element-s'],
+      paddingBottom: Spacing['spacing-element-s'],
+    },
+    attachmentsContainer: {
+      marginRight: Spacing['spacing-element-m'],
+    },
+    attachmentLoader: {
+      marginLeft: 10,
+    },
+    typingIndicator: {
+      textAlign: 'center',
+      color: t.textSecondary,
+      padding: 4,
+    },
+    loadingOverlay: {
+      position: 'absolute',
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+      zIndex: 10,
+      backgroundColor: 'rgba(255,255,255,0.5)',
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    // --- FIM NOVOS ESTILOS ---
+
     content: { flex: 1, backgroundColor: t.background },
     listContent: { paddingHorizontal: Spacing["spacing-group-s"] },
 

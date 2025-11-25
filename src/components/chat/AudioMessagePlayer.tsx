@@ -1,19 +1,21 @@
+// src/components/chat/AudioMessagePlayer.tsx
+
 import React, { useEffect, useState, useMemo, memo } from 'react';
 import { 
   View, 
   Text, 
   Pressable, 
   ActivityIndicator, 
-  LayoutChangeEvent,
-  GestureResponderEvent,
-  useColorScheme,
-  ViewStyle
+  LayoutChangeEvent, 
+  GestureResponderEvent, 
+  useColorScheme, // Import useColorScheme
+  ViewStyle 
 } from 'react-native';
 import { Audio, AVPlaybackStatus } from 'expo-av';
 import { Feather } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import { getTheme, createChatStyles } from '../../screens/Chat/Chat.styles';
-import { Colors } from '../../theme/colors'; // Import para cor de erro
+import { Colors } from '../../theme/colors';
 
 type AudioMessagePlayerProps = {
   uri: string;
@@ -34,7 +36,7 @@ const AudioMessagePlayerComponent: React.FC<AudioMessagePlayerProps> = ({
   const [sound, setSound] = useState<Audio.Sound | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [isLoading, setIsLoading] = useState(true); 
-  const [hasError, setHasError] = useState(false); // --- NOVO: Estado de erro
+  const [hasError, setHasError] = useState(false);
   const [positionMillis, setPositionMillis] = useState(0);
   const [durationMillis, setDurationMillis] = useState(initialDuration);
   const [barWidth, setBarWidth] = useState(0);
@@ -59,7 +61,7 @@ const AudioMessagePlayerComponent: React.FC<AudioMessagePlayerProps> = ({
 
     const loadAudio = async () => {
       try {
-        setHasError(false); // Reseta erro ao tentar nova URI
+        setHasError(false);
         
         await Audio.setAudioModeAsync({
           allowsRecordingIOS: false,
@@ -78,7 +80,11 @@ const AudioMessagePlayerComponent: React.FC<AudioMessagePlayerProps> = ({
                 if (status.didJustFinish) {
                     setIsPlaying(false);
                     setPositionMillis(0);
-                    newSound.setPositionAsync(0); 
+                    // CORREÇÃO: Usar stopAsync() em vez de setPositionAsync(0) para evitar loops
+                    // O stopAsync() reseta a posição para 0 e garante o estado parado
+                    if (soundInstance) {
+                        soundInstance.stopAsync();
+                    }
                 }
              }
           }
@@ -97,7 +103,7 @@ const AudioMessagePlayerComponent: React.FC<AudioMessagePlayerProps> = ({
         console.error('[AudioPlayer] Erro ao carregar áudio:', error);
         if (isMounted) {
             setIsLoading(false);
-            setHasError(true); // --- ATIVA MODO DE ERRO
+            setHasError(true);
         }
       }
     };
@@ -118,10 +124,12 @@ const AudioMessagePlayerComponent: React.FC<AudioMessagePlayerProps> = ({
       if (isPlaying) {
         await sound.pauseAsync();
       } else {
+        // Se o áudio já terminou (position >= duration), replayAsync() é mais seguro que playAsync()
         if (positionMillis >= durationMillis) {
-          await sound.setPositionAsync(0);
+          await sound.replayAsync();
+        } else {
+          await sound.playAsync();
         }
-        await sound.playAsync();
       }
     } catch (e) {
       console.error("Erro playback", e);
@@ -133,7 +141,8 @@ const AudioMessagePlayerComponent: React.FC<AudioMessagePlayerProps> = ({
     const { locationX } = event.nativeEvent;
     const percentage = Math.max(0, Math.min(1, locationX / barWidth));
     const seekPosition = percentage * durationMillis;
-    setPositionMillis(seekPosition);
+    
+    setPositionMillis(seekPosition); 
     await sound.setPositionAsync(seekPosition);
   };
 
@@ -170,13 +179,12 @@ const AudioMessagePlayerComponent: React.FC<AudioMessagePlayerProps> = ({
         disabled={isLoading || hasError}
         style={s.audioPlayButton}
         hitSlop={10}
-        accessibilityLabel={hasError ? "Erro no áudio" : (isPlaying ? t('common.pause') : t('common.play'))}
+        accessibilityLabel={hasError ? t('chat.audioError') : (isPlaying ? t('common.pause') : t('common.play'))}
         accessibilityRole="button"
       >
         {isLoading ? (
           <ActivityIndicator size="small" color={colors.icon} />
         ) : hasError ? (
-          // --- ÍCONE DE ERRO ---
           <Feather name="alert-circle" size={24} color={isUser ? '#ffcccc' : Colors.semantic.error.normal} />
         ) : (
           <Feather 
@@ -200,6 +208,8 @@ const AudioMessagePlayerComponent: React.FC<AudioMessagePlayerProps> = ({
           style={s.audioSeekTouchArea} 
           onPress={handleSeek}
           disabled={hasError}
+          accessibilityLabel={t('chat.accessibility.audioProgress')}
+          accessibilityRole="adjustable"
         />
       </View>
 

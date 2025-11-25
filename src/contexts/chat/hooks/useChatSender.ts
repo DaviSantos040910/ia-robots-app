@@ -11,17 +11,16 @@ type UseChatSenderDeps = {
   updateChatData: (chatId: string, updater: (prevData: ChatData) => Partial<ChatData>) => void;
   setIsTypingById: React.Dispatch<React.SetStateAction<Record<string, boolean>>>;
   activeSendPromises: React.MutableRefObject<Record<string, Promise<void>>>;
-  isBotVoiceMode: boolean; 
+  isBotVoiceMode: boolean; // --- ADICIONADO: Dependência do estado de voz
 };
 
 export const useChatSender = ({
   updateChatData,
   setIsTypingById,
   activeSendPromises,
-  isBotVoiceMode, 
+  isBotVoiceMode, // --- ADICIONADO
 }: UseChatSenderDeps) => {
 
-  // --- MEMOIZAÇÃO CORRETA ---
   const sendMessage = useCallback(async (chatId: string, text: string) => {
     if (activeSendPromises.current[chatId] !== undefined) return;
 
@@ -40,6 +39,7 @@ export const useChatSender = ({
 
     setIsTypingById((prev) => ({ ...prev, [chatId]: true }));
 
+    // --- ATUALIZADO: Passando isBotVoiceMode como replyWithAudio
     const sendPromise = chatService.sendMessage(chatId, text, isBotVoiceMode)
       .then((apiReplies) => {
         setIsTypingById((prev) => ({ ...prev, [chatId]: false }));
@@ -79,8 +79,10 @@ export const useChatSender = ({
       });
 
     activeSendPromises.current[chatId] = sendPromise;
-  }, [updateChatData, setIsTypingById, activeSendPromises, isBotVoiceMode]); // Dependências OK
+  }, [updateChatData, setIsTypingById, activeSendPromises, isBotVoiceMode]); // Adicionado isBotVoiceMode nas deps
 
+  // ... (sendVoiceMessage e demais funções mantidas iguais, apenas garantindo uso do isBotVoiceMode onde necessário) ...
+  
   const sendVoiceMessage = useCallback(async (chatId: string, audioUri: string, durationMs: number, replyWithAudio: boolean) => {
     if (!audioUri) return;
     const tempId = uuidv4();

@@ -3,24 +3,23 @@ import { View, Text, StatusBar, Image, Pressable, useColorScheme, ActivityIndica
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
-import { useTranslation } from 'react-i18next'; // Import i18n
+import { useTranslation } from 'react-i18next'; 
 
 import { RootStackParamList } from '../../types/navigation';
-import { getTheme, createVoiceCallStyles } from './VoiceCall.styles'; // Use novos estilos
+import { getTheme, createVoiceCallStyles } from './VoiceCall.styles';
 import { useVoiceCallLogic } from './hooks/useVoiceCallLogic';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'VoiceCall'>;
 
 const VoiceCallScreen: React.FC<Props> = ({ route, navigation }) => {
   const { botName, botAvatarUrl, chatId } = route.params;
-  const { t } = useTranslation(); // Hook i18n
+  const { t } = useTranslation(); 
   const scheme = useColorScheme();
   const isDark = scheme === 'dark';
   
   const theme = getTheme(isDark);
   const styles = createVoiceCallStyles(theme);
 
-  // --- Hook de Lógica ---
   const { 
     callState, 
     startRecordingInCall, 
@@ -29,7 +28,7 @@ const VoiceCallScreen: React.FC<Props> = ({ route, navigation }) => {
     feedbackText
   } = useVoiceCallLogic({
     chatId,
-    onError: (msg) => Alert.alert(t('common.ops'), msg) // Traduzido
+    onError: (msg) => Alert.alert(t('common.ops'), msg) 
   });
 
   const handleGoBack = () => {
@@ -37,7 +36,6 @@ const VoiceCallScreen: React.FC<Props> = ({ route, navigation }) => {
     navigation.goBack();
   };
 
-  // --- Configuração Visual Baseada no Estado ---
   const statusConfig = useMemo(() => {
     switch (callState) {
       case 'RECORDING':
@@ -56,7 +54,6 @@ const VoiceCallScreen: React.FC<Props> = ({ route, navigation }) => {
     <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]} edges={['top', 'bottom']}>
       <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} animated />
 
-      {/* Área Superior: Avatar e Informações */}
       <View style={styles.infoContainer}>
         <View style={[
           styles.avatarContainer, 
@@ -90,9 +87,7 @@ const VoiceCallScreen: React.FC<Props> = ({ route, navigation }) => {
         )}
       </View>
 
-      {/* Rodapé: Controles */}
       <View style={styles.controlsContainer}>
-        {/* Botão Secundário (Fechar) */}
         <Pressable
           onPress={handleGoBack}
           style={({ pressed }) => [
@@ -105,7 +100,6 @@ const VoiceCallScreen: React.FC<Props> = ({ route, navigation }) => {
           <Feather name="x" size={24} color={theme.textPrimary} />
         </Pressable>
 
-        {/* Botão Principal (PTT) */}
         <Pressable
           onPressIn={startRecordingInCall}
           onPressOut={stopRecordingAndSend}

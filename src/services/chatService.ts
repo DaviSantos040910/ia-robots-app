@@ -34,7 +34,7 @@ const realChatService = {
     return response;
   },
 
-  // ... Demais métodos mantidos iguais ...
+  // ... Demais métodos mantidos para compatibilidade ...
   async archiveAndCreateNewChat(chatId: string): Promise<{ new_chat_id: string }> {
     const response = await api.post<{ new_chat_id: string }>(`/api/v1/chats/${chatId}/archive/`);
     return response;
@@ -59,7 +59,6 @@ const realChatService = {
   },
 
   async transcribeAudio(chatId: string, audioUri: string): Promise<string> {
-      // (Mantém lógica de transcrição)
       const formData = new FormData();
       // @ts-ignore
       formData.append('audio', { uri: audioUri, type: 'audio/m4a', name: 'recording.m4a' });
@@ -98,7 +97,5 @@ const realChatService = {
   }
 };
 
-// ... (Mock mantido para consistência se necessário, mas omitido por brevidade) ...
-const mockChatService = realChatService; // Simplificando para o exemplo
 const USE_MOCK_API = false;
-export const chatService = USE_MOCK_API ? mockChatService : realChatService;
+export const chatService = USE_MOCK_API ? realChatService : realChatService;

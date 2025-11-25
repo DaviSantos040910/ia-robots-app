@@ -1,6 +1,7 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
-import { Vibration } from 'react-native';
-import * as FileSystem from 'expo-file-system/legacy'; // IMPORTANTE para validar tamanho
+import { Vibration, Alert } from 'react-native'; // Adicionado Alert
+import * as FileSystem from 'expo-file-system/legacy';
+import { useTranslation } from 'react-i18next'; // Adicionado i18n
 import { useAudioRecorder } from '../../../hooks/useAudioRecorder';
 import { useTTS } from '../../../hooks/useTTS';
 import { chatService } from '../../../services/chatService';
@@ -13,11 +14,12 @@ type UseVoiceCallLogicProps = {
 };
 
 export const useVoiceCallLogic = ({ chatId, onError }: UseVoiceCallLogicProps) => {
+  const { t } = useTranslation();
   const [callState, setCallState] = useState<VoiceCallState>('IDLE');
   const [feedbackText, setFeedbackText] = useState<string>('');
   const abortControllerRef = useRef<AbortController | null>(null);
   
-  const { startRecording, stopRecording, cancelRecording: cancelAudioRecorder } = useAudioRecorder();
+  const { startRecording, stopRecording, cancelRecording: cancelAudioRecorder, duration } = useAudioRecorder();
   const { playTTS, stopTTS, isPlaying: isTTSPlaying, isLoading: isTTSLoading } = useTTS();
 
   useEffect(() => {
@@ -41,7 +43,7 @@ export const useVoiceCallLogic = ({ chatId, onError }: UseVoiceCallLogicProps) =
       const success = await startRecording();
       if (!success) {
         setCallState('IDLE');
-        if (onError) onError('Permissão de microfone negada.');
+        if (onError) onError(t('voiceCall.errors.permission'));
       } else {
         Vibration.vibrate(50);
       }
@@ -49,13 +51,16 @@ export const useVoiceCallLogic = ({ chatId, onError }: UseVoiceCallLogicProps) =
       console.error('[VoiceLogic] Erro ao iniciar:', error);
       setCallState('IDLE');
     }
-  }, [isTTSPlaying, isTTSLoading, stopTTS, startRecording, onError]);
+  }, [isTTSPlaying, isTTSLoading, stopTTS, startRecording, onError, t]);
 
   const stopRecordingAndSend = useCallback(async () => {
     if (callState !== 'RECORDING') return;
 
     try {
       const audioUri = await stopRecording();
+      // Usamos a duration do hook, que é atualizada enquanto grava
+      const finalDuration = duration; 
+
       Vibration.vibrate(50);
 
       if (!audioUri) {
@@ -63,18 +68,26 @@ export const useVoiceCallLogic = ({ chatId, onError }: UseVoiceCallLogicProps) =
         return;
       }
 
-      // --- VALIDAÇÃO DE TAMANHO DO ARQUIVO ---
+      // --- VALIDAÇÃO DE SEGURANÇA 1: Duração Mínima ---
+      if (finalDuration < 1000) { // Menos de 1 segundo
+        console.warn('[VoiceLogic] Áudio muito curto (< 1s). Descartando.');
+        setCallState('IDLE');
+        // Opcional: Feedback sutil
+        // if (onError) onError("Fale por mais tempo.");
+        return;
+      }
+
+      // --- VALIDAÇÃO DE SEGURANÇA 2: Tamanho do Arquivo ---
       try {
         const fileInfo = await FileSystem.getInfoAsync(audioUri);
         if (!fileInfo.exists || fileInfo.size === 0) {
-            console.warn('[VoiceLogic] Áudio vazio detectado.');
+            console.warn('[VoiceLogic] Arquivo de áudio vazio ou inexistente.');
             setCallState('IDLE');
-            // Não enviamos erro para o usuário pois pode ser um toque acidental rápido
+            if (onError) onError(t('voiceCall.errors.emptyAudio'));
             return;
         }
       } catch (fsError) {
-          console.warn('[VoiceLogic] Falha ao verificar arquivo:', fsError);
-          // Continua, pois o erro de FS não deve bloquear o app se o arquivo existir
+          console.warn('[VoiceLogic] Falha ao verificar arquivo (continuando):', fsError);
       }
 
       setCallState('PROCESSING');
@@ -106,14 +119,14 @@ export const useVoiceCallLogic = ({ chatId, onError }: UseVoiceCallLogicProps) =
       } else {
         console.error('[VoiceLogic] Erro:', error);
         Vibration.vibrate([0, 50, 100, 50]); 
-        if (onError) onError('Não entendi. Tente novamente.');
+        if (onError) onError(t('voiceCall.errors.processing'));
       }
       setCallState('IDLE');
       setFeedbackText('');
     } finally {
       abortControllerRef.current = null;
     }
-  }, [callState, stopRecording, chatId, onError, playTTS]);
+  }, [callState, stopRecording, duration, chatId, onError, playTTS, t]);
 
   const cancelInteraction = useCallback(async () => {
     if (abortControllerRef.current) {

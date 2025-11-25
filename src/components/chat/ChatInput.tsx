@@ -10,7 +10,8 @@ import {
   NativeSyntheticEvent, 
   TextInputContentSizeChangeEventData,
   ActivityIndicator,
-  Text
+  Text,
+  StyleSheet // Importado para uso local se necessário
 } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { useColorScheme } from 'react-native';
@@ -101,31 +102,64 @@ const ChatInputComponent: React.FC<Props> = ({
     return (
       <View style={s.inputWrap} onLayout={handleLayout}>
         <View style={s.recordingContainer}>
-          <Pressable onPress={onCancelRecording} style={s.recordingButton}>
-            <Feather name="x" size={24} color={Colors.semantic.error.normal} />
+          {/* Botão CANCELAR (Lixeira ou X) - Vermelho para perigo */}
+          <Pressable 
+            onPress={onCancelRecording} 
+            style={({ pressed }) => [
+              s.recordingButton, 
+              { opacity: pressed ? 0.6 : 1 }
+            ]}
+            accessibilityLabel={t('common.cancel')}
+            accessibilityRole="button"
+          >
+            <Feather name="trash-2" size={24} color={Colors.semantic.error.normal} />
           </Pressable>
 
           <View style={s.recordingIndicator}>
+            {/* Dot pulsante ou fixo indicando gravação ativa */}
             <View style={[
               s.recordingDot,
+              // Quando gravando, usa vermelho. Quando pausado, usa cor neutra ou mantém vermelho fixo.
+              { backgroundColor: recordingState === 'recording' ? Colors.semantic.error.normal : theme.textSecondary },
               recordingState === 'recording' && s.recordingDotActive
             ]} />
             <Text style={s.recordingDuration}>{recordingDuration}</Text>
           </View>
 
+          {/* Botão PAUSE/RESUME - Cor neutra/marca */}
+          {/* Opcional: Remover se quiser simplificar a UI de gravação como o WhatsApp */}
           <Pressable 
             onPress={recordingState === 'recording' ? onPauseRecording : onResumeRecording} 
-            style={s.recordingButton}
+            style={({ pressed }) => [
+              s.recordingButton, 
+              { opacity: pressed ? 0.6 : 1 }
+            ]}
           >
             <Feather 
-              name={recordingState === 'recording' ? 'pause' : 'play'} 
+              name={recordingState === 'recording' ? 'pause' : 'mic'} 
               size={24} 
-              color={theme.brand.normal} 
+              color={theme.textPrimary} 
             />
           </Pressable>
 
-          <Pressable onPress={onStopRecording} style={s.recordingButton}>
-            <Feather name="check" size={24} color={Colors.semantic.success.normal} />
+          {/* Botão ENVIAR (Check/Seta) - Cor da marca para ação positiva */}
+          <Pressable 
+            onPress={onStopRecording} 
+            style={({ pressed }) => [
+              s.recordingButton, 
+              // Fundo arredondado ou cor de destaque para o botão principal
+              { 
+                backgroundColor: theme.brand.normal, 
+                borderRadius: 20, 
+                padding: 8, // Aumenta a área visual
+                marginLeft: 8,
+                opacity: pressed ? 0.8 : 1
+              }
+            ]}
+            accessibilityLabel={t('common.send')}
+            accessibilityRole="button"
+          >
+            <Feather name="arrow-up" size={20} color="#FFFFFF" />
           </Pressable>
         </View>
       </View>
@@ -136,7 +170,7 @@ const ChatInputComponent: React.FC<Props> = ({
   return (
     <View style={s.inputWrap} onLayout={handleLayout}>
       <View style={s.inputContainer}>
-        <Pressable onPress={onPlus} hitSlop={10}>
+        <Pressable onPress={onPlus} hitSlop={10} style={{ padding: 4 }}>
           <Feather name="plus" size={24} color={theme.textSecondary} />
         </Pressable>
 
@@ -156,11 +190,21 @@ const ChatInputComponent: React.FC<Props> = ({
         />
 
         {canSend ? (
-          <Pressable onPress={onSend} hitSlop={10}>
+          <Pressable onPress={onSend} hitSlop={10} style={{ padding: 4 }}>
             <Feather name="send" size={24} color={theme.brand.normal} />
           </Pressable>
         ) : (
-          <Pressable onPress={onMic} hitSlop={10}>
+          <Pressable 
+            onPress={onMic} 
+            hitSlop={10}
+            style={({ pressed }) => ({ 
+                padding: 4,
+                opacity: pressed ? 0.6 : 1 
+            })}
+            accessibilityLabel="Gravar mensagem de voz"
+            accessibilityRole="button"
+          >
+            {/* Ícone de microfone com cor primária quando ocioso para indicar interatividade */}
             <Feather name="mic" size={24} color={theme.textSecondary} />
           </Pressable>
         )}
@@ -169,8 +213,4 @@ const ChatInputComponent: React.FC<Props> = ({
   );
 };
 
-// --- OTIMIZAÇÃO ---
-// Envolvemos o componente em memo.
-// Como não há props profundas complexas (funções são estáveis graças aos hooks otimizados),
-// a comparação rasa padrão é suficiente e eficiente.
 export const ChatInput = memo(ChatInputComponent);

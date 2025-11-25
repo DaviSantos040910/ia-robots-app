@@ -6,7 +6,8 @@
     "error": "Error",
     "ops": "Oops",
     "play": "Play",
-    "pause": "Pause"
+    "pause": "Pause",
+    "loading": "Loading..."
   },
   "error": "Error",
   "chat": {
@@ -35,6 +36,7 @@
     "readOnlyMessage": "This chat is archived.",
     "showTranscription": "Transcribe",
     "hideTranscription": "Hide transcription",
+    "audioError": "Error loading audio",
     "attachmentMenu": {
       "camera": "Camera",
       "gallery": "Gallery",
@@ -49,7 +51,12 @@
       "unlikeMessage": "Unlike message",
       "readAloud": "Read aloud",
       "stopReading": "Stop reading aloud",
-      "rewriteMessage": "Rewrite message"
+      "rewriteMessage": "Rewrite message",
+      "activateVoice": "Enable voice mode",
+      "deactivateVoice": "Disable voice mode",
+      "call": "Start voice call",
+      "moreOptions": "More options",
+      "audioProgress": "Audio progress bar"
     }
   },
   "voiceCall": {
@@ -61,7 +68,8 @@
     },
     "errors": {
       "permission": "Microphone permission denied.",
-      "processing": "I didn't catch that. Please try again."
+      "processing": "I didn't catch that. Please try again.",
+      "emptyAudio": "Empty audio detected."
     },
     "accessibility": {
         "close": "Close call",

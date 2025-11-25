@@ -9,7 +9,8 @@ import {
   Text,
   ScrollView,
   Alert,
-  ListRenderItem
+  ListRenderItem,
+  StyleSheet
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useColorScheme } from 'react-native';
@@ -40,6 +41,7 @@ import { createChatStyles, getTheme } from './Chat.styles';
 import { RootStackParamList } from '../../types/navigation';
 import { Spacing } from '../../theme/spacing';
 import { ChatMessage } from '../../types/chat';
+import { useHeaderHeight } from '@react-navigation/elements'; // Import opcional se usar header nativo, mas útil para cálculo
 
 type ChatScreenProps = NativeStackScreenProps<RootStackParamList, 'ChatScreen'>;
 
@@ -119,7 +121,7 @@ const ChatScreen: React.FC = () => {
 
   const handlePhonePress = useCallback(() => {
     if (!currentChatId || !bootstrap) {
-        console.warn('[ChatScreen] Não é possível iniciar chamada: Dados incompletos.');
+        console.warn('[ChatScreen] Incomplete data for call.');
         return;
     }
     
@@ -132,7 +134,7 @@ const ChatScreen: React.FC = () => {
             botAvatarUrl: bootstrap.bot.avatarUrl,
         });
     } catch (error) {
-        console.error('[ChatScreen] Erro ao navegar:', error);
+        console.error('[ChatScreen] Error navigating to voice call:', error);
         Alert.alert(t('common.error'), t('chat.voiceCallNavigationError'));
     }
   }, [currentChatId, bootstrap, route.params.botId, navigation, t]);
@@ -270,7 +272,7 @@ const ChatScreen: React.FC = () => {
           avatarUrl={route.params.botAvatarUrl}
           onBack={handleBackPress}
         />
-        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+        <View style={s.loadingContainer}>
           <ActivityIndicator size="large" color={theme.brand.normal} />
         </View>
       </SafeAreaView>
@@ -278,7 +280,9 @@ const ChatScreen: React.FC = () => {
   }
 
   return (
-    <SafeAreaView style={s.screen} edges={['top', 'bottom']}>
+    // Use edges={['top']} e remova 'bottom' para controlar a área inferior manualmente
+    // isso evita conflito com o KeyboardAvoidingView
+    <SafeAreaView style={s.screen} edges={['top', 'left', 'right']}>
       <ChatHeader
         title={bootstrap.bot.name}
         subtitle={bootstrap.bot.handle}
@@ -286,27 +290,30 @@ const ChatScreen: React.FC = () => {
         onBack={handleBackPress}
         onPhone={handlePhonePress}
         onVolume={toggleBotVoiceMode}
-          isVoiceModeEnabled={isBotVoiceMode}
-          onMorePress={(anchor) => {
+        isVoiceModeEnabled={isBotVoiceMode}
+        onMorePress={(anchor) => {
           setMenuAnchor(anchor);
           setMenuOpen(true);
         }}
       />
 
-      {/* CORREÇÃO TECLADO: Ajustes de behavior e offset */}
+      {/* CORREÇÃO CRÍTICA TECLADO:
+         1. No Android com 'adjustResize', o KeyboardAvoidingView deve ser DESABILITADO ou ter behavior={undefined}.
+         2. No iOS, behavior='padding' e offset calibrado.
+      */}
       <KeyboardAvoidingView
-        style={{ flex: 1 }}
+        style={s.keyboardAvoidingView}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        // 100 = Aprox Header (60) + SafeArea Top (40)
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 100 : 0}
+        // Aumente este valor se o header for alto (ex: 90-100)
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
       >
         <FlatList
           data={invertedMessages}
           keyExtractor={keyExtractor}
           renderItem={renderMessage}
           inverted
-          style={{ flex: 1 }}
-          contentContainerStyle={[s.listContent, { paddingTop: Spacing['spacing-element-m'] }]}
+          style={s.flatList}
+          contentContainerStyle={[s.flatListContent, { paddingBottom: 20 }]} 
           
           initialNumToRender={10}          
           maxToRenderPerBatch={5}          
@@ -339,7 +346,7 @@ const ChatScreen: React.FC = () => {
         />
 
         {isTyping && (
-          <Text style={{ textAlign: 'center', color: theme.textSecondary, padding: 4 }}>
+          <Text style={s.typingIndicator}>
             {t('chat.botTyping', { defaultValue: 'Bot is typing...' })}
           </Text>
         )}
@@ -349,19 +356,15 @@ const ChatScreen: React.FC = () => {
              <ScrollView
              horizontal
              showsHorizontalScrollIndicator={false}
-             contentContainerStyle={{
-               paddingHorizontal: Spacing['spacing-group-s'],
-               paddingTop: Spacing['spacing-element-s'],
-               paddingBottom: Spacing['spacing-element-s']
-             }}
+             contentContainerStyle={s.attachmentsScrollView}
              keyboardShouldPersistTaps="handled"
            >
              {selectedAttachments.map((attachment) => (
-               <View key={attachment.uri} style={{ marginRight: Spacing['spacing-element-m'] }}>
+               <View key={attachment.uri} style={s.attachmentsContainer}>
                  <AttachmentPreview attachment={attachment} onRemove={onRemoveAttachment} />
                </View>
              ))}
-             {isPickerLoading && <ActivityIndicator size="small" color={theme.brand.normal} style={{ marginLeft: 10 }} />}
+             {isPickerLoading && <ActivityIndicator size="small" color={theme.brand.normal} style={s.attachmentLoader} />}
            </ScrollView>
           )}
 
@@ -374,7 +377,7 @@ const ChatScreen: React.FC = () => {
           ) : (
             <View>
                {isSending && (
-                  <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: 10, backgroundColor: 'rgba(255,255,255,0.5)', justifyContent: 'center', alignItems: 'center' }}>
+                  <View style={s.loadingOverlay}>
                     <ActivityIndicator size="small" color={theme.brand.normal} />
                   </View>
                )}

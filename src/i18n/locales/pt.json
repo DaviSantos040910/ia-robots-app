@@ -6,7 +6,8 @@
     "error": "Erro",
     "ops": "Ops",
     "play": "Reproduzir",
-    "pause": "Pausar"
+    "pause": "Pausar",
+    "loading": "Carregando..."
   },
   "error": "Erro",
   "chat": {
@@ -35,10 +36,11 @@
     "readOnlyMessage": "Este chat está arquivado.",
     "showTranscription": "Transcrever",
     "hideTranscription": "Ocultar transcrição",
+    "audioError": "Erro ao carregar áudio",
     "attachmentMenu": {
       "camera": "Câmera",
       "gallery": "Galeria",
-      "document": "Document"
+      "document": "Documento"
     },
     "accessibility": {
       "message": "Mensagem de {{role}}: {{content}}",
@@ -49,7 +51,12 @@
       "unlikeMessage": "Descurtir mensagem",
       "readAloud": "Ler em voz alta",
       "stopReading": "Parar leitura em voz alta",
-      "rewriteMessage": "Reescrever mensagem"
+      "rewriteMessage": "Reescrever mensagem",
+      "activateVoice": "Ativar modo de voz",
+      "deactivateVoice": "Desativar modo de voz",
+      "call": "Iniciar chamada de voz",
+      "moreOptions": "Mais opções",
+      "audioProgress": "Barra de progresso do áudio"
     }
   },
   "voiceCall": {
@@ -61,7 +68,8 @@
     },
     "errors": {
       "permission": "Permissão de microfone negada.",
-      "processing": "Não entendi. Tente novamente."
+      "processing": "Não entendi. Tente novamente.",
+      "emptyAudio": "Áudio vazio detectado."
     },
     "accessibility": {
         "close": "Fechar chamada",
