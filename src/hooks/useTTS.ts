@@ -2,7 +2,10 @@
 
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { Audio } from 'expo-av';
+import * as FileSystem from 'expo-file-system/legacy'; // Necessário para salvar o cache local
 import { chatService } from '../services/chatService';
+
+const MAX_CACHE_SIZE = 10;
 
 export const useTTS = () => {
   const [isPlaying, setIsPlaying] = useState(false);
@@ -10,13 +13,12 @@ export const useTTS = () => {
   const [currentMessageId, setCurrentMessageId] = useState<string | null>(null);
   
   const soundRef = useRef<Audio.Sound | null>(null);
-  
-  // CORREÇÃO DE RACE CONDITION:
-  // Guarda o ID da mensagem que estamos tentando carregar no momento.
-  // Se o usuário mudar de mensagem enquanto carregamos, sabemos que devemos abortar.
   const loadingMessageIdRef = useRef<string | null>(null);
 
-  // Cleanup ao desmontar
+  // --- FASE 3.2: Cache LRU Simples ---
+  // Mapa: Chave (chatId-msgId) -> Valor (URI local do arquivo)
+  const ttsCache = useRef<Map<string, string>>(new Map());
+
   useEffect(() => {
     return () => {
       if (soundRef.current) {
@@ -26,7 +28,6 @@ export const useTTS = () => {
   }, []);
 
   const stopTTS = useCallback(async () => {
-    // Cancela qualquer carregamento pendente
     loadingMessageIdRef.current = null;
     
     if (soundRef.current) {
@@ -46,42 +47,67 @@ export const useTTS = () => {
   const playTTS = useCallback(
     async (conversationId: string, messageId: string) => {
       try {
-        // Se já estiver tocando ESTA mensagem, pausa/para
         if (isPlaying && currentMessageId === messageId) {
           await stopTTS();
           return;
         }
 
-        // Para qualquer som anterior antes de começar o novo
         await stopTTS();
 
-        // Inicia estado de carregamento seguro
         loadingMessageIdRef.current = messageId;
         setIsLoading(true);
         setCurrentMessageId(messageId);
 
-        const audioBlob = await chatService.getMessageTTS(conversationId, messageId);
+        // --- Lógica de Cache ---
+        const cacheKey = `${conversationId}-${messageId}`;
+        let audioUri = ttsCache.current.get(cacheKey);
 
-        // VERIFICAÇÃO CRÍTICA:
-        // O usuário clicou em outra coisa ou cancelou enquanto baixávamos?
-        if (loadingMessageIdRef.current !== messageId) {
-          console.log('TTS cancelado ou trocado durante o download.');
-          return;
+        if (!audioUri) {
+            // Se não está no cache, busca na API
+            const audioBlob = await chatService.getMessageTTS(conversationId, messageId);
+            
+            if (loadingMessageIdRef.current !== messageId) return;
+
+            // Converte Blob para Base64 e salva em arquivo temporário para cachear
+            const reader = new FileReader();
+            
+            await new Promise<void>((resolve, reject) => {
+                reader.onloadend = async () => {
+                    try {
+                        const base64Data = (reader.result as string).split(',')[1];
+                        const fileUri = `${FileSystem.cacheDirectory}tts_${cacheKey}.wav`;
+                        
+                        await FileSystem.writeAsStringAsync(fileUri, base64Data, {
+                            encoding: FileSystem.EncodingType.Base64
+                        });
+                        
+                        audioUri = fileUri;
+                        
+                        // Atualiza cache LRU
+                        if (ttsCache.current.size >= MAX_CACHE_SIZE) {
+                            const firstKey = ttsCache.current.keys().next().value;
+                            if (firstKey) ttsCache.current.delete(firstKey); // Remove o mais antigo
+                        }
+                        ttsCache.current.set(cacheKey, audioUri);
+                        
+                        resolve();
+                    } catch (e) {
+                        reject(e);
+                    }
+                };
+                reader.onerror = reject;
+                reader.readAsDataURL(audioBlob);
+            });
+        } else {
+            console.log(`[TTS] Usando cache para ${messageId}`);
         }
 
-        const reader = new FileReader();
-        reader.readAsDataURL(audioBlob);
+        // Verifica novamente cancelamento
+        if (loadingMessageIdRef.current !== messageId || !audioUri) return;
 
-        reader.onloadend = async () => {
-          // VERIFICAÇÃO CRÍTICA 2:
-          // O usuário cancelou enquanto líamos o blob?
-          if (loadingMessageIdRef.current !== messageId) return;
-
-          const base64Audio = reader.result as string;
-
-          try {
+        try {
             const { sound } = await Audio.Sound.createAsync(
-              { uri: base64Audio },
+              { uri: audioUri },
               { shouldPlay: true },
               (status: any) => {
                 if (status.isLoaded && status.didJustFinish) {
@@ -92,8 +118,6 @@ export const useTTS = () => {
               }
             );
 
-            // VERIFICAÇÃO FINAL:
-            // Se outro som começou a tocar nesse milissegundo, descarrega este imediatamente
             if (loadingMessageIdRef.current !== messageId) {
                 await sound.unloadAsync();
                 return;
@@ -102,18 +126,12 @@ export const useTTS = () => {
             soundRef.current = sound;
             setIsPlaying(true);
             setIsLoading(false);
-          } catch (soundError) {
+        } catch (soundError) {
              console.error('Erro ao criar som:', soundError);
              setIsLoading(false);
              setCurrentMessageId(null);
-          }
-        };
+        }
 
-        reader.onerror = () => {
-          console.error('Erro ao ler blob de áudio');
-          setIsLoading(false);
-          setCurrentMessageId(null);
-        };
       } catch (error) {
         console.error('Erro ao tocar TTS:', error);
         setIsLoading(false);

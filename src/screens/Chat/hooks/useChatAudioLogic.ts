@@ -28,38 +28,27 @@ export const useChatAudioLogic = ({ onSendVoice }: UseChatAudioLogicProps) => {
 
   const handleStopRecording = useCallback(async () => {
     try {
-      // 1. Para a gravação e obtém URI
       const audioUri = await audioRecorder.stopRecording();
+      // Usamos a duration do hook, que agora é mais confiável com o timer de 500ms
       const duration = audioRecorder.duration;
 
-      // 2. Validação Básica
-      if (!audioUri) {
-        // Gravação cancelada ou erro interno silencioso do expo-av
+      if (!audioUri) return;
+
+      // --- FASE 3.3: Validação Global Silenciosa ---
+      // Áudios menores que 500ms são considerados toques acidentais e descartados sem incomodar o usuário.
+      if (duration < 500) {
+        console.log('[useChatAudioLogic] Áudio muito curto (< 500ms). Descartando silenciosamente.');
         return;
       }
 
-      if (duration < 1000) {
-        // UX: Áudios muito curtos (cliques acidentais) são descartados silenciosamente ou com aviso
-        // Optamos por descartar silenciosamente para não irritar em cliques rápidos, 
-        // mas você pode descomentar o Alert abaixo.
-        // Alert.alert(t('common.ops'), t('chat.audioTooShort', { defaultValue: 'Áudio muito curto.' }));
-        return;
-      }
-
-      // 3. Envio com Tratamento de Erro
       await onSendVoice(audioUri, duration);
 
     } catch (error) {
       console.error('[useChatAudioLogic] Send failed', error);
-      
-      // UX: Feedback explícito para o usuário
       Alert.alert(
         t('common.ops'), 
         t('chat.audioSendError', { defaultValue: 'Falha ao enviar áudio. Tente novamente.' })
       );
-      
-      // Nota: O hook useChatSender (quem injeta onSendVoice) é responsável por
-      // reverter a UI otimista (remover o balão ou marcar como erro).
     }
   }, [audioRecorder, onSendVoice, t]);
 

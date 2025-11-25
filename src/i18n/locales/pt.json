@@ -61,6 +61,7 @@
   },
   "voiceCall": {
     "status": {
+      "preparing": "Preparando...",
       "listening": "Ouvindo...",
       "processing": "Pensando...",
       "speaking": "Falando...",

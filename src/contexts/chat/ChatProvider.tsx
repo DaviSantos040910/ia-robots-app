@@ -1,6 +1,6 @@
 // src/contexts/chat/ChatProvider.tsx
 
-import React, { createContext, useContext, useMemo } from 'react';
+import React, { createContext, useContext, useMemo, useCallback } from 'react';
 import { ChatMessage } from '../../types/chat';
 import { AttachmentPickerResult } from '../../services/attachmentService';
 
@@ -16,29 +16,23 @@ export type ChatStore = {
   chats: Record<string, ChatData>;
   isTypingById: Record<string, boolean>;
   isBotVoiceMode: boolean; 
+  isTTSPlaying: boolean;
+  isTTSLoading: boolean;
+  currentTTSMessageId: string | null;
   
-  // Carregamento (Loader)
+  // Funções (Estáveis)
   loadInitialMessages: (chatId: string) => Promise<void>;
   loadMoreMessages: (chatId: string) => Promise<void>;
-  
-  // Envio (Sender)
   sendMessage: (chatId: string, text: string) => Promise<void>;
   sendVoiceMessage: (chatId: string, audioUri: string, durationMs: number, replyWithAudio: boolean) => Promise<void>; 
   archiveAndStartNew: (chatId: string) => Promise<string | null>;
   sendMultipleAttachments: (chatId: string, files: AttachmentPickerResult[]) => Promise<void>;
   sendAttachment: (chatId: string, file: AttachmentPickerResult) => Promise<void>;
-  
-  // Interações (Interactions & TTS)
   playTTS: (conversationId: string, messageId: string) => Promise<void>;
   stopTTS: () => Promise<void>;
-  isTTSPlaying: boolean;
-  isTTSLoading: boolean;
-  currentTTSMessageId: string | null;
   handleCopyMessage: (message: ChatMessage) => void;
   handleLikeMessage: (chatId: string, message: ChatMessage) => Promise<void>;
   toggleBotVoiceMode: () => void; 
-  
-  // Utilitários de Estado
   clearLocalChatState: (chatId: string) => void;
 };
 
@@ -74,7 +68,7 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
     updateChatData, 
     setIsTypingById, 
     activeSendPromises,
-    isBotVoiceMode, // --- AQUI: Passando o estado de voz para o sender
+    isBotVoiceMode,
   });
 
   // 4. Camada de Interações
@@ -92,8 +86,8 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setIsBotVoiceMode 
   });
 
-  // 5. Utils
-  const clearLocalChatState = React.useCallback((chatId: string) => {
+  // 5. Utils (Estável)
+  const clearLocalChatState = useCallback((chatId: string) => {
     setChats(prev => {
       const newState = { ...prev };
       delete newState[chatId];
@@ -106,41 +100,31 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
     });
   }, [setChats, setIsTypingById]);
 
-  // 6. Construção do Objeto de Valor (Memoizado)
-  const value = useMemo<ChatStore>(() => ({
-    // Dados (Mudam)
+  // --- FASE 2.5: Divisão do Value para Otimização ---
+  
+  // A. Valores de Dados (Mudam frequentemente)
+  const dataValue = useMemo(() => ({
     chats,
     isTypingById,
-    isBotVoiceMode, 
+    isBotVoiceMode,
     isTTSPlaying,
     isTTSLoading,
     currentTTSMessageId,
-
-    // Funções (Estáveis)
-    loadInitialMessages,
-    loadMoreMessages,
-    sendMessage,
-    sendVoiceMessage, 
-    archiveAndStartNew,
-    sendMultipleAttachments,
-    sendAttachment,
-    playTTS,
-    stopTTS,
-    handleCopyMessage,
-    handleLikeMessage,
-    toggleBotVoiceMode, 
-    clearLocalChatState,
   }), [
     chats,
     isTypingById,
-    isBotVoiceMode, 
+    isBotVoiceMode,
     isTTSPlaying,
     isTTSLoading,
     currentTTSMessageId,
+  ]);
+
+  // B. Funções (Estáveis - mudam muito raramente ou nunca)
+  const functionsValue = useMemo(() => ({
     loadInitialMessages,
     loadMoreMessages,
     sendMessage,
-    sendVoiceMessage, 
+    sendVoiceMessage,
     archiveAndStartNew,
     sendMultipleAttachments,
     sendAttachment,
@@ -148,9 +132,29 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
     stopTTS,
     handleCopyMessage,
     handleLikeMessage,
-    toggleBotVoiceMode, 
+    toggleBotVoiceMode,
+    clearLocalChatState,
+  }), [
+    loadInitialMessages,
+    loadMoreMessages,
+    sendMessage,
+    sendVoiceMessage,
+    archiveAndStartNew,
+    sendMultipleAttachments,
+    sendAttachment,
+    playTTS,
+    stopTTS,
+    handleCopyMessage,
+    handleLikeMessage,
+    toggleBotVoiceMode,
     clearLocalChatState
   ]);
+
+  // C. Combinação Final (Trigger de re-render apenas quando A ou B mudam)
+  const value = useMemo<ChatStore>(() => ({
+    ...dataValue,
+    ...functionsValue,
+  }), [dataValue, functionsValue]);
 
   return <ChatContext.Provider value={value}>{children}</ChatContext.Provider>;
 };
@@ -163,42 +167,62 @@ export const useChatController = (chatId: string | null) => {
     throw new Error('useChatController must be used within ChatProvider');
   }
 
+  // Seletor simples de dados
   const chatData = chatId ? (ctx.chats[chatId] || initialChatData) : initialChatData;
   const isTyping = chatId ? !!ctx.isTypingById[chatId] : false;
 
+  // Construção do Controller Memoizado
+  // Aqui é onde a mágica acontece: mesmo que 'ctx' mude, se as propriedades específicas
+  // que este hook usa não mudarem, o objeto retornado deve ser referencialmente estável
+  // (na medida do possível, embora 'ctx' mudando force o hook a rodar).
   const controller = useMemo(() => ({
     ...chatData,
     isTyping,
-    // Propriedades globais
+    // Propriedades globais reativas
     isBotVoiceMode: ctx.isBotVoiceMode,
+    isTTSPlaying: ctx.isTTSPlaying,
+    isTTSLoading: ctx.isTTSLoading,
+    currentTTSMessageId: ctx.currentTTSMessageId,
     
+    // Funções Estáveis
     loadInitialMessages: () => chatId ? ctx.loadInitialMessages(chatId) : Promise.resolve(),
     loadMoreMessages: () => chatId ? ctx.loadMoreMessages(chatId) : Promise.resolve(),
-    
-    // --- AQUI: sendMessage não precisa mais receber isBotVoiceMode manual, o hook interno já usa
     sendMessage: (text: string) => chatId ? ctx.sendMessage(chatId, text) : Promise.resolve(),
-    
     sendVoiceMessage: (audioUri: string, durationMs: number) => 
       chatId ? ctx.sendVoiceMessage(chatId, audioUri, durationMs, ctx.isBotVoiceMode) : Promise.resolve(),
-
     archiveAndStartNew: () => chatId ? ctx.archiveAndStartNew(chatId) : Promise.resolve(null),
     sendAttachments: (files: AttachmentPickerResult[]) => chatId ? ctx.sendMultipleAttachments(chatId, files) : Promise.resolve(),
     sendAttachment: (file: AttachmentPickerResult) => chatId ? ctx.sendAttachment(chatId, file) : Promise.resolve(),
     handleLikeMessage: (msg: ChatMessage) => chatId ? ctx.handleLikeMessage(chatId, msg) : Promise.resolve(),
     
+    // Funções Globais
     playTTS: ctx.playTTS,
     stopTTS: ctx.stopTTS,
     toggleBotVoiceMode: ctx.toggleBotVoiceMode,
-    isTTSPlaying: ctx.isTTSPlaying,
-    isTTSLoading: ctx.isTTSLoading,
-    currentTTSMessageId: ctx.currentTTSMessageId,
     handleCopyMessage: ctx.handleCopyMessage,
     clearLocalChatState: ctx.clearLocalChatState,
   }), [
     chatId, 
-    chatData,
-    isTyping, 
-    ctx 
+    chatData, // muda quando chegam mensagens
+    isTyping, // muda ao enviar
+    ctx.isBotVoiceMode,
+    ctx.isTTSPlaying,
+    ctx.isTTSLoading,
+    ctx.currentTTSMessageId,
+    // Dependências de função (estáveis, vindas do functionsValue)
+    ctx.loadInitialMessages,
+    ctx.loadMoreMessages,
+    ctx.sendMessage,
+    ctx.sendVoiceMessage,
+    ctx.archiveAndStartNew,
+    ctx.sendMultipleAttachments,
+    ctx.sendAttachment,
+    ctx.handleLikeMessage,
+    ctx.playTTS,
+    ctx.stopTTS,
+    ctx.toggleBotVoiceMode,
+    ctx.handleCopyMessage,
+    ctx.clearLocalChatState
   ]);
 
   return controller;

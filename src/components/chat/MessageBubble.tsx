@@ -28,7 +28,6 @@ type MessageBubbleProps = {
   conversationId: string;
   onCopy?: (m: ChatMessage) => void;
   onLike?: (m: ChatMessage) => void;
-  onListen?: (m: ChatMessage) => void;
   onRewrite?: (m: ChatMessage) => void;
   onSuggestionPress?: (messageId: string, text: string) => void;
   onImagePress?: (imageUrl: string) => void;
@@ -51,38 +50,50 @@ const MessageBubbleComponent: React.FC<MessageBubbleProps> = ({
 }) => {
   const { t } = useTranslation();
   const scheme = useColorScheme();
-  const theme = getTheme(scheme === 'dark');
-  const s = createChatStyles(theme);
+  const isDark = scheme === 'dark';
+
+  // --- FASE 2.4: Memoização de Estilos e Tema ---
+  // Isso evita recalcular estilos complexos a cada render se o tema não mudou
+  const theme = useMemo(() => getTheme(isDark), [isDark]);
+  const s = useMemo(() => createChatStyles(theme), [theme]);
+
   const isUser = message.role === 'user';
   
   const [expanded, setExpanded] = useState(false);
   const [showTranscription, setShowTranscription] = useState(false);
 
+  // O hook useChatController pode disparar re-renders se o contexto mudar.
+  // Como só precisamos dessas funções/estados específicos, garantimos que eles venham do Contexto otimizado.
   const { playTTS, isTTSPlaying, currentTTSMessageId } = useChatController(conversationId);
   
-  // Computações Simples
-  const shouldTruncate = message.content && message.content.length > MAX_TEXT_LENGTH;
-  const displayedContent = shouldTruncate && !expanded 
-    ? message.content.slice(0, MAX_TEXT_LENGTH) + '...' 
-    : message.content;
+  const isThisMessagePlaying = isTTSPlaying && currentTTSMessageId === message.id;
+  
+  // Computações Simples (Memoizadas para segurança, embora baratas)
+  const displayedContent = useMemo(() => {
+    const shouldTruncate = message.content && message.content.length > MAX_TEXT_LENGTH;
+    return shouldTruncate && !expanded 
+      ? message.content.slice(0, MAX_TEXT_LENGTH) + '...' 
+      : message.content;
+  }, [message.content, expanded]);
 
-  // Estilos condicionados (não inline)
-  const rowStyle = isUser ? s.rowRight : s.rowLeft;
-  const bubbleStyle = isUser ? s.bubbleUser : s.bubbleBot;
-  const textStyle = isUser ? s.userText : s.bubbleText;
+  const shouldTruncate = message.content && message.content.length > MAX_TEXT_LENGTH;
   const isPending = message.id.toString().startsWith('temp') || message.id.toString().length > 30;
   const shouldShowSuggestions = !isUser && !!message.suggestions?.length && isLastMessage;
   
-  const isThisMessagePlaying = isTTSPlaying && currentTTSMessageId === message.id;
   const hasAttachment = !!message.attachment_url;
   const isAudioMessage = message.attachment_type === 'audio';
   const isImageAttachment = message.attachment_type === 'image' || message.attachment_type?.startsWith('image/');
 
-  // Memoização de estilos complexos que dependem de props
+  // Estilos condicionados
+  const rowStyle = isUser ? s.rowRight : s.rowLeft;
+  const bubbleStyle = isUser ? s.bubbleUser : s.bubbleBot;
+  const textStyle = isUser ? s.userText : s.bubbleText;
+
   const markdownStyle = useMemo(() => StyleSheet.create({
     body: { ...textStyle },
-    strong: { fontWeight: 'bold' },
-  }), [textStyle]);
+    strong: { fontWeight: 'bold', color: textStyle.color },
+    link: { color: theme.brand.normal, textDecorationLine: 'underline' },
+  }), [textStyle, theme]);
 
   const documentStyle = useMemo(() => ({
     backgroundColor: isUser ? 'rgba(255, 255, 255, 0.2)' : theme.surfaceAlt,
@@ -94,7 +105,7 @@ const MessageBubbleComponent: React.FC<MessageBubbleProps> = ({
     color: isUser ? '#FFFFFF' : theme.textPrimary 
   }), [isUser, theme]);
 
-  // Handlers Memoizados com useCallback
+  // Handlers
   const handleImagePress = useCallback(() => {
     if (message.attachment_url && onImagePress && !isPending) {
       onImagePress(message.attachment_url);
@@ -120,12 +131,11 @@ const MessageBubbleComponent: React.FC<MessageBubbleProps> = ({
   const handleRewrite = useCallback(() => onRewrite?.(message), [onRewrite, message]);
   const handlePlayTTS = useCallback(() => playTTS(conversationId, message.id), [playTTS, conversationId, message.id]);
 
-  // Renderização
   return (
     <View style={rowStyle}>
       <View style={[s.bubbleContainer, bubbleStyle]}>
         
-        {/* 1. Mensagem de Áudio */}
+        {/* 1. Áudio */}
         {isAudioMessage && message.attachment_url ? (
           <View style={{ marginBottom: message.content ? 8 : 0 }}>
             <AudioMessagePlayer 
@@ -159,11 +169,11 @@ const MessageBubbleComponent: React.FC<MessageBubbleProps> = ({
             ) : null}
           </View>
         ) : (
-            /* 2. Conteúdo de Texto Padrão */
+            /* 2. Texto */
             message.content ? (
             <View>
                 <Markdown style={markdownStyle}>
-                {displayedContent}
+                  {displayedContent}
                 </Markdown>
                 {shouldTruncate && !expanded && (
                 <Pressable onPress={handleReadMore} style={{ marginTop: 4 }}>
@@ -283,7 +293,7 @@ const MessageBubbleComponent: React.FC<MessageBubbleProps> = ({
   );
 };
 
-// Extraí o item de sugestão para evitar recriar a função dentro do map
+// Subcomponente para evitar criação de função anônima no render
 const SuggestionItem = memo(({ label, messageId, onPress, disabled }: any) => {
     const handlePress = useCallback(() => onPress?.(messageId, label), [onPress, messageId, label]);
     return (
@@ -295,28 +305,42 @@ const SuggestionItem = memo(({ label, messageId, onPress, disabled }: any) => {
     );
 });
 
+// --- FASE 2.4: Comparação Rigorosa ---
 const arePropsEqual = (prev: MessageBubbleProps, next: MessageBubbleProps) => {
-  // 1. Checagem de ID e status visual crítico
-  const isSameId = prev.message.id === next.message.id;
-  const isSameLoading = prev.message.rewriting === next.message.rewriting;
-  const isSameLiked = prev.message.liked === next.message.liked;
-  const isSameSending = prev.isSendingSuggestion === next.isSendingSuggestion;
-  const isSameLast = prev.isLastMessage === next.isLastMessage;
+  const { message: m1 } = prev;
+  const { message: m2 } = next;
 
-  // 2. Checagem de conteúdo (importante para streaming)
-  const isSameContent = prev.message.content === next.message.content;
+  // 1. Identidade e Conteúdo
+  const contentChanged = m1.content !== m2.content;
+  const idChanged = m1.id !== m2.id;
   
-  // 3. Checagem de Mídia (Evita re-render do player de áudio)
-  const isSameAttachment = prev.message.attachment_url === next.message.attachment_url;
+  // 2. Estados de interação (Like, Rewrite, TTS)
+  const likedChanged = m1.liked !== m2.liked;
+  const rewritingChanged = m1.rewriting !== m2.rewriting;
+  
+  // 3. Anexos
+  const attachmentChanged = m1.attachment_url !== m2.attachment_url;
 
-  // 4. Checagem profunda de sugestões (array)
-  const prevSugg = prev.message.suggestions || [];
-  const nextSugg = next.message.suggestions || [];
-  const isSameSuggestions = prevSugg.length === nextSugg.length && 
-                            prevSugg.every((v, i) => v === nextSugg[i]);
+  // 4. Props de contexto do componente
+  const isLastChanged = prev.isLastMessage !== next.isLastMessage;
+  const sendingSuggestionChanged = prev.isSendingSuggestion !== next.isSendingSuggestion;
+  const conversationChanged = prev.conversationId !== next.conversationId;
 
-  return isSameId && isSameContent && isSameLiked && isSameLoading && 
-         isSameSending && isSameLast && isSameAttachment && isSameSuggestions;
+  // Se qualquer um desses mudou, RETORNA FALSE (deve renderizar)
+  if (
+    idChanged || 
+    contentChanged || 
+    likedChanged || 
+    rewritingChanged || 
+    attachmentChanged ||
+    isLastChanged ||
+    sendingSuggestionChanged || 
+    conversationChanged
+  ) {
+    return false;
+  }
+
+  return true;
 };
 
 export const MessageBubble = memo(MessageBubbleComponent, arePropsEqual);

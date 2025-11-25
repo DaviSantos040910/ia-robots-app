@@ -1,7 +1,7 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
-import { Vibration, Alert } from 'react-native'; // Adicionado Alert
+import { Vibration, Alert } from 'react-native';
 import * as FileSystem from 'expo-file-system/legacy';
-import { useTranslation } from 'react-i18next'; // Adicionado i18n
+import { useTranslation } from 'react-i18next';
 import { useAudioRecorder } from '../../../hooks/useAudioRecorder';
 import { useTTS } from '../../../hooks/useTTS';
 import { chatService } from '../../../services/chatService';
@@ -19,7 +19,15 @@ export const useVoiceCallLogic = ({ chatId, onError }: UseVoiceCallLogicProps) =
   const [feedbackText, setFeedbackText] = useState<string>('');
   const abortControllerRef = useRef<AbortController | null>(null);
   
-  const { startRecording, stopRecording, cancelRecording: cancelAudioRecorder, duration } = useAudioRecorder();
+  // Agora expomos o recordingState do hook de áudio
+  const { 
+    startRecording, 
+    stopRecording, 
+    cancelRecording: cancelAudioRecorder, 
+    duration, 
+    recordingState 
+  } = useAudioRecorder();
+  
   const { playTTS, stopTTS, isPlaying: isTTSPlaying, isLoading: isTTSLoading } = useTTS();
 
   useEffect(() => {
@@ -58,36 +66,35 @@ export const useVoiceCallLogic = ({ chatId, onError }: UseVoiceCallLogicProps) =
 
     try {
       const audioUri = await stopRecording();
-      // Usamos a duration do hook, que é atualizada enquanto grava
       const finalDuration = duration; 
 
       Vibration.vibrate(50);
 
+      // --- FASE 1.2: Validação de Nulo (Early Return) ---
       if (!audioUri) {
+        console.warn('[VoiceLogic] Stop retornou null ou foi cancelado. Resetando para IDLE.');
         setCallState('IDLE');
         return;
       }
 
-      // --- VALIDAÇÃO DE SEGURANÇA 1: Duração Mínima ---
-      if (finalDuration < 1000) { // Menos de 1 segundo
-        console.warn('[VoiceLogic] Áudio muito curto (< 1s). Descartando.');
+      // --- FASE 1.2: Validação de Duração Mínima (500ms) ---
+      if (finalDuration < 500) { 
+        console.warn(`[VoiceLogic] Áudio muito curto (${finalDuration}ms). Descarte silencioso.`);
         setCallState('IDLE');
-        // Opcional: Feedback sutil
-        // if (onError) onError("Fale por mais tempo.");
         return;
       }
 
-      // --- VALIDAÇÃO DE SEGURANÇA 2: Tamanho do Arquivo ---
+      // --- FASE 1.3: Validação de Arquivo (Integridade) ---
       try {
         const fileInfo = await FileSystem.getInfoAsync(audioUri);
-        if (!fileInfo.exists || fileInfo.size === 0) {
-            console.warn('[VoiceLogic] Arquivo de áudio vazio ou inexistente.');
+        if (!fileInfo.exists || fileInfo.size <= 1024) { // < 1KB é provavelmente cabeçalho vazio
+            console.warn(`[VoiceLogic] Arquivo inválido ou muito pequeno (${fileInfo.exists ? fileInfo.size : '0'} bytes).`);
             setCallState('IDLE');
             if (onError) onError(t('voiceCall.errors.emptyAudio'));
             return;
         }
       } catch (fsError) {
-          console.warn('[VoiceLogic] Falha ao verificar arquivo (continuando):', fsError);
+          console.warn('[VoiceLogic] Falha ao verificar integridade do arquivo (ignorando):', fsError);
       }
 
       setCallState('PROCESSING');
@@ -141,6 +148,7 @@ export const useVoiceCallLogic = ({ chatId, onError }: UseVoiceCallLogicProps) =
 
   return {
     callState,
+    recordingState, // --- FASE 1.2: Exposição do estado do gravador
     startRecordingInCall,
     stopRecordingAndSend,
     cancelInteraction,

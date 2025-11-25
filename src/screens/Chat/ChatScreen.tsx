@@ -41,7 +41,6 @@ import { createChatStyles, getTheme } from './Chat.styles';
 import { RootStackParamList } from '../../types/navigation';
 import { Spacing } from '../../theme/spacing';
 import { ChatMessage } from '../../types/chat';
-import { useHeaderHeight } from '@react-navigation/elements'; // Import opcional se usar header nativo, mas útil para cálculo
 
 type ChatScreenProps = NativeStackScreenProps<RootStackParamList, 'ChatScreen'>;
 
@@ -250,6 +249,13 @@ const ChatScreen: React.FC = () => {
 
   const keyExtractor = useCallback((item: ChatMessage) => item.id ? item.id.toString() : `temp-${Math.random()}`, []);
 
+  // --- FASE 2.1: Performance da Lista (getItemLayout) ---
+  // Estimativa de altura para evitar cálculos pesados de layout durante o scroll rápido.
+  // 100px é uma média razoável para mensagens de texto curtas/médias.
+  const getItemLayout = useCallback((data: any, index: number) => (
+    { length: 100, offset: 100 * index, index }
+  ), []);
+
   const uniqueMessages = useMemo(() => {
     const seenIds = new Set();
     return messages.filter(msg => {
@@ -280,9 +286,10 @@ const ChatScreen: React.FC = () => {
   }
 
   return (
-    // Use edges={['top']} e remova 'bottom' para controlar a área inferior manualmente
-    // isso evita conflito com o KeyboardAvoidingView
-    <SafeAreaView style={s.screen} edges={['top', 'left', 'right']}>
+    // --- FASE 2.2: Correção do Teclado ---
+    // Usamos edges apenas 'top' para que a SafeAreaView não adicione padding inferior duplo
+    // quando combinada com o KeyboardAvoidingView e o Bottom Navigation.
+    <SafeAreaView style={s.screen} edges={['top']}>
       <ChatHeader
         title={bootstrap.bot.name}
         subtitle={bootstrap.bot.handle}
@@ -298,13 +305,12 @@ const ChatScreen: React.FC = () => {
       />
 
       {/* CORREÇÃO CRÍTICA TECLADO:
-         1. No Android com 'adjustResize', o KeyboardAvoidingView deve ser DESABILITADO ou ter behavior={undefined}.
-         2. No iOS, behavior='padding' e offset calibrado.
+         1. No Android, 'behavior' undefined é melhor com 'windowSoftInputMode="adjustResize"' no app.json.
+         2. No iOS, 'padding' é necessário, e o offset compensa o header.
       */}
       <KeyboardAvoidingView
         style={s.keyboardAvoidingView}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        // Aumente este valor se o header for alto (ex: 90-100)
         keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
       >
         <FlatList
@@ -313,13 +319,15 @@ const ChatScreen: React.FC = () => {
           renderItem={renderMessage}
           inverted
           style={s.flatList}
-          contentContainerStyle={[s.flatListContent, { paddingBottom: 20 }]} 
+          // --- FASE 2.1: Tuning de Performance e Padding ---
+          contentContainerStyle={[s.flatListContent, { paddingBottom: 16 }]} 
           
-          initialNumToRender={10}          
-          maxToRenderPerBatch={5}          
-          windowSize={11}                  
+          initialNumToRender={15}          
+          maxToRenderPerBatch={10}          
+          windowSize={21}                  
           updateCellsBatchingPeriod={50}   
           removeClippedSubviews={Platform.OS === 'android'}
+          getItemLayout={getItemLayout}
           maintainVisibleContentPosition={{ minIndexForVisible: 0 }}
           
           extraData={uniqueMessages}

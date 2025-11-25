@@ -22,6 +22,7 @@ const VoiceCallScreen: React.FC<Props> = ({ route, navigation }) => {
 
   const { 
     callState, 
+    recordingState, // --- FASE 1.2: Usando o estado do gravador
     startRecordingInCall, 
     stopRecordingAndSend, 
     cancelInteraction,
@@ -37,6 +38,11 @@ const VoiceCallScreen: React.FC<Props> = ({ route, navigation }) => {
   };
 
   const statusConfig = useMemo(() => {
+    // --- FASE 1.3: Feedback Visual de Inicialização ---
+    if (recordingState === 'initializing') {
+      return { text: t('voiceCall.status.preparing'), color: theme.textSecondary };
+    }
+
     switch (callState) {
       case 'RECORDING':
         return { text: t('voiceCall.status.listening'), color: '#FF4B4B' };
@@ -48,7 +54,7 @@ const VoiceCallScreen: React.FC<Props> = ({ route, navigation }) => {
       default:
         return { text: t('voiceCall.status.idle'), color: theme.textSecondary };
     }
-  }, [callState, theme, t]);
+  }, [callState, recordingState, theme, t]); // Adicionado recordingState nas deps
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]} edges={['top', 'bottom']}>
@@ -103,19 +109,22 @@ const VoiceCallScreen: React.FC<Props> = ({ route, navigation }) => {
         <Pressable
           onPressIn={startRecordingInCall}
           onPressOut={stopRecordingAndSend}
-          disabled={callState === 'PROCESSING'}
+          // --- FASE 1.3: Desabilita botão durante processamento ou inicialização ---
+          disabled={callState === 'PROCESSING' || recordingState === 'initializing'}
+          accessibilityHint={recordingState === 'initializing' ? t('voiceCall.status.preparing') : undefined}
           style={({ pressed }) => [
             styles.primaryButton,
             { 
               backgroundColor: callState === 'RECORDING' ? '#FF4B4B' : theme.brand.normal,
               transform: [{ scale: pressed ? 1.1 : 1 }],
-              opacity: callState === 'PROCESSING' ? 0.5 : 1
+              // Ajuste visual de opacidade
+              opacity: (callState === 'PROCESSING' || recordingState === 'initializing') ? 0.5 : 1
             }
           ]}
           accessibilityLabel={t('voiceCall.accessibility.mic')}
           accessibilityRole="button"
         >
-            {callState === 'PROCESSING' ? (
+            {callState === 'PROCESSING' || recordingState === 'initializing' ? (
                 <ActivityIndicator color="#FFFFFF" size="large" />
             ) : (
                 <Feather name={callState === 'RECORDING' ? "mic" : "mic"} size={40} color="#FFFFFF" />

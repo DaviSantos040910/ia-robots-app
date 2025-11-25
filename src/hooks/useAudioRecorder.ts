@@ -3,52 +3,59 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { Audio } from 'expo-av';
 
-/**
- * Estados possíveis da gravação de áudio
- */
-export type RecordingState = 'idle' | 'recording' | 'paused';
+export type RecordingState = 'idle' | 'initializing' | 'recording' | 'paused' | 'stopping';
 
-/**
- * Hook personalizado para gerenciar gravação de áudio
- * Permite iniciar, pausar, retomar, parar e cancelar gravações
- */
 export const useAudioRecorder = () => {
   const [recordingState, setRecordingState] = useState<RecordingState>('idle');
   const [duration, setDuration] = useState<number>(0);
   
   const recordingRef = useRef<Audio.Recording | null>(null);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const isInitializingRef = useRef(false);
 
-  // --- CLEANUP FUNCTION (CORREÇÃO DE MEMORY LEAK) ---
   useEffect(() => {
     return () => {
-      // Limpa o timer
-      if (timerRef.current) {
-        clearInterval(timerRef.current);
-      }
-      
-      // Para e descarrega a gravação se estiver ativa
-      if (recordingRef.current) {
-        try {
-          recordingRef.current.stopAndUnloadAsync();
-        } catch (error) {
-          console.warn('Erro ao limpar gravação no unmount:', error);
-        }
-        recordingRef.current = null;
-      }
+      cleanUp();
     };
   }, []);
 
+  const cleanUp = useCallback(() => {
+    if (timerRef.current) {
+      clearInterval(timerRef.current);
+      timerRef.current = null;
+    }
+    
+    if (recordingRef.current) {
+      try {
+        recordingRef.current.stopAndUnloadAsync();
+      } catch (error) {
+        console.warn('[AudioRecorder] Aviso: Erro ao limpar gravação no unmount (ignorado):', error);
+      }
+      recordingRef.current = null;
+    }
+  }, []);
+
   const startRecording = useCallback(async (): Promise<boolean> => {
+    if (isInitializingRef.current) {
+        console.warn('[AudioRecorder] Bloqueio: Já existe uma inicialização em andamento.');
+        return false;
+    }
+
+    isInitializingRef.current = true;
+    setRecordingState('initializing'); 
+
     try {
       const permission = await Audio.requestPermissionsAsync();
       if (permission.status !== 'granted') {
+        console.warn('[AudioRecorder] Permissão de áudio negada.');
+        setRecordingState('idle');
+        isInitializingRef.current = false;
         return false;
       }
 
       await Audio.setAudioModeAsync({
         allowsRecordingIOS: true,
-        playsInSilentModeIOS: true,
+        playsInSilentModeIOS: true, 
       });
 
       const { recording } = await Audio.Recording.createAsync(
@@ -56,16 +63,27 @@ export const useAudioRecorder = () => {
       );
 
       recordingRef.current = recording;
+      
       setRecordingState('recording');
       setDuration(0);
+      isInitializingRef.current = false;
 
+      // --- FASE 3.1: Timer Otimizado (500ms) ---
+      // Atualiza a cada 500ms para reduzir re-renders.
+      // A precisão visual de segundos é mantida.
       timerRef.current = setInterval(() => {
-        setDuration((prev) => prev + 100);
-      }, 100);
+        setDuration((prev) => prev + 500);
+      }, 500);
 
       return true;
     } catch (err) {
-      console.error('[AudioRecorder] Erro ao iniciar:', err);
+      console.error('[AudioRecorder] Erro fatal ao iniciar:', err);
+      setRecordingState('idle');
+      isInitializingRef.current = false;
+      if (recordingRef.current) {
+          try { await recordingRef.current.stopAndUnloadAsync(); } catch(e) {}
+          recordingRef.current = null;
+      }
       return false;
     }
   }, []);
@@ -89,16 +107,27 @@ export const useAudioRecorder = () => {
     try {
       await recordingRef.current.startAsync();
       setRecordingState('recording');
+      // Reinicia timer com intervalo otimizado
       timerRef.current = setInterval(() => {
-        setDuration((prev) => prev + 100);
-      }, 100);
+        setDuration((prev) => prev + 500);
+      }, 500);
     } catch (err) {
       console.error('[AudioRecorder] Erro ao retomar:', err);
     }
   }, []);
 
   const stopRecording = useCallback(async (): Promise<string | null> => {
-    if (!recordingRef.current) return null;
+    if (isInitializingRef.current) {
+        await new Promise(resolve => setTimeout(resolve, 300));
+    }
+
+    if (!recordingRef.current) {
+        setRecordingState('idle');
+        setDuration(0);
+        return null;
+    }
+
+    setRecordingState('stopping');
 
     try {
       if (timerRef.current) {
@@ -106,19 +135,38 @@ export const useAudioRecorder = () => {
         timerRef.current = null;
       }
 
-      await recordingRef.current.stopAndUnloadAsync();
-      await Audio.setAudioModeAsync({ allowsRecordingIOS: false }); // Restaura modo
+      const status = await recordingRef.current.getStatusAsync();
+      // Mantemos 100ms como guard hard-limit técnico, mas a lógica de negócio usará 500ms depois
+      if (status.isRecording && status.durationMillis < 100) {
+          await recordingRef.current.stopAndUnloadAsync();
+          recordingRef.current = null;
+          setRecordingState('idle');
+          setDuration(0);
+          return null;
+      }
 
+      await recordingRef.current.stopAndUnloadAsync();
       const uri = recordingRef.current.getURI();
       
-      // Reset completo
+      await Audio.setAudioModeAsync({ allowsRecordingIOS: false }); 
+
       recordingRef.current = null;
       setRecordingState('idle');
       setDuration(0);
 
       return uri;
+
     } catch (err) {
-      console.error('[AudioRecorder] Erro ao parar:', err);
+      console.error('[AudioRecorder] Erro no stopRecording:', err);
+      try {
+          if (recordingRef.current) {
+              await recordingRef.current.stopAndUnloadAsync();
+          }
+      } catch (cleanupErr) {}
+      
+      recordingRef.current = null;
+      setRecordingState('idle');
+      setDuration(0);
       return null;
     }
   }, []);
@@ -141,6 +189,7 @@ export const useAudioRecorder = () => {
       setDuration(0);
     } catch (err) {
       console.error('[AudioRecorder] Erro ao cancelar:', err);
+      setRecordingState('idle');
     }
   }, []);
 
