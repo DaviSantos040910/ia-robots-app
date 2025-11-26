@@ -29,13 +29,11 @@ export const useChatAudioLogic = ({ onSendVoice }: UseChatAudioLogicProps) => {
   const handleStopRecording = useCallback(async () => {
     try {
       const audioUri = await audioRecorder.stopRecording();
-      // Usamos a duration do hook, que agora é mais confiável com o timer de 500ms
       const duration = audioRecorder.duration;
 
       if (!audioUri) return;
 
-      // --- FASE 3.3: Validação Global Silenciosa ---
-      // Áudios menores que 500ms são considerados toques acidentais e descartados sem incomodar o usuário.
+      // Validação Global Silenciosa
       if (duration < 500) {
         console.log('[useChatAudioLogic] Áudio muito curto (< 500ms). Descartando silenciosamente.');
         return;

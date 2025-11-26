@@ -132,8 +132,7 @@ const MessageBubbleComponent: React.FC<MessageBubbleProps> = ({
   const handlePlayTTS = useCallback(() => playTTS(conversationId, message.id), [playTTS, conversationId, message.id]);
 
   // --- PERFORMANCE OPTIMIZATION ---
-  // Memoize heavy rendering parts to prevent re-layout/re-render when Context updates (e.g. isTyping)
-  // but this specific message hasn't changed.
+  // Memoize heavy rendering parts to prevent re-layout/re-render when Context updates
 
   const renderedContent = useMemo(() => {
     if (isAudioMessage && message.attachment_url) {
@@ -142,6 +141,8 @@ const MessageBubbleComponent: React.FC<MessageBubbleProps> = ({
             <AudioMessagePlayer 
               uri={message.attachment_url} 
               isUser={isUser}
+              // Passa a duração vinda do backend (ou otimista)
+              duration={message.duration} 
             />
             
             {message.content ? (
@@ -190,7 +191,8 @@ const MessageBubbleComponent: React.FC<MessageBubbleProps> = ({
   }, [
     isAudioMessage, 
     message.attachment_url, 
-    message.content, 
+    message.content,
+    message.duration, // Dependência crucial para atualizar duração
     isUser, 
     showTranscription, 
     textStyle, 
@@ -330,7 +332,6 @@ const MessageBubbleComponent: React.FC<MessageBubbleProps> = ({
   return (
     <View style={rowStyle}>
       <View style={[s.bubbleContainer, bubbleStyle]}>
-        
         {renderedContent}
         {renderedAttachment}
         {renderedActions}
@@ -370,26 +371,21 @@ const arePropsEqual = (prev: MessageBubbleProps, next: MessageBubbleProps) => {
   const { message: m1 } = prev;
   const { message: m2 } = next;
 
-  // 1. IDs diferentes = re-render obrigatório
+  // 1. IDs diferentes
   if (m1.id !== m2.id) return false;
 
-  // 2. Conteúdo alterado (texto, anexo)
-  // Comparação simples de string é rápida. Se for igual, economiza render.
+  // 2. Conteúdo (texto, anexo, duração)
   if (m1.content !== m2.content) return false;
   if (m1.attachment_url !== m2.attachment_url) return false;
+  if (m1.duration !== m2.duration) return false; // Importante verificar mudança de duração
 
-  // 3. Estados de interação que afetam a UI (Like, Rewrite)
+  // 3. Estados de interação
   if (m1.liked !== m2.liked) return false;
   if (m1.rewriting !== m2.rewriting) return false;
 
   // 4. Props contextuais
   if (prev.isLastMessage !== next.isLastMessage) return false;
   if (prev.isSendingSuggestion !== next.isSendingSuggestion) return false;
-  
-  // 5. Evitar re-render se apenas o contexto mudou mas não afeta este bubble
-  // Nota: Como usamos useChatController internamente, o componente ainda pode renderizar
-  // se o contexto mudar. O memo aqui protege apenas contra props do pai.
-  // Para proteção total, a lógica de contexto deveria ser elevada ou seletora.
   
   return true;
 };

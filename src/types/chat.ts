@@ -14,6 +14,7 @@ export type ChatMessage = {
   attachment_url?: string | null;
   attachment_type?: string | null;
   original_filename?: string | null;
+    duration?: number; 
 
 };
 

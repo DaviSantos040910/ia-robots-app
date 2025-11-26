@@ -19,7 +19,7 @@ import { Colors } from '../../theme/colors';
 
 type AudioMessagePlayerProps = {
   uri: string;
-  duration?: number; 
+  duration?: number; // Recebe duração do banco de dados
   isUser: boolean;
 };
 
@@ -33,12 +33,10 @@ const AudioMessagePlayerComponent: React.FC<AudioMessagePlayerProps> = ({
   const theme = getTheme(scheme === 'dark');
   const s = createChatStyles(theme);
 
-  // Refs para acesso seguro em callbacks assíncronos
   const soundRef = useRef<Audio.Sound | null>(null);
   const isMounted = useRef(true);
 
   const [isPlaying, setIsPlaying] = useState(false);
-  // FASE 2.3: Inicia false, pois não carregamos mais automaticamente
   const [isLoading, setIsLoading] = useState(false); 
   const [isLoaded, setIsLoaded] = useState(false);
   const [hasError, setHasError] = useState(false);
@@ -61,16 +59,19 @@ const AudioMessagePlayerComponent: React.FC<AudioMessagePlayerProps> = ({
     thumb: theme.brand.normal
   }), [isUser, theme]);
 
-  // Cleanup on unmount
   useEffect(() => {
     isMounted.current = true;
+    // Inicializa com a duração passada via props se disponível
+    if (initialDuration > 0) {
+        setDurationMillis(initialDuration);
+    }
     return () => {
       isMounted.current = false;
       if (soundRef.current) {
-        soundRef.current.unloadAsync(); // Libera memória
+        soundRef.current.unloadAsync();
       }
     };
-  }, []); // Array vazio, roda apenas no unmount
+  }, [initialDuration]);
 
   const onPlaybackStatusUpdate = useCallback((status: AVPlaybackStatus) => {
     if (!isMounted.current) return;
@@ -105,7 +106,7 @@ const AudioMessagePlayerComponent: React.FC<AudioMessagePlayerProps> = ({
 
       const { sound: newSound, status } = await Audio.Sound.createAsync(
         { uri },
-        { shouldPlay: true }, // Toca assim que carregar
+        { shouldPlay: true },
         onPlaybackStatusUpdate
       );
 
@@ -119,7 +120,6 @@ const AudioMessagePlayerComponent: React.FC<AudioMessagePlayerProps> = ({
             if (status.durationMillis) setDurationMillis(status.durationMillis);
         }
       } else {
-        // Se desmontou enquanto carregava
         newSound.unloadAsync();
       }
 
@@ -133,15 +133,13 @@ const AudioMessagePlayerComponent: React.FC<AudioMessagePlayerProps> = ({
   };
 
   const handlePlayPause = async () => {
-    if (isLoading) return; // Evita cliques duplos durante loading
+    if (isLoading) return;
 
-    // 1. Se ainda não carregou, carrega e toca (Lazy Load)
     if (!soundRef.current) {
         await loadAndPlaySound();
         return;
     }
 
-    // 2. Se já carregou, controla Play/Pause
     try {
       if (isPlaying) {
         await soundRef.current.pauseAsync();
@@ -159,8 +157,6 @@ const AudioMessagePlayerComponent: React.FC<AudioMessagePlayerProps> = ({
   };
 
   const handleSeek = async (event: GestureResponderEvent) => {
-    // Se o usuário tentar buscar antes de carregar, carregamos primeiro? 
-    // Ou bloqueamos? Bloquear é mais seguro UX para evitar comportamentos estranhos.
     if (!soundRef.current || !isLoaded || barWidth === 0 || !durationMillis || hasError) return;
     
     const { locationX } = event.nativeEvent;
@@ -205,7 +201,7 @@ const AudioMessagePlayerComponent: React.FC<AudioMessagePlayerProps> = ({
     <View style={s.audioPlayerContainer}>
       <Pressable 
         onPress={handlePlayPause} 
-        disabled={hasError} // Removemos isLoading do disabled para permitir mostrar o spinner dentro
+        disabled={hasError}
         style={s.audioPlayButton}
         hitSlop={10}
         accessibilityLabel={hasError ? t('chat.audioError') : (isPlaying ? t('common.pause') : t('common.play'))}
@@ -236,7 +232,7 @@ const AudioMessagePlayerComponent: React.FC<AudioMessagePlayerProps> = ({
         <Pressable 
           style={s.audioSeekTouchArea} 
           onPress={handleSeek}
-          disabled={!isLoaded || hasError} // Desabilita seek se não carregado
+          disabled={!isLoaded || hasError}
           accessibilityLabel={t('chat.accessibility.audioProgress')}
           accessibilityRole="adjustable"
         />
@@ -253,5 +249,5 @@ const AudioMessagePlayerComponent: React.FC<AudioMessagePlayerProps> = ({
 };
 
 export const AudioMessagePlayer = memo(AudioMessagePlayerComponent, (prev, next) => {
-    return prev.uri === next.uri && prev.isUser === next.isUser;
+    return prev.uri === next.uri && prev.isUser === next.isUser && prev.duration === next.duration;
 });

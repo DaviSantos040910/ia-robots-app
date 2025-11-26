@@ -12,8 +12,7 @@ export const useAudioRecorder = () => {
   const recordingRef = useRef<Audio.Recording | null>(null);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const isInitializingRef = useRef(false);
-  
-  // --- CRASH FIX: Ref para rastrear o tempo exato de início ---
+  // --- CRASH FIX: Rastreamento de tempo de início real
   const startTimeRef = useRef<number | null>(null);
 
   useEffect(() => {
@@ -61,7 +60,7 @@ export const useAudioRecorder = () => {
         playsInSilentModeIOS: true, 
       });
 
-      // --- CRASH FIX: Registra o tempo antes de criar a gravação ---
+      // Registra tempo exato antes de criar
       startTimeRef.current = Date.now();
 
       const { recording } = await Audio.Recording.createAsync(
@@ -74,6 +73,7 @@ export const useAudioRecorder = () => {
       setDuration(0);
       isInitializingRef.current = false;
 
+      // Otimizado para 500ms
       timerRef.current = setInterval(() => {
         setDuration((prev) => prev + 500);
       }, 500);
@@ -119,7 +119,6 @@ export const useAudioRecorder = () => {
   }, []);
 
   const stopRecording = useCallback(async (): Promise<string | null> => {
-    // Guard de inicialização
     if (isInitializingRef.current) {
         await new Promise(resolve => setTimeout(resolve, 300));
     }
@@ -132,11 +131,11 @@ export const useAudioRecorder = () => {
 
     setRecordingState('stopping');
 
-    // --- CRASH FIX: Safety Wait (Garante buffer mínimo de áudio) ---
+    // --- Safety Wait (Buffer Mínimo) ---
     if (startTimeRef.current) {
         const elapsed = Date.now() - startTimeRef.current;
         if (elapsed < 500) {
-            console.log(`[AudioRecorder] Gravação muito curta (${elapsed}ms). Aguardando buffer...`);
+            console.log(`[AudioRecorder] Gravação curta (${elapsed}ms). Aguardando buffer...`);
             await new Promise(resolve => setTimeout(resolve, 500 - elapsed));
         }
     }
@@ -147,19 +146,17 @@ export const useAudioRecorder = () => {
         timerRef.current = null;
       }
 
-      // --- CRASH FIX: Try-Catch Específico para "no valid audio data" ---
+      // Try-catch específico para erro de 'no valid audio data'
       try {
           await recordingRef.current.stopAndUnloadAsync();
       } catch (stopError: any) {
-          // Se for o erro de "no valid audio data", tratamos como um cancelamento silencioso
           if (stopError.message && stopError.message.includes('no valid audio data')) {
-              console.warn('[AudioRecorder] Erro conhecido: Gravação sem dados válidos. Descartando silenciosamente.');
+              console.warn('[AudioRecorder] Erro conhecido: Gravação sem dados válidos. Descartando.');
               recordingRef.current = null;
               setRecordingState('idle');
               setDuration(0);
-              return null; // Retorna null para indicar que não houve gravação válida
+              return null; 
           }
-          // Se for outro erro, relança para cair no catch principal
           throw stopError;
       }
 
@@ -177,7 +174,6 @@ export const useAudioRecorder = () => {
       console.error('[AudioRecorder] Erro crítico no stopRecording:', err);
       try {
           if (recordingRef.current) {
-              // Tenta forçar unload se a referência ainda existir
               await recordingRef.current.stopAndUnloadAsync();
           }
       } catch (cleanupErr) {}

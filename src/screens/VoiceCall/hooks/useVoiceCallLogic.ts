@@ -69,9 +69,7 @@ export const useVoiceCallLogic = ({ chatId, onError }: UseVoiceCallLogicProps) =
 
       Vibration.vibrate(50);
 
-      // --- CRASH FIX: Lidar com retorno nulo silenciosamente ---
-      // Se stopRecording retornar null (devido a erro "no valid audio data" ou tempo curto),
-      // apenas resetamos o estado para IDLE sem mostrar erro para o usuário.
+      // Trata retorno nulo silenciosamente
       if (!audioUri) {
         console.log('[VoiceLogic] Gravação inválida ou cancelada. Resetando para IDLE.');
         setCallState('IDLE');
@@ -89,8 +87,6 @@ export const useVoiceCallLogic = ({ chatId, onError }: UseVoiceCallLogicProps) =
         if (!fileInfo.exists || fileInfo.size <= 1024) {
             console.warn(`[VoiceLogic] Arquivo inválido ou muito pequeno (${fileInfo.exists ? fileInfo.size : '0'} bytes).`);
             setCallState('IDLE');
-            // Aqui podemos optar por não mostrar erro para ser menos intrusivo em falhas de micro-áudio
-            // if (onError) onError(t('voiceCall.errors.emptyAudio'));
             return;
         }
       } catch (fsError) {
