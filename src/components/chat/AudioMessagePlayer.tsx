@@ -198,7 +198,8 @@ const AudioMessagePlayerComponent: React.FC<AudioMessagePlayerProps> = ({
   }), [progressPercent, colors.thumb, hasError]);
 
   return (
-    <View style={s.audioPlayerContainer}>
+    // --- CORREÇÃO: minHeight adicionado para evitar layout shift ---
+    <View style={[s.audioPlayerContainer, { minHeight: 50 }]}>
       <Pressable 
         onPress={handlePlayPause} 
         disabled={hasError}

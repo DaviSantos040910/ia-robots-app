@@ -61,15 +61,20 @@ const MessageBubbleComponent: React.FC<MessageBubbleProps> = ({
   const [expanded, setExpanded] = useState(false);
   const [showTranscription, setShowTranscription] = useState(false);
 
-  const { playTTS, isTTSPlaying, currentTTSMessageId } = useChatController(conversationId);
+  // --- TAREFA: Adicionado isTTSLoading ---
+  const { playTTS, isTTSPlaying, currentTTSMessageId, isTTSLoading } = useChatController(conversationId);
   
   const isThisMessagePlaying = isTTSPlaying && currentTTSMessageId === message.id;
   
-  // Otimização: Calcular apenas se não for mensagem de áudio para evitar processamento desnecessário
+  // --- NOVA LÓGICA DE FEEDBACK VISUAL ---
+  const isLoadingThisMessage = isTTSLoading && currentTTSMessageId === message.id;
+  // Desabilita se estiver carregando qualquer coisa para evitar conflito (race condition)
+  const isTTSDisabled = isTTSLoading; 
+
   const isAudioMessage = message.attachment_type === 'audio';
   
   const displayedContent = useMemo(() => {
-    if (isAudioMessage) return ''; // Não precisa calcular para áudio
+    if (isAudioMessage) return '';
     const shouldTruncate = message.content && message.content.length > MAX_TEXT_LENGTH;
     return shouldTruncate && !expanded 
       ? message.content.slice(0, MAX_TEXT_LENGTH) + '...' 
@@ -81,7 +86,6 @@ const MessageBubbleComponent: React.FC<MessageBubbleProps> = ({
   const shouldShowSuggestions = !isUser && !!message.suggestions?.length && isLastMessage;
   
   const hasAttachment = !!message.attachment_url;
-  // isAudioMessage já calculado acima
   const isImageAttachment = message.attachment_type === 'image' || message.attachment_type?.startsWith('image/');
 
   // Estilos condicionados
@@ -131,9 +135,6 @@ const MessageBubbleComponent: React.FC<MessageBubbleProps> = ({
   const handleRewrite = useCallback(() => onRewrite?.(message), [onRewrite, message]);
   const handlePlayTTS = useCallback(() => playTTS(conversationId, message.id), [playTTS, conversationId, message.id]);
 
-  // --- PERFORMANCE OPTIMIZATION ---
-  // Memoize heavy rendering parts to prevent re-layout/re-render when Context updates
-
   const renderedContent = useMemo(() => {
     if (isAudioMessage && message.attachment_url) {
       return (
@@ -141,7 +142,6 @@ const MessageBubbleComponent: React.FC<MessageBubbleProps> = ({
             <AudioMessagePlayer 
               uri={message.attachment_url} 
               isUser={isUser}
-              // Passa a duração vinda do backend (ou otimista)
               duration={message.duration} 
             />
             
@@ -192,7 +192,7 @@ const MessageBubbleComponent: React.FC<MessageBubbleProps> = ({
     isAudioMessage, 
     message.attachment_url, 
     message.content,
-    message.duration, // Dependência crucial para atualizar duração
+    message.duration, 
     isUser, 
     showTranscription, 
     textStyle, 
@@ -289,16 +289,24 @@ const MessageBubbleComponent: React.FC<MessageBubbleProps> = ({
                 {!isAudioMessage && (
                     <Pressable 
                     onPress={handlePlayTTS}
+                    disabled={isTTSDisabled} // Desabilita se houver carregamento ativo
                     style={[
                         s.actionButton,
-                        isThisMessagePlaying && s.actionButtonFilled
+                        isThisMessagePlaying && s.actionButtonFilled,
+                        { opacity: isTTSDisabled ? 0.5 : 1 } // Feedback visual de desabilitado
                     ]}
                     >
-                    <Feather 
-                        name={isThisMessagePlaying ? "volume-2" : "volume-1"} 
-                        size={16} 
-                        color={isThisMessagePlaying ? theme.brand.normal : theme.textSecondary} 
-                    />
+                    {isLoadingThisMessage ? (
+                        // Mostra spinner se estiver carregando ESTA mensagem
+                        <ActivityIndicator size="small" color={theme.brand.normal} />
+                    ) : (
+                        // Ícone normal
+                        <Feather 
+                            name={isThisMessagePlaying ? "volume-2" : "volume-1"} 
+                            size={16} 
+                            color={isThisMessagePlaying ? theme.brand.normal : theme.textSecondary} 
+                        />
+                    )}
                     </Pressable>
                 )}
               </View>
@@ -326,7 +334,10 @@ const MessageBubbleComponent: React.FC<MessageBubbleProps> = ({
     handlePlayTTS, 
     isThisMessagePlaying, 
     handleRewrite, 
-    message.rewriting
+    message.rewriting,
+    // Novas dependências adicionadas ao useMemo
+    isTTSDisabled,
+    isLoadingThisMessage
   ]);
 
   return (
@@ -377,7 +388,7 @@ const arePropsEqual = (prev: MessageBubbleProps, next: MessageBubbleProps) => {
   // 2. Conteúdo (texto, anexo, duração)
   if (m1.content !== m2.content) return false;
   if (m1.attachment_url !== m2.attachment_url) return false;
-  if (m1.duration !== m2.duration) return false; // Importante verificar mudança de duração
+  if (m1.duration !== m2.duration) return false; 
 
   // 3. Estados de interação
   if (m1.liked !== m2.liked) return false;

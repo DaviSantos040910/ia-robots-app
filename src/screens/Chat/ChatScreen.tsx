@@ -131,6 +131,18 @@ const ChatScreen: React.FC = () => {
     onSendVoice: sendVoiceMessage, 
   });
 
+  // --- NOVO: Efeito para Scroll Automático ao enviar Áudio ---
+  useEffect(() => {
+    if (messages.length > 0) {
+      const latestMessage = messages[messages.length - 1];
+      // Verifica se a última mensagem é do usuário e é um áudio
+      if (latestMessage.role === 'user' && latestMessage.attachment_type === 'audio') {
+        // Rola para o "topo" (que é o fundo visual na lista invertida)
+        flatListRef.current?.scrollToOffset({ offset: 0, animated: true });
+      }
+    }
+  }, [messages]);
+
   const handleBackPress = useCallback(() => {
     if (isReadOnly) {
       navigation.goBack();
@@ -272,11 +284,6 @@ const ChatScreen: React.FC = () => {
 
   const keyExtractor = useCallback((item: ChatMessage) => item.id ? item.id.toString() : `temp-${Math.random()}`, []);
 
-  // --- OTIMIZAÇÃO FLATLIST (Estimativa de altura) ---
-  const getItemLayout = useCallback((data: any, index: number) => (
-    { length: 100, offset: 100 * index, index }
-  ), []);
-
   const uniqueMessages = useMemo(() => {
     const seenIds = new Set();
     return messages.filter(msg => {
@@ -334,16 +341,25 @@ const ChatScreen: React.FC = () => {
           renderItem={renderMessage}
           inverted
           style={s.flatList}
-          contentContainerStyle={[s.flatListContent, { paddingBottom: 24 }]} // Aumentado para evitar corte
           
-          // --- OTIMIZAÇÕES DE PERFORMANCE PARA LISTA GRANDE ---
-          initialNumToRender={10}          
-          maxToRenderPerBatch={5}          
-          windowSize={5} 
-          updateCellsBatchingPeriod={50}   
-          removeClippedSubviews={true} 
-          getItemLayout={getItemLayout} 
-          maintainVisibleContentPosition={{ minIndexForVisible: 0 }}
+          // --- CONFIGURAÇÃO DE LAYOUT AJUSTADA ---
+          contentContainerStyle={{
+            paddingHorizontal: 16,
+            paddingBottom: 20, // Espaço para não colar no input (fundo visual)
+            paddingTop: 20,    // Espaço no topo visual (fim do histórico)
+            flexGrow: 1,       // Garante que o container ocupe todo o espaço
+          }}
+          
+          maintainVisibleContentPosition={{
+            minIndexForVisible: 0,
+            autoscrollToTopThreshold: 10,
+          }}
+          
+          removeClippedSubviews={false} 
+          
+          initialNumToRender={15}          
+          maxToRenderPerBatch={10}          
+          windowSize={10} 
           
           extraData={uniqueMessages}
           keyboardShouldPersistTaps="handled"
