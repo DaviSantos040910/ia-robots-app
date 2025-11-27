@@ -1,18 +1,17 @@
-// src/hooks/useAudioRecorder.ts
-
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { Audio } from 'expo-av';
+import { SharedValue } from 'react-native-reanimated';
 
 export type RecordingState = 'idle' | 'initializing' | 'recording' | 'paused' | 'stopping';
 
-export const useAudioRecorder = () => {
+// Aceita um SharedValue opcional para animação de alta performance (60fps)
+export const useAudioRecorder = (meteringSharedValue?: SharedValue<number>) => {
   const [recordingState, setRecordingState] = useState<RecordingState>('idle');
   const [duration, setDuration] = useState<number>(0);
   
   const recordingRef = useRef<Audio.Recording | null>(null);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const isInitializingRef = useRef(false);
-  // --- CRASH FIX: Rastreamento de tempo de início real
   const startTimeRef = useRef<number | null>(null);
 
   useEffect(() => {
@@ -60,11 +59,19 @@ export const useAudioRecorder = () => {
         playsInSilentModeIOS: true, 
       });
 
-      // Registra tempo exato antes de criar
       startTimeRef.current = Date.now();
 
       const { recording } = await Audio.Recording.createAsync(
-        Audio.RecordingOptionsPresets.HIGH_QUALITY
+        Audio.RecordingOptionsPresets.HIGH_QUALITY,
+        (status) => {
+          // --- OTIMIZAÇÃO: Atualização direta do SharedValue ---
+          // Isso roda a cada ~50-100ms e NÃO causa re-render do componente React
+          if (status.isRecording && meteringSharedValue) {
+            // status.metering varia de -160 (silêncio) a 0 (máximo)
+            meteringSharedValue.value = status.metering || -160;
+          }
+        },
+        100 // Intervalo de atualização de status (ms)
       );
 
       recordingRef.current = recording;
@@ -73,7 +80,6 @@ export const useAudioRecorder = () => {
       setDuration(0);
       isInitializingRef.current = false;
 
-      // Otimizado para 500ms
       timerRef.current = setInterval(() => {
         setDuration((prev) => prev + 500);
       }, 500);
@@ -89,7 +95,7 @@ export const useAudioRecorder = () => {
       }
       return false;
     }
-  }, []);
+  }, [meteringSharedValue]);
 
   const pauseRecording = useCallback(async (): Promise<void> => {
     if (!recordingRef.current) return;
@@ -123,6 +129,11 @@ export const useAudioRecorder = () => {
         await new Promise(resolve => setTimeout(resolve, 300));
     }
 
+    // Reset do medidor visual ao parar
+    if (meteringSharedValue) {
+        meteringSharedValue.value = -160;
+    }
+
     if (!recordingRef.current) {
         setRecordingState('idle');
         setDuration(0);
@@ -131,7 +142,6 @@ export const useAudioRecorder = () => {
 
     setRecordingState('stopping');
 
-    // --- Safety Wait (Buffer Mínimo) ---
     if (startTimeRef.current) {
         const elapsed = Date.now() - startTimeRef.current;
         if (elapsed < 500) {
@@ -146,12 +156,11 @@ export const useAudioRecorder = () => {
         timerRef.current = null;
       }
 
-      // Try-catch específico para erro de 'no valid audio data'
       try {
           await recordingRef.current.stopAndUnloadAsync();
       } catch (stopError: any) {
           if (stopError.message && stopError.message.includes('no valid audio data')) {
-              console.warn('[AudioRecorder] Erro conhecido: Gravação sem dados válidos. Descartando.');
+              console.warn('[AudioRecorder] Erro conhecido: Gravação sem dados válidos.');
               recordingRef.current = null;
               setRecordingState('idle');
               setDuration(0);
@@ -161,7 +170,6 @@ export const useAudioRecorder = () => {
       }
 
       const uri = recordingRef.current.getURI();
-      
       await Audio.setAudioModeAsync({ allowsRecordingIOS: false }); 
 
       recordingRef.current = null;
@@ -183,9 +191,14 @@ export const useAudioRecorder = () => {
       setDuration(0);
       return null;
     }
-  }, []);
+  }, [meteringSharedValue]);
 
   const cancelRecording = useCallback(async (): Promise<void> => {
+    // Reset do medidor visual ao cancelar
+    if (meteringSharedValue) {
+        meteringSharedValue.value = -160;
+    }
+
     try {
       if (timerRef.current) {
         clearInterval(timerRef.current);
@@ -205,7 +218,7 @@ export const useAudioRecorder = () => {
       console.error('[AudioRecorder] Erro ao cancelar:', err);
       setRecordingState('idle');
     }
-  }, []);
+  }, [meteringSharedValue]);
 
   const formatDuration = (milliseconds: number): string => {
     const totalSeconds = Math.floor(milliseconds / 1000);

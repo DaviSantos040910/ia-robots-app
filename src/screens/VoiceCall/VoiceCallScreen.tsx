@@ -1,13 +1,14 @@
 import React, { useMemo } from 'react';
-import { View, Text, StatusBar, Image, Pressable, useColorScheme, ActivityIndicator, Alert } from 'react-native';
+import { View, Text, StatusBar, Image, Pressable, useColorScheme, ActivityIndicator, Alert, StyleProp, ViewStyle } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next'; 
+import Animated, { useAnimatedStyle, withSpring, interpolate, Extrapolation } from 'react-native-reanimated';
 
 import { RootStackParamList } from '../../types/navigation';
 import { getTheme, createVoiceCallStyles } from './VoiceCall.styles';
-import { useVoiceCallLogic } from './hooks/useVoiceCallLogic';
+import { useVoiceCallLogic, VoiceCallStatus } from './hooks/useVoiceCallLogic';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'VoiceCall'>;
 
@@ -22,11 +23,12 @@ const VoiceCallScreen: React.FC<Props> = ({ route, navigation }) => {
 
   const { 
     callState, 
-    recordingState, // --- FASE 1.2: Usando o estado do gravador
+    recordingState,
     startRecordingInCall, 
     stopRecordingAndSend, 
     cancelInteraction,
-    feedbackText
+    feedbackText,
+    audioLevel
   } = useVoiceCallLogic({
     chatId,
     onError: (msg) => Alert.alert(t('common.ops'), msg) 
@@ -37,58 +39,88 @@ const VoiceCallScreen: React.FC<Props> = ({ route, navigation }) => {
     navigation.goBack();
   };
 
-  const statusConfig = useMemo(() => {
-    // --- FASE 1.3: Feedback Visual de Inicialização ---
-    if (recordingState === 'initializing') {
-      return { text: t('voiceCall.status.preparing'), color: theme.textSecondary };
+  // --- Animations ---
+  const avatarAnimatedStyle = useAnimatedStyle(() => {
+    if (callState !== 'RECORDING') {
+        return { transform: [{ scale: withSpring(1) }] };
     }
+    const scale = interpolate(audioLevel.value, [-60, -10], [1, 1.4], Extrapolation.CLAMP);
+    return { transform: [{ scale: withSpring(scale, { damping: 10, stiffness: 100 }) }] };
+  });
 
-    switch (callState) {
-      case 'RECORDING':
-        return { text: t('voiceCall.status.listening'), color: '#FF4B4B' };
-      case 'PROCESSING':
-        return { text: t('voiceCall.status.processing'), color: theme.brand.normal };
-      case 'PLAYING':
-        return { text: t('voiceCall.status.speaking'), color: '#10B981' }; 
-      case 'IDLE':
-      default:
-        return { text: t('voiceCall.status.idle'), color: theme.textSecondary };
+  const botSpeakingStyle = useAnimatedStyle(() => {
+      // Pulsa suavemente quando o bot está falando
+      return { 
+        transform: [{ scale: withSpring(callState === 'SPEAKING' ? 1.05 : 1, { damping: 20 }) }] 
+      };
+  });
+
+  // --- Dynamic Styles Helpers ---
+  const getStatusConfig = (state: VoiceCallStatus, recState: string) => {
+    if (recState === 'initializing') return { text: t('voiceCall.status.preparing'), color: theme.textSecondary };
+    switch (state) {
+      case 'RECORDING': return { text: t('voiceCall.status.listening'), color: theme.recordingColor };
+      case 'PROCESSING': return { text: t('voiceCall.status.processing'), color: theme.brand.normal };
+      case 'SPEAKING': return { text: t('voiceCall.status.speaking'), color: theme.speakingColor }; 
+      default: return { text: t('voiceCall.status.idle'), color: theme.textSecondary };
     }
-  }, [callState, recordingState, theme, t]); // Adicionado recordingState nas deps
+  };
+
+  const statusConfig = useMemo(() => getStatusConfig(callState, recordingState), [callState, recordingState, theme, t]);
+  
+  // Bloqueia interação APENAS se estiver processando. 
+  // Removido bloqueio durante 'initializing' para permitir cancelamento rápido se necessário,
+  // ou mantido se for crítico esperar hardware. Vamos manter bloqueio apenas no processamento de rede/hardware pesado.
+  const isBusy = callState === 'PROCESSING'; 
+
+  // --- Computed Style Objects ---
+  const avatarContainerStyle = useMemo(() => [
+    styles.avatarContainer,
+    { 
+      borderColor: callState === 'SPEAKING' ? statusConfig.color : theme.border,
+      borderWidth: callState === 'SPEAKING' ? 4 : 1,
+    },
+    callState === 'RECORDING' ? avatarAnimatedStyle : botSpeakingStyle
+  ], [styles, callState, statusConfig.color, theme.border, avatarAnimatedStyle, botSpeakingStyle]);
+
+  const primaryButtonStyle = useMemo(() => ({ pressed }: { pressed: boolean }): StyleProp<ViewStyle> => [
+    styles.primaryButton,
+    callState === 'RECORDING' && styles.primaryButtonRecording,
+    isBusy && styles.primaryButtonDisabled,
+    { transform: [{ scale: pressed ? 0.95 : 1 }] } // Feedback visual de toque no botão
+  ], [styles, callState, isBusy]);
+
+  const secondaryButtonStyle = useMemo(() => ({ pressed }: { pressed: boolean }): StyleProp<ViewStyle> => [
+    styles.secondaryButton,
+    { opacity: pressed ? 0.7 : 1 }
+  ], [styles]);
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]} edges={['top', 'bottom']}>
+    <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
       <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} animated />
 
       <View style={styles.infoContainer}>
-        <View style={[
-          styles.avatarContainer, 
-          { 
-            backgroundColor: theme.surfaceAlt, 
-            borderColor: callState === 'PLAYING' ? statusConfig.color : theme.border,
-            borderWidth: callState === 'PLAYING' ? 3 : 1
-          }
-        ]}>
+        <Animated.View style={avatarContainerStyle}>
           {botAvatarUrl ? (
             <Image source={{ uri: botAvatarUrl }} style={styles.avatarImage} resizeMode="cover" />
           ) : (
             <Feather name="user" size={64} color={theme.textSecondary} />
           )}
-        </View>
+        </Animated.View>
 
-        <Text style={[styles.botName, { color: theme.textPrimary }]} numberOfLines={1}>
-          {botName}
-        </Text>
+        <Text style={styles.botName} numberOfLines={1}>{botName}</Text>
         
-        <Text style={[styles.statusText, { color: statusConfig.color, fontWeight: callState !== 'IDLE' ? '700' : '400' }]}>
+        <Text style={[
+          styles.statusText, 
+          { color: statusConfig.color },
+          callState !== 'IDLE' && styles.statusTextBold
+        ]}>
           {statusConfig.text}
         </Text>
 
         {!!feedbackText && (
            <View style={styles.feedbackContainer}>
-             <Text style={[styles.feedbackText, { color: theme.textSecondary }]}>
-               "{feedbackText}"
-             </Text>
+             <Text style={styles.feedbackText}>"{feedbackText}"</Text>
            </View>
         )}
       </View>
@@ -96,10 +128,7 @@ const VoiceCallScreen: React.FC<Props> = ({ route, navigation }) => {
       <View style={styles.controlsContainer}>
         <Pressable
           onPress={handleGoBack}
-          style={({ pressed }) => [
-            styles.secondaryButton,
-            { backgroundColor: theme.surfaceAlt, opacity: pressed ? 0.7 : 1 }
-          ]}
+          style={secondaryButtonStyle}
           accessibilityLabel={t('voiceCall.accessibility.close')}
           accessibilityRole="button"
         >
@@ -107,24 +136,16 @@ const VoiceCallScreen: React.FC<Props> = ({ route, navigation }) => {
         </Pressable>
 
         <Pressable
+          // onPressIn dispara imediatamente ao tocar, ideal para interromper o bot instantaneamente
           onPressIn={startRecordingInCall}
           onPressOut={stopRecordingAndSend}
-          // --- FASE 1.3: Desabilita botão durante processamento ou inicialização ---
-          disabled={callState === 'PROCESSING' || recordingState === 'initializing'}
+          disabled={isBusy}
           accessibilityHint={recordingState === 'initializing' ? t('voiceCall.status.preparing') : undefined}
-          style={({ pressed }) => [
-            styles.primaryButton,
-            { 
-              backgroundColor: callState === 'RECORDING' ? '#FF4B4B' : theme.brand.normal,
-              transform: [{ scale: pressed ? 1.1 : 1 }],
-              // Ajuste visual de opacidade
-              opacity: (callState === 'PROCESSING' || recordingState === 'initializing') ? 0.5 : 1
-            }
-          ]}
+          style={primaryButtonStyle}
           accessibilityLabel={t('voiceCall.accessibility.mic')}
           accessibilityRole="button"
         >
-            {callState === 'PROCESSING' || recordingState === 'initializing' ? (
+            {isBusy || recordingState === 'initializing' ? (
                 <ActivityIndicator color="#FFFFFF" size="large" />
             ) : (
                 <Feather name={callState === 'RECORDING' ? "mic" : "mic"} size={40} color="#FFFFFF" />

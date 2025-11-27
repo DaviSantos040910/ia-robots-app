@@ -10,7 +10,7 @@ export const getTheme = (isDark: boolean) => {
     : NeutralColors.fontAndIcon.light;
 
   const background = isDark ? NeutralColors.neutral.dark.gray1 : NeutralColors.neutral.light.white1;
-  const surfaceAlt = isDark ? NeutralColors.neutral.dark.gray2 : NeutralColors.neutral.light.gray1; // Usando gray1 para light mode ficar sutil
+  const surfaceAlt = isDark ? NeutralColors.neutral.dark.gray2 : NeutralColors.neutral.light.gray1; 
   const border = isDark ? NeutralColors.neutral.dark.gray3 : NeutralColors.neutral.light.gray4;
 
   return {
@@ -21,6 +21,8 @@ export const getTheme = (isDark: boolean) => {
     textPrimary: (font as any).primary,
     textSecondary: (font as any).secondary,
     brand: { normal: Colors.brand.light.normal },
+    recordingColor: '#FF4B4B',
+    speakingColor: '#10B981',
   } as const;
 };
 
@@ -29,6 +31,7 @@ export type VoiceCallTheme = ReturnType<typeof getTheme>;
 export const createVoiceCallStyles = (t: VoiceCallTheme) => StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: t.background,
   },
   infoContainer: {
     flex: 1, 
@@ -45,6 +48,9 @@ export const createVoiceCallStyles = (t: VoiceCallTheme) => StyleSheet.create({
     alignItems: 'center',
     overflow: 'hidden',
     marginBottom: Spacing['spacing-layout-m'],
+    backgroundColor: t.surfaceAlt,
+    borderColor: t.border,
+    borderWidth: 1,
     ...Platform.select({
       ios: {
         shadowColor: '#000',
@@ -65,11 +71,15 @@ export const createVoiceCallStyles = (t: VoiceCallTheme) => StyleSheet.create({
     ...Typography.title3, 
     textAlign: 'center',
     marginBottom: Spacing['spacing-element-xs'],
+    color: t.textPrimary,
   },
   statusText: {
     ...Typography.bodyRegular.medium, 
     textAlign: 'center',
     marginTop: 4,
+  },
+  statusTextBold: {
+    fontWeight: '700',
   },
   feedbackContainer: {
     marginTop: Spacing['spacing-layout-m'],
@@ -82,6 +92,7 @@ export const createVoiceCallStyles = (t: VoiceCallTheme) => StyleSheet.create({
     ...Typography.bodyRegular.medium,
     textAlign: 'center',
     fontStyle: 'italic',
+    color: t.textSecondary,
   },
   controlsContainer: {
     flexDirection: 'row',
@@ -97,6 +108,7 @@ export const createVoiceCallStyles = (t: VoiceCallTheme) => StyleSheet.create({
     borderRadius: 24,
     justifyContent: 'center',
     alignItems: 'center',
+    backgroundColor: t.surfaceAlt,
   },
   secondaryButtonPlaceholder: {
     width: 48,
@@ -108,6 +120,7 @@ export const createVoiceCallStyles = (t: VoiceCallTheme) => StyleSheet.create({
     borderRadius: 44,
     justifyContent: 'center',
     alignItems: 'center',
+    backgroundColor: t.brand.normal,
     ...Platform.select({
       ios: {
         shadowColor: '#000',
@@ -119,5 +132,11 @@ export const createVoiceCallStyles = (t: VoiceCallTheme) => StyleSheet.create({
         elevation: 8,
       },
     }),
+  },
+  primaryButtonRecording: {
+    backgroundColor: t.recordingColor,
+  },
+  primaryButtonDisabled: {
+    opacity: 0.5,
   },
 });
