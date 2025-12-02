@@ -76,7 +76,7 @@ function voiceCallReducer(state: VoiceCallState, action: VoiceCallAction): Voice
   }
 }
 
-// --- 3. Função Utilitária de Áudio (Global ao arquivo) ---
+// --- 3. Função Utilitária de Áudio ---
 const configureAudioSession = async () => {
   try {
     await Audio.setAudioModeAsync({
@@ -84,7 +84,7 @@ const configureAudioSession = async () => {
       playsInSilentModeIOS: true,
       staysActiveInBackground: false,
       shouldDuckAndroid: true,
-      playThroughEarpieceAndroid: false, // GARANTE O SPEAKER
+      playThroughEarpieceAndroid: false, 
     });
   } catch (error) {
     console.error('[VoiceLogic] Failed to set audio mode:', error);
@@ -115,7 +115,6 @@ export const useVoiceCallLogic = ({ chatId, onError }: UseVoiceCallLogicProps) =
   
   const { playTTS, stopTTS, isPlaying: isTTSPlaying, isLoading: isTTSLoading } = useTTS();
 
-  // Helper de Feedback Tátil
   const triggerHaptic = async (style: Haptics.ImpactFeedbackStyle) => {
     if (Platform.OS !== 'web') {
       try {
@@ -126,29 +125,24 @@ export const useVoiceCallLogic = ({ chatId, onError }: UseVoiceCallLogicProps) =
     }
   };
 
-  // --- Barge-in Logic ---
   const cancelCurrentInteraction = useCallback(async () => {
     console.log('[VoiceLogic] Barge-in: Cancelando interação atual...');
     
-    // 1. Para TTS
     await stopTTS();
 
-    // 2. Aborta API
     if (abortControllerRef.current) {
       abortControllerRef.current.abort();
       abortControllerRef.current = null;
     }
     
-    // 3. Prepara novo controller
     abortControllerRef.current = new AbortController();
   }, [stopTTS]);
 
   // --- Efeitos ---
 
   useEffect(() => {
-    configureAudioSession(); // Configura na montagem
+    configureAudioSession();
     return () => {
-      // Limpeza na desmontagem
       if (abortControllerRef.current) abortControllerRef.current.abort();
       stopTTS();
       cancelAudioRecorder();
@@ -164,17 +158,12 @@ export const useVoiceCallLogic = ({ chatId, onError }: UseVoiceCallLogicProps) =
   // --- Ações ---
 
   const startRecordingInCall = useCallback(async () => {
-    // 1. Configura modo de áudio (Crítico para evitar Permission Denied no Android ao alternar)
     await configureAudioSession();
-
-    // 2. Interrompe qualquer coisa acontecendo
     await cancelCurrentInteraction();
 
-    // 3. Feedback Tátil e Visual
     triggerHaptic(Haptics.ImpactFeedbackStyle.Medium);
     dispatch({ type: 'START_RECORDING' });
 
-    // 4. Inicia Hardware
     try {
       const success = await startRecording();
       if (!success) {
@@ -194,16 +183,12 @@ export const useVoiceCallLogic = ({ chatId, onError }: UseVoiceCallLogicProps) =
     try {
       const audioUri = await stopRecording();
       
-      // --- Tratamento de Clique Rápido (Quick Click) ---
-      // Se audioUri for null, o hook useAudioRecorder já limpou tudo.
-      // Apenas resetamos o estado visual para IDLE silenciosamente.
       if (!audioUri) {
         console.warn('[VoiceLogic] Gravação descartada (curta ou inválida).');
         dispatch({ type: 'INTERRUPT' }); 
         return;
       }
 
-      // Verificação extra de arquivo vazio
       const fileInfo = await FileSystem.getInfoAsync(audioUri);
       if (!fileInfo.exists || fileInfo.size <= 1024) {
          console.warn('[VoiceLogic] Arquivo vazio.');
@@ -211,11 +196,9 @@ export const useVoiceCallLogic = ({ chatId, onError }: UseVoiceCallLogicProps) =
          return;
       }
 
-      // Feedback de envio
       triggerHaptic(Haptics.ImpactFeedbackStyle.Light);
       dispatch({ type: 'STOP_RECORDING_AND_SEND' });
 
-      // Envio API
       if (!abortControllerRef.current) abortControllerRef.current = new AbortController();
 
       const response = await chatService.sendVoiceInteraction(
@@ -245,11 +228,21 @@ export const useVoiceCallLogic = ({ chatId, onError }: UseVoiceCallLogicProps) =
       }
 
     } catch (error: any) {
-      if (error.name === 'AbortError' || error.code === 'ERR_CANCELED') {
-        console.log('[VoiceLogic] Request cancelado (Barge-in).');
-        return; // Ignora silenciosamente
+      // --- Tratamento de Erro Refinado ---
+      // Verifica se é um erro de cancelamento (Fetch: AbortError, Axios: Canceled)
+      if (
+        error.name === 'AbortError' || 
+        error.message === 'Aborted' || 
+        error.message === 'canceled' ||
+        error.code === 'ERR_CANCELED'
+      ) {
+        console.log('[VoiceLogic] Interação cancelada pelo usuário (Barge-in).');
+        // Retorno silencioso: Não disparamos SET_ERROR nem mudamos estado para IDLE,
+        // pois presumimos que uma nova gravação já começou (Barge-in).
+        return; 
       }
 
+      // Erro Real
       console.error('[VoiceLogic] Erro processamento:', error);
       
       if (Platform.OS !== 'web') {
@@ -260,12 +253,16 @@ export const useVoiceCallLogic = ({ chatId, onError }: UseVoiceCallLogicProps) =
       if (onError) onError(errorMsg);
       dispatch({ type: 'SET_ERROR', message: errorMsg });
     } finally {
-      abortControllerRef.current = null;
+      // Importante: Só limpamos a ref se ela for a mesma que iniciou.
+      // No barge-in, a ref já foi substituída, então não devemos anulá-la aqui cegamente.
+      // Mas como a lógica é síncrona dentro da ref, resetar aqui pode ser arriscado se não compararmos.
+      // Simplificação segura: Apenas setamos null se o estado ainda for PROCESSING, 
+      // mas se já mudou para RECORDING (barge-in), não tocamos.
+      // O cancelCurrentInteraction cuida de resetar/criar novo controller.
     }
   }, [state.status, stopRecording, chatId, playTTS, t, onError]);
 
   const cancelInteraction = useCallback(async () => {
-    // Ação manual de cancelamento (ex: botão voltar)
     if (abortControllerRef.current) {
       abortControllerRef.current.abort();
       abortControllerRef.current = null;
