@@ -8,7 +8,7 @@ interface ChatWelcomeProps {
   welcomeText: string;
   suggestions: string[];
   onSuggestionPress: (suggestion: string) => void;
-  showSuggestions: boolean; // Prop para controlar se mostra os chips ou não
+  showSuggestions: boolean; // Nova prop para controle visual
 }
 
 export const ChatWelcome: React.FC<ChatWelcomeProps> = ({
@@ -24,7 +24,7 @@ export const ChatWelcome: React.FC<ChatWelcomeProps> = ({
 
   return (
     <View>
-      {/* Hero Avatar */}
+      {/* Hero Avatar - Sempre visível */}
       <View style={s.heroContainer}>
         <View style={s.heroAvatarRing}>
           <Image
@@ -34,12 +34,12 @@ export const ChatWelcome: React.FC<ChatWelcomeProps> = ({
         </View>
       </View>
 
-      {/* Welcome Bubble */}
+      {/* Welcome Bubble - Sempre visível */}
       <View style={s.welcomeBubble}>
         <Text style={s.bubbleText}>{welcomeText}</Text>
       </View>
 
-      {/* Suggestions Stack */}
+      {/* Suggestions Stack - Condicional */}
       {showSuggestions && suggestions.length > 0 && (
         <View style={s.chipStack}>
           {suggestions.map((label, idx) => (

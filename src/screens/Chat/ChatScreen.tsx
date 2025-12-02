@@ -16,7 +16,9 @@ import { useTranslation } from 'react-i18next';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { NativeStackNavigationProp, NativeStackScreenProps } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
-import { FlashList, type ListRenderItem, type FlashListRef } from '@shopify/flash-list';// Components
+import { FlashList, type ListRenderItem, type FlashListRef } from '@shopify/flash-list';
+
+// Components
 import { ChatHeader } from '../../components/chat/ChatHeader';
 import { ChatInput } from '../../components/chat/ChatInput';
 import { MessageBubble } from '../../components/chat/MessageBubble';
@@ -56,8 +58,8 @@ const ChatScreen: React.FC = () => {
   const [isSending, setIsSending] = useState(false);
   const [isKeyboardVisible, setKeyboardVisible] = useState(false);
 
-  // Ref da FlashList tipada corretamente
-const flashListRef = useRef<FlashListRef<ChatMessage> | null>(null);
+  // Ref da FlashList
+  const flashListRef = useRef<FlashListRef<ChatMessage> | null>(null);
 
   // Gerenciamento de listeners do teclado
   useEffect(() => {
@@ -129,18 +131,17 @@ const flashListRef = useRef<FlashListRef<ChatMessage> | null>(null);
     onSendVoice: sendVoiceMessage,
   });
 
-  // Mensagens invertidas para lista invertida
-  const invertedMessages = useMemo(() => [...messages].reverse(), [messages]);
-
-  // Autoscroll quando a última mensagem é do usuário
+  // Autoscroll para a mensagem mais recente quando usuário envia mensagem
   useEffect(() => {
-    if (messages.length > 0) {
-      const latestMessage = messages[messages.length - 1];
-      if (latestMessage.role === 'user') {
-        flashListRef.current?.scrollToOffset({ offset: 0, animated: true });
-      }
-    }
-  }, [messages.length, messages]);
+  if (messages.length > 0) {
+    setTimeout(() => {
+      flashListRef.current?.scrollToIndex({ 
+        index: messages.length - 1, 
+        animated: true 
+      });
+    }, 300);
+  }
+}, [messages.length]);
 
   // --- Handlers ---
 
@@ -200,8 +201,13 @@ const flashListRef = useRef<FlashListRef<ChatMessage> | null>(null);
         await sendMessage(textToSend);
       }
       setTimeout(() => {
-        flashListRef.current?.scrollToOffset({ offset: 0, animated: true });
-      }, 100);
+        if (flashListRef.current && messages.length > 0) {
+          flashListRef.current.scrollToIndex({ 
+            index: messages.length - 1, 
+            animated: true 
+          });
+        }
+      }, 200);
     } catch (error) {
       if (textToSend) setInputText(textToSend);
       Alert.alert(t('common.error'), t('chat.sendError'));
@@ -217,6 +223,7 @@ const flashListRef = useRef<FlashListRef<ChatMessage> | null>(null);
     clearAttachments,
     sendAttachments,
     sendMessage,
+    messages.length,
     t,
   ]);
 
@@ -224,9 +231,6 @@ const flashListRef = useRef<FlashListRef<ChatMessage> | null>(null);
     (label: string) => {
       if (isReadOnly || !currentChatId) return;
       sendMessage(label);
-      setTimeout(() => {
-        flashListRef.current?.scrollToOffset({ offset: 0, animated: true });
-      }, 100);
     },
     [isReadOnly, currentChatId, sendMessage]
   );
@@ -291,6 +295,9 @@ const flashListRef = useRef<FlashListRef<ChatMessage> | null>(null);
   const renderMessage: ListRenderItem<ChatMessage> = useCallback(
     ({ item, index }) => {
       if (!currentChatId) return null;
+      
+      const isLastMessage = index === messages.length - 1;
+
       return (
         <MessageBubble
           message={item}
@@ -299,11 +306,11 @@ const flashListRef = useRef<FlashListRef<ChatMessage> | null>(null);
           onLike={handleLikeMessage}
           onSuggestionPress={(_, text) => handleSuggestionPress(text)}
           onImagePress={onImagePress}
-          isLastMessage={index === 0}
+          isLastMessage={isLastMessage}
         />
       );
     },
-    [currentChatId, handleCopyMessage, handleLikeMessage, handleSuggestionPress, onImagePress]
+    [currentChatId, messages.length, handleCopyMessage, handleLikeMessage, handleSuggestionPress, onImagePress]
   );
 
   const keyExtractor = useCallback((item: ChatMessage) => item.id, []);
@@ -311,8 +318,29 @@ const flashListRef = useRef<FlashListRef<ChatMessage> | null>(null);
   const getItemType = useCallback((item: ChatMessage) => {
     if (item.attachment_type === 'audio') return 'audio';
     if (item.attachment_type === 'image') return 'image';
-    return item.role; // 'user' | 'assistant'
+    return item.role;
   }, []);
+
+  // ✅ Welcome + Loading no TOPO visual (ListFooterComponent em lista invertida)
+  const renderListFooter = useMemo(() => (
+    <>
+      {isLoadingMore && (
+        <ActivityIndicator
+          style={{ marginVertical: 16 }}
+          color={theme.brand.normal}
+        />
+      )}
+      {!isLoadingMore && hasLoadedOnce && !isReadOnly && (
+        <ChatWelcome
+          botAvatar={bootstrap?.bot.avatarUrl}
+          welcomeText={bootstrap?.welcome || ''}
+          suggestions={bootstrap?.suggestions || []}
+          onSuggestionPress={handleSuggestionPress}
+          showSuggestions={messages.length === 0}
+        />
+      )}
+    </>
+  ), [isLoadingMore, hasLoadedOnce, isReadOnly, bootstrap, handleSuggestionPress, messages.length, theme.brand.normal]);
 
   if (isScreenLoading || !bootstrap) {
     return (
@@ -347,57 +375,51 @@ const flashListRef = useRef<FlashListRef<ChatMessage> | null>(null);
       />
 
       <KeyboardAvoidingView
-        style={s.keyboardAvoidingView}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        style={{ flex: 1 }}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
       >
+        {/* ✅ Lista de mensagens invertida */}
         <FlashList
           ref={flashListRef}
-          data={invertedMessages}
+          data={messages}  
           renderItem={renderMessage}
           keyExtractor={keyExtractor}
           getItemType={getItemType}
-          // @ts-expect-error: estimatedItemSize é suportado pela FlashList em runtime, mas falta nos tipos locais
+          // @ts-expect-error: estimatedItemSize é suportado mas pode faltar nos tipos locais
           estimatedItemSize={100}
-          inverted
-          contentContainerStyle={s.flatListContent}
+          
+          inverted={true}
+          
+          contentContainerStyle={{
+            paddingHorizontal: 16,
+            paddingTop: 16,    // Espaço na base visual
+            paddingBottom: 30, // Espaço no topo visual
+          }}
+          
           keyboardShouldPersistTaps="handled"
+          
           onEndReached={() => {
             if (!isReadOnly && !isLoadingMore && hasLoadedOnce) {
               loadMoreMessages();
             }
           }}
           onEndReachedThreshold={0.5}
-          ListFooterComponent={
-            <>
-              {isLoadingMore && (
-                <ActivityIndicator
-                  style={{ marginVertical: 16 }}
-                  color={theme.brand.normal}
-                />
-              )}
-              {!isLoadingMore &&
-                hasLoadedOnce &&
-                messages.length === 0 &&
-                !isReadOnly && (
-                  <ChatWelcome
-                    botAvatar={bootstrap.bot.avatarUrl}
-                    welcomeText={bootstrap.welcome}
-                    suggestions={bootstrap.suggestions}
-                    onSuggestionPress={handleSuggestionPress}
-                    showSuggestions={true}
-                  />
-                )}
-            </>
-          }
+          
+          // ✅ Welcome e loading aparecem no TOPO visual (quando scrolla para cima)
+            ListHeaderComponent={renderListFooter}
         />
 
+        {/* ✅ Indicador de digitação FIXO acima do input (fora da FlashList) */}
         {isTyping && (
-          <Text style={s.typingIndicator}>
-            {t('chat.botTyping', { defaultValue: 'Bot is typing...' })}
-          </Text>
+          <View style={{ paddingHorizontal: 16, paddingVertical: 8 }}>
+            <Text style={s.typingIndicator}>
+              {t('chat.botTyping', { defaultValue: 'Bot is typing...' })}
+            </Text>
+          </View>
         )}
 
+        {/* ✅ Área de anexos e input */}
         <View>
           {selectedAttachments.length > 0 && (
             <ScrollView
