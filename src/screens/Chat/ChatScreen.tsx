@@ -9,6 +9,9 @@ import {
   ScrollView,
   Alert,
   Keyboard,
+  Animated,
+  Easing,
+  Dimensions,
 } from 'react-native';
 import { SafeAreaView, Edge } from 'react-native-safe-area-context';
 import { useColorScheme } from 'react-native';
@@ -60,6 +63,9 @@ const ChatScreen: React.FC = () => {
 
   // Ref da FlashList
   const flashListRef = useRef<FlashListRef<ChatMessage> | null>(null);
+  
+  // Ref para animação do Typing Indicator
+  const typingAnim = useRef(new Animated.Value(0)).current;
 
   // Gerenciamento de listeners do teclado
   useEffect(() => {
@@ -131,17 +137,49 @@ const ChatScreen: React.FC = () => {
     onSendVoice: sendVoiceMessage,
   });
 
+    /**
+   * Função auxiliar para fazer scroll até a mensagem mais recente.
+   * Em uma FlashList invertida, scrollToOffset com offset: 0 leva ao final (mensagem mais recente).
+   */
+  const scrollToBottom = useCallback(() => {
+    if (flashListRef.current && messages.length > 0) {
+      try {
+        // Para listas invertidas, offset: 0 é o final da lista (mensagem mais recente)
+        flashListRef.current.scrollToOffset({ 
+          offset: 0, 
+          animated: true 
+        });
+      } catch (error) {
+        console.warn('Erro ao fazer scroll:', error);
+      }
+    }
+  }, [messages.length]);
+
+
   // Autoscroll para a mensagem mais recente quando usuário envia mensagem
+    /**
+   * Autoscroll para a mensagem mais recente quando uma nova mensagem chega.
+   * Este efeito é acionado sempre que o número de mensagens muda.
+   */
   useEffect(() => {
-  if (messages.length > 0) {
-    setTimeout(() => {
-      flashListRef.current?.scrollToIndex({ 
-        index: messages.length - 1, 
-        animated: true 
-      });
-    }, 300);
-  }
-}, [messages.length]);
+    if (messages.length > 0) {
+      // Pequeno delay para garantir que a mensagem foi renderizada
+      setTimeout(() => {
+        scrollToBottom();
+      }, 100);
+    }
+  }, [messages.length, scrollToBottom]);
+
+
+  // Animação do Indicador de Digitação
+  useEffect(() => {
+    Animated.timing(typingAnim, {
+      toValue: isTyping ? 1 : 0,
+      duration: 300,
+      useNativeDriver: false,
+      easing: Easing.out(Easing.ease),
+    }).start();
+  }, [isTyping, typingAnim]);
 
   // --- Handlers ---
 
@@ -197,17 +235,16 @@ const ChatScreen: React.FC = () => {
       if (attachmentsToSend.length > 0) {
         await sendAttachments(attachmentsToSend);
       }
+      
+      // Depois envia o texto, se houver
       if (textToSend) {
         await sendMessage(textToSend);
       }
+      
+      // Faz scroll para a mensagem mais recente após envio bem-sucedido
       setTimeout(() => {
-        if (flashListRef.current && messages.length > 0) {
-          flashListRef.current.scrollToIndex({ 
-            index: messages.length - 1, 
-            animated: true 
-          });
-        }
-      }, 200);
+        scrollToBottom();
+      }, 150);
     } catch (error) {
       if (textToSend) setInputText(textToSend);
       Alert.alert(t('common.error'), t('chat.sendError'));
@@ -215,7 +252,7 @@ const ChatScreen: React.FC = () => {
       setIsSending(false);
     }
   }, [
-    isReadOnly,
+   isReadOnly,
     currentChatId,
     isSending,
     inputText,
@@ -223,7 +260,7 @@ const ChatScreen: React.FC = () => {
     clearAttachments,
     sendAttachments,
     sendMessage,
-    messages.length,
+    scrollToBottom,
     t,
   ]);
 
@@ -321,7 +358,15 @@ const ChatScreen: React.FC = () => {
     return item.role;
   }, []);
 
-  // ✅ Welcome + Loading no TOPO visual (ListFooterComponent em lista invertida)
+  // --- OTIMIZAÇÃO: Altura Fixa para Itens Conhecidos ---
+  const overrideItemLayout = useCallback((layout: any, item: ChatMessage) => {
+    // Se for áudio, sabemos que o tamanho é aproximadamente fixo (dependendo do estilo)
+    if (item.attachment_type === 'audio') {
+      layout.size = 80; // Altura aproximada do player + margens
+    }
+    // Para texto e imagens, o tamanho varia, então deixamos o FlashList calcular.
+  }, []);
+
   const renderListFooter = useMemo(() => (
     <>
       {isLoadingMore && (
@@ -341,6 +386,17 @@ const ChatScreen: React.FC = () => {
       )}
     </>
   ), [isLoadingMore, hasLoadedOnce, isReadOnly, bootstrap, handleSuggestionPress, messages.length, theme.brand.normal]);
+
+  // Estilo interpolado para o indicador de digitação
+  const typingContainerStyle = {
+    height: typingAnim.interpolate({
+      inputRange: [0, 1],
+      outputRange: [0, 36],
+    }),
+    opacity: typingAnim,
+    overflow: 'hidden' as const,
+    justifyContent: 'center' as const,
+  };
 
   if (isScreenLoading || !bootstrap) {
     return (
@@ -379,47 +435,41 @@ const ChatScreen: React.FC = () => {
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
       >
-        {/* ✅ Lista de mensagens invertida */}
         <FlashList
           ref={flashListRef}
           data={messages}  
           renderItem={renderMessage}
           keyExtractor={keyExtractor}
           getItemType={getItemType}
+          
           // @ts-expect-error: estimatedItemSize é suportado mas pode faltar nos tipos locais
-          estimatedItemSize={100}
+          estimatedItemSize={150} // Valor médio mais realista
+          overrideItemLayout={overrideItemLayout}
           
           inverted={true}
           
           contentContainerStyle={{
             paddingHorizontal: 16,
-            paddingTop: 16,    // Espaço na base visual
-            paddingBottom: 30, // Espaço no topo visual
+            paddingTop: 20,    
+            paddingBottom: 30,
           }}
           
           keyboardShouldPersistTaps="handled"
-          
           onEndReached={() => {
             if (!isReadOnly && !isLoadingMore && hasLoadedOnce) {
               loadMoreMessages();
             }
           }}
           onEndReachedThreshold={0.5}
-          
-          // ✅ Welcome e loading aparecem no TOPO visual (quando scrolla para cima)
-            ListHeaderComponent={renderListFooter}
+          ListHeaderComponent={renderListFooter}
         />
 
-        {/* ✅ Indicador de digitação FIXO acima do input (fora da FlashList) */}
-        {isTyping && (
-          <View style={{ paddingHorizontal: 16, paddingVertical: 8 }}>
-            <Text style={s.typingIndicator}>
-              {t('chat.botTyping', { defaultValue: 'Bot is typing...' })}
-            </Text>
-          </View>
-        )}
+        <Animated.View style={typingContainerStyle}>
+          <Text style={s.typingIndicator}>
+            {t('chat.botTyping', { defaultValue: 'Bot is typing...' })}
+          </Text>
+        </Animated.View>
 
-        {/* ✅ Área de anexos e input */}
         <View>
           {selectedAttachments.length > 0 && (
             <ScrollView
@@ -461,6 +511,11 @@ const ChatScreen: React.FC = () => {
                   <ActivityIndicator size="small" color={theme.brand.normal} />
                 </View>
               )}
+              {/* ChatInput já é memoizado.
+                As funções passadas (handleSend, onAttachPress) são useCallback.
+                audioProps é useMemo.
+                Portanto, não causará re-renders na lista ao digitar.
+              */}
               <ChatInput
                 value={inputText}
                 onChangeText={setInputText}

@@ -1,5 +1,5 @@
 import 'react-native-get-random-values';
-import { useCallback } from 'react';
+import { useCallback, useRef, useEffect } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { ChatMessage } from '../../../types/chat';
 import { chatService } from '../../../services/chatService';
@@ -21,6 +21,16 @@ export const useChatSender = ({
   isBotVoiceMode,
 }: UseChatSenderDeps) => {
 
+  // --- CORREÇÃO STALE CLOSURE ---
+  // Usamos useRef para guardar o valor mais recente de isBotVoiceMode.
+  // Isso permite que sendMessage leia o valor atual sem precisar ser recriada
+  // sempre que o booleano mudar.
+  const voiceModeRef = useRef(isBotVoiceMode);
+
+  useEffect(() => {
+    voiceModeRef.current = isBotVoiceMode;
+  }, [isBotVoiceMode]);
+
   const sendMessage = useCallback(async (chatId: string, text: string) => {
     if (activeSendPromises.current[chatId] !== undefined) return;
 
@@ -39,7 +49,10 @@ export const useChatSender = ({
 
     setIsTypingById((prev) => ({ ...prev, [chatId]: true }));
 
-    const sendPromise = chatService.sendMessage(chatId, text, isBotVoiceMode)
+    // Lê o valor atual da Ref no momento do envio
+    const shouldReplyWithAudio = voiceModeRef.current;
+
+    const sendPromise = chatService.sendMessage(chatId, text, shouldReplyWithAudio)
       .then((apiReplies) => {
         setIsTypingById((prev) => ({ ...prev, [chatId]: false }));
 
@@ -78,10 +91,8 @@ export const useChatSender = ({
       });
 
     activeSendPromises.current[chatId] = sendPromise;
-  }, [updateChatData, setIsTypingById, activeSendPromises, isBotVoiceMode]);
+  }, [updateChatData, setIsTypingById, activeSendPromises]); // isBotVoiceMode removido das deps intencionalmente
 
-  // --- CORREÇÃO APLICADA AQUI ---
-  // Atualizada a assinatura para receber durationMs e passar corretamente para o serviço.
   const sendVoiceMessage = useCallback(async (chatId: string, audioUri: string, durationMs: number, replyWithAudio: boolean) => {
     if (!audioUri) return;
     const tempId = uuidv4();
@@ -93,14 +104,13 @@ export const useChatSender = ({
       created_at: new Date().toISOString(),
       attachment_type: 'audio', 
       attachment_url: audioUri,
-      duration: durationMs // Adiciona a duração na mensagem temporária para feedback imediato
+      duration: durationMs 
     };
 
     updateChatData(chatId, (prev) => ({ messages: [...prev.messages, tempMessage] }));
     setIsTypingById((prev) => ({ ...prev, [chatId]: true }));
 
     try {
-      // Agora a chamada corresponde à assinatura do chatService: (chatId, audioUri, durationMs, replyWithAudio)
       const apiMessages = await chatService.sendVoiceMessage(chatId, audioUri, durationMs, replyWithAudio);
       
       updateChatData(chatId, (prev) => {

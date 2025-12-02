@@ -59,16 +59,22 @@ const AudioMessagePlayerComponent: React.FC<AudioMessagePlayerProps> = ({
     thumb: theme.brand.normal
   }), [isUser, theme]);
 
+  // --- CLEANUP CRÍTICO PARA PERFORMANCE EM LISTAS ---
   useEffect(() => {
     isMounted.current = true;
-    // Inicializa com a duração passada via props se disponível
     if (initialDuration > 0) {
         setDurationMillis(initialDuration);
     }
+    
     return () => {
       isMounted.current = false;
+      // Garante que o som seja descarregado da memória nativa imediatamente
       if (soundRef.current) {
-        soundRef.current.unloadAsync();
+        soundRef.current.unloadAsync().catch(err => {
+            // Ignorar erros de unload no unmount, pois o componente já pode ter sido destruído
+            console.warn('[AudioPlayer] Unload error (cleanup):', err);
+        });
+        soundRef.current = null;
       }
     };
   }, [initialDuration]);
@@ -110,6 +116,7 @@ const AudioMessagePlayerComponent: React.FC<AudioMessagePlayerProps> = ({
         onPlaybackStatusUpdate
       );
 
+      // Verificação dupla se ainda está montado antes de setar estado
       if (isMounted.current) {
         soundRef.current = newSound;
         setIsLoaded(true);
@@ -120,6 +127,7 @@ const AudioMessagePlayerComponent: React.FC<AudioMessagePlayerProps> = ({
             if (status.durationMillis) setDurationMillis(status.durationMillis);
         }
       } else {
+        // Se desmontou durante o carregamento, descarrega imediatamente
         newSound.unloadAsync();
       }
 
@@ -179,7 +187,7 @@ const AudioMessagePlayerComponent: React.FC<AudioMessagePlayerProps> = ({
     const totalSeconds = Math.floor(millis / 1000);
     const minutes = Math.floor(totalSeconds / 60);
     const seconds = totalSeconds % 60;
-    return `${minutes}:${seconds.toString().padStart(2, '0')}`;
+    return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
   };
 
   const progressPercent = durationMillis > 0 
@@ -198,7 +206,6 @@ const AudioMessagePlayerComponent: React.FC<AudioMessagePlayerProps> = ({
   }), [progressPercent, colors.thumb, hasError]);
 
   return (
-    // --- FIX: minHeight garante espaço reservado evitando pulos na lista ---
     <View style={[s.audioPlayerContainer, { minHeight: 50 }]}>
       <Pressable 
         onPress={handlePlayPause} 

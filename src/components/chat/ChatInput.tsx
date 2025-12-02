@@ -11,7 +11,7 @@ import {
   TextInputContentSizeChangeEventData,
   ActivityIndicator,
   Text,
-  StyleSheet // Importado para uso local se necessário
+  StyleSheet
 } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { useColorScheme } from 'react-native';
@@ -83,7 +83,6 @@ const ChatInputComponent: React.FC<Props> = ({
   const inputHeight = Math.min(MAX_INPUT_HEIGHT, Math.max(MIN_INPUT_HEIGHT, contentHeight));
   const enableScroll = contentHeight > MAX_INPUT_HEIGHT;
 
-  // Estado de Transcrição
   if (isTranscribing) {
     return (
       <View style={s.inputWrap} onLayout={handleLayout}>
@@ -97,12 +96,10 @@ const ChatInputComponent: React.FC<Props> = ({
     );
   }
 
-  // Estado de Gravação
   if (recordingState !== 'idle') {
     return (
       <View style={s.inputWrap} onLayout={handleLayout}>
         <View style={s.recordingContainer}>
-          {/* Botão CANCELAR (Lixeira ou X) - Vermelho para perigo */}
           <Pressable 
             onPress={onCancelRecording} 
             style={({ pressed }) => [
@@ -116,18 +113,14 @@ const ChatInputComponent: React.FC<Props> = ({
           </Pressable>
 
           <View style={s.recordingIndicator}>
-            {/* Dot pulsante ou fixo indicando gravação ativa */}
             <View style={[
               s.recordingDot,
-              // Quando gravando, usa vermelho. Quando pausado, usa cor neutra ou mantém vermelho fixo.
               { backgroundColor: recordingState === 'recording' ? Colors.semantic.error.normal : theme.textSecondary },
               recordingState === 'recording' && s.recordingDotActive
             ]} />
             <Text style={s.recordingDuration}>{recordingDuration}</Text>
           </View>
 
-          {/* Botão PAUSE/RESUME - Cor neutra/marca */}
-          {/* Opcional: Remover se quiser simplificar a UI de gravação como o WhatsApp */}
           <Pressable 
             onPress={recordingState === 'recording' ? onPauseRecording : onResumeRecording} 
             style={({ pressed }) => [
@@ -142,16 +135,14 @@ const ChatInputComponent: React.FC<Props> = ({
             />
           </Pressable>
 
-          {/* Botão ENVIAR (Check/Seta) - Cor da marca para ação positiva */}
           <Pressable 
             onPress={onStopRecording} 
             style={({ pressed }) => [
               s.recordingButton, 
-              // Fundo arredondado ou cor de destaque para o botão principal
               { 
                 backgroundColor: theme.brand.normal, 
                 borderRadius: 20, 
-                padding: 8, // Aumenta a área visual
+                padding: 8,
                 marginLeft: 8,
                 opacity: pressed ? 0.8 : 1
               }
@@ -166,7 +157,6 @@ const ChatInputComponent: React.FC<Props> = ({
     );
   }
 
-  // UI Padrão
   return (
     <View style={s.inputWrap} onLayout={handleLayout}>
       <View style={s.inputContainer}>
@@ -204,7 +194,6 @@ const ChatInputComponent: React.FC<Props> = ({
             accessibilityLabel="Gravar mensagem de voz"
             accessibilityRole="button"
           >
-            {/* Ícone de microfone com cor primária quando ocioso para indicar interatividade */}
             <Feather name="mic" size={24} color={theme.textSecondary} />
           </Pressable>
         )}
