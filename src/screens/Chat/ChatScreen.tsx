@@ -2,16 +2,13 @@
 import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import {
   ActivityIndicator,
-  FlatList,
   KeyboardAvoidingView,
   Platform,
   View,
   Text,
   ScrollView,
   Alert,
-  ListRenderItem,
-  StyleSheet,
-  Keyboard
+  Keyboard,
 } from 'react-native';
 import { SafeAreaView, Edge } from 'react-native-safe-area-context';
 import { useColorScheme } from 'react-native';
@@ -19,8 +16,7 @@ import { useTranslation } from 'react-i18next';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { NativeStackNavigationProp, NativeStackScreenProps } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
-
-// Components
+import { FlashList, type ListRenderItem, type FlashListRef } from '@shopify/flash-list';// Components
 import { ChatHeader } from '../../components/chat/ChatHeader';
 import { ChatInput } from '../../components/chat/ChatInput';
 import { MessageBubble } from '../../components/chat/MessageBubble';
@@ -40,7 +36,6 @@ import { useChatAudioLogic } from './hooks/useChatAudioLogic';
 // Styles & Types
 import { createChatStyles, getTheme } from './Chat.styles';
 import { RootStackParamList } from '../../types/navigation';
-import { Spacing } from '../../theme/spacing';
 import { ChatMessage } from '../../types/chat';
 
 type ChatScreenProps = NativeStackScreenProps<RootStackParamList, 'ChatScreen'>;
@@ -51,25 +46,29 @@ const ChatScreen: React.FC = () => {
   const route = useRoute<ChatScreenProps['route']>();
   
   const scheme = useColorScheme();
-  const theme = getTheme(scheme === 'dark');
-  const s = createChatStyles(theme);
+  const theme = useMemo(() => getTheme(scheme === 'dark'), [scheme]);
+  const s = useMemo(() => createChatStyles(theme), [theme]);
 
+  // UI State
   const [inputText, setInputText] = useState('');
   const [menuOpen, setMenuOpen] = useState(false);
   const [menuAnchor, setMenuAnchor] = useState<Anchor>(null);
-  
   const [isSending, setIsSending] = useState(false);
   const [isKeyboardVisible, setKeyboardVisible] = useState(false);
 
-  // Ref para o FlatList
-  const flatListRef = useRef<FlatList<ChatMessage>>(null);
+  // Ref da FlashList tipada corretamente
+const flashListRef = useRef<FlashListRef<ChatMessage> | null>(null);
 
+  // Gerenciamento de listeners do teclado
   useEffect(() => {
     const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
     const hideEvent = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
 
-    const showSub = Keyboard.addListener(showEvent, () => setKeyboardVisible(true));
-    const hideSub = Keyboard.addListener(hideEvent, () => setKeyboardVisible(false));
+    const onShow = () => setKeyboardVisible(true);
+    const onHide = () => setKeyboardVisible(false);
+
+    const showSub = Keyboard.addListener(showEvent, onShow);
+    const hideSub = Keyboard.addListener(hideEvent, onHide);
 
     return () => {
       showSub.remove();
@@ -77,11 +76,12 @@ const ChatScreen: React.FC = () => {
     };
   }, []);
 
-  // Borda inferior segura é removida quando teclado abre para evitar double padding
-  const safeAreaEdges: Edge[] = isKeyboardVisible 
-    ? ['top', 'left', 'right'] 
-    : ['top', 'bottom', 'left', 'right'];
+  const safeAreaEdges: Edge[] = useMemo(
+    () => (isKeyboardVisible ? ['top', 'left', 'right'] : ['top', 'bottom', 'left', 'right']),
+    [isKeyboardVisible]
+  );
 
+  // Business Logic Hooks
   const {
     currentChatId,
     bootstrap,
@@ -90,10 +90,8 @@ const ChatScreen: React.FC = () => {
     setBootstrap,
     setIsReadOnly,
     setCurrentChatId,
-    initialLoadDoneForCurrentId
-  } = useChatBootstrap({
-    ...route.params,
-  });
+    initialLoadDoneForCurrentId,
+  } = useChatBootstrap({ ...route.params });
 
   const {
     messages,
@@ -103,12 +101,12 @@ const ChatScreen: React.FC = () => {
     loadMoreMessages,
     sendMessage,
     archiveAndStartNew,
-    sendAttachments, 
+    sendAttachments,
     handleCopyMessage,
     handleLikeMessage,
     isBotVoiceMode,
     toggleBotVoiceMode,
-    sendVoiceMessage, 
+    sendVoiceMessage,
   } = useChatController(currentChatId);
 
   const {
@@ -128,45 +126,46 @@ const ChatScreen: React.FC = () => {
   } = useChatMediaLogic();
 
   const { audioProps } = useChatAudioLogic({
-    onSendVoice: sendVoiceMessage, 
+    onSendVoice: sendVoiceMessage,
   });
 
-  // --- NOVO: Efeito para Scroll Automático ao enviar Áudio ---
+  // Mensagens invertidas para lista invertida
+  const invertedMessages = useMemo(() => [...messages].reverse(), [messages]);
+
+  // Autoscroll quando a última mensagem é do usuário
   useEffect(() => {
     if (messages.length > 0) {
       const latestMessage = messages[messages.length - 1];
-      // Verifica se a última mensagem é do usuário e é um áudio
-      if (latestMessage.role === 'user' && latestMessage.attachment_type === 'audio') {
-        // Rola para o "topo" (que é o fundo visual na lista invertida)
-        flatListRef.current?.scrollToOffset({ offset: 0, animated: true });
+      if (latestMessage.role === 'user') {
+        flashListRef.current?.scrollToOffset({ offset: 0, animated: true });
       }
     }
-  }, [messages]);
+  }, [messages.length, messages]);
+
+  // --- Handlers ---
 
   const handleBackPress = useCallback(() => {
     if (isReadOnly) {
       navigation.goBack();
     } else {
-      navigation.canGoBack() ? navigation.goBack() : navigation.navigate('Main', { screen: 'Chat' });
+      navigation.canGoBack()
+        ? navigation.goBack()
+        : navigation.navigate('Main', { screen: 'Chat' });
     }
   }, [isReadOnly, navigation]);
 
   const handlePhonePress = useCallback(() => {
-    if (!currentChatId || !bootstrap) {
-        console.warn('[ChatScreen] Incomplete data for call.');
-        return;
-    }
+    if (!currentChatId || !bootstrap) return;
     try {
-        navigation.navigate('VoiceCall', {
-            chatId: currentChatId,
-            botId: route.params.botId,
-            botName: bootstrap.bot.name,
-            botHandle: bootstrap.bot.handle, 
-            botAvatarUrl: bootstrap.bot.avatarUrl,
-        });
+      navigation.navigate('VoiceCall', {
+        chatId: currentChatId,
+        botId: route.params.botId,
+        botName: bootstrap.bot.name,
+        botHandle: bootstrap.bot.handle,
+        botAvatarUrl: bootstrap.bot.avatarUrl,
+      });
     } catch (error) {
-        console.error('[ChatScreen] Error navigating to voice call:', error);
-        Alert.alert(t('common.error'), t('chat.voiceCallNavigationError'));
+      Alert.alert(t('common.error'), t('chat.voiceCallNavigationError'));
     }
   }, [currentChatId, bootstrap, route.params.botId, navigation, t]);
 
@@ -200,107 +199,125 @@ const ChatScreen: React.FC = () => {
       if (textToSend) {
         await sendMessage(textToSend);
       }
-      // Scroll to bottom after sending
       setTimeout(() => {
-          flatListRef.current?.scrollToOffset({ offset: 0, animated: true });
+        flashListRef.current?.scrollToOffset({ offset: 0, animated: true });
       }, 100);
-    } catch (error: any) {
-      console.error("Send failed:", error);
+    } catch (error) {
       if (textToSend) setInputText(textToSend);
-      Alert.alert(t('common.error'), t('chat.sendError', { defaultValue: 'Failed to send message.' }));
+      Alert.alert(t('common.error'), t('chat.sendError'));
     } finally {
       setIsSending(false);
     }
-  }, [isReadOnly, currentChatId, isSending, inputText, selectedAttachments, clearAttachments, sendAttachments, sendMessage, t]);
+  }, [
+    isReadOnly,
+    currentChatId,
+    isSending,
+    inputText,
+    selectedAttachments,
+    clearAttachments,
+    sendAttachments,
+    sendMessage,
+    t,
+  ]);
 
-  const handleSuggestionPress = useCallback((label: string) => {
-    if (isReadOnly || !currentChatId) return;
-    sendMessage(label);
-    // Scroll to bottom after suggestion press
-    setTimeout(() => {
-        flatListRef.current?.scrollToOffset({ offset: 0, animated: true });
-    }, 100);
-  }, [isReadOnly, currentChatId, sendMessage]);
+  const handleSuggestionPress = useCallback(
+    (label: string) => {
+      if (isReadOnly || !currentChatId) return;
+      sendMessage(label);
+      setTimeout(() => {
+        flashListRef.current?.scrollToOffset({ offset: 0, animated: true });
+      }, 100);
+    },
+    [isReadOnly, currentChatId, sendMessage]
+  );
 
   const handleArchiveAndStartNew = useCallback(() => {
     setMenuOpen(false);
     if (!currentChatId) return;
 
-    Alert.alert(
-      t('chat.newChatTitle'),
-      t('chat.newChatMessage'),
-      [
-        { text: t('common.cancel'), style: 'cancel' },
-        {
-          text: t('chat.proceed'),
-          style: 'destructive',
-          onPress: async () => {
-            const newChatId = await archiveAndStartNew();
-            if (newChatId) {
-              setBootstrap(null);
-              setIsReadOnly(false);
-              if (initialLoadDoneForCurrentId) initialLoadDoneForCurrentId.current = null;
-              setCurrentChatId(newChatId);
-            }
-          },
+    Alert.alert(t('chat.newChatTitle'), t('chat.newChatMessage'), [
+      { text: t('common.cancel'), style: 'cancel' },
+      {
+        text: t('chat.proceed'),
+        style: 'destructive',
+        onPress: async () => {
+          const newChatId = await archiveAndStartNew();
+          if (newChatId) {
+            setBootstrap(null);
+            setIsReadOnly(false);
+            if (initialLoadDoneForCurrentId) initialLoadDoneForCurrentId.current = null;
+            setCurrentChatId(newChatId);
+          }
         },
-      ]
-    );
-  }, [currentChatId, t, archiveAndStartNew, setBootstrap, setIsReadOnly, setCurrentChatId, initialLoadDoneForCurrentId]);
+      },
+    ]);
+  }, [
+    currentChatId,
+    t,
+    archiveAndStartNew,
+    setBootstrap,
+    setIsReadOnly,
+    setCurrentChatId,
+    initialLoadDoneForCurrentId,
+  ]);
 
-  const menuItems = useMemo(() => [
-    {
-      label: t('chat.menuSettings'),
-      onPress: handleOpenSettings,
-      icon: <Ionicons name="settings-outline" size={18} color={theme.textPrimary} />
+  const menuItems = useMemo(
+    () => [
+      {
+        label: t('chat.menuSettings'),
+        onPress: handleOpenSettings,
+        icon: <Ionicons name="settings-outline" size={18} color={theme.textPrimary} />,
+      },
+      ...(!isReadOnly
+        ? [
+            {
+              label: t('chat.menuNewChat'),
+              onPress: handleArchiveAndStartNew,
+              icon: <Ionicons name="add-circle-outline" size={18} color={theme.textPrimary} />,
+            },
+          ]
+        : []),
+      {
+        label: t('chat.menuArchivedChats'),
+        onPress: handleViewArchived,
+        icon: <Ionicons name="archive-outline" size={18} color={theme.textPrimary} />,
+      },
+    ],
+    [isReadOnly, theme, t, handleOpenSettings, handleArchiveAndStartNew, handleViewArchived]
+  );
+
+  // --- FlashList Config ---
+
+  const renderMessage: ListRenderItem<ChatMessage> = useCallback(
+    ({ item, index }) => {
+      if (!currentChatId) return null;
+      return (
+        <MessageBubble
+          message={item}
+          conversationId={currentChatId}
+          onCopy={handleCopyMessage}
+          onLike={handleLikeMessage}
+          onSuggestionPress={(_, text) => handleSuggestionPress(text)}
+          onImagePress={onImagePress}
+          isLastMessage={index === 0}
+        />
+      );
     },
-    ...(!isReadOnly ? [{
-      label: t('chat.menuNewChat'),
-      onPress: handleArchiveAndStartNew,
-      icon: <Ionicons name="add-circle-outline" size={18} color={theme.textPrimary} />
-    }] : []),
-    {
-      label: t('chat.menuArchivedChats'),
-      onPress: handleViewArchived,
-      icon: <Ionicons name="archive-outline" size={18} color={theme.textPrimary} />
-    },
-  ], [isReadOnly, theme, t, handleOpenSettings, handleArchiveAndStartNew, handleViewArchived]);
+    [currentChatId, handleCopyMessage, handleLikeMessage, handleSuggestionPress, onImagePress]
+  );
 
-  const renderMessage: ListRenderItem<ChatMessage> = useCallback(({ item, index }) => {
-    if (!currentChatId) return null;
-    
-    return (
-      <MessageBubble
-        message={item}
-        conversationId={currentChatId}
-        onCopy={handleCopyMessage}
-        onLike={handleLikeMessage}
-        onSuggestionPress={(_, text) => handleSuggestionPress(text)}
-        onImagePress={onImagePress}
-        isLastMessage={index === 0}
-      />
-    );
-  }, [currentChatId, handleCopyMessage, handleLikeMessage, handleSuggestionPress, onImagePress]);
+  const keyExtractor = useCallback((item: ChatMessage) => item.id, []);
 
-  const keyExtractor = useCallback((item: ChatMessage) => item.id ? item.id.toString() : `temp-${Math.random()}`, []);
-
-  const uniqueMessages = useMemo(() => {
-    const seenIds = new Set();
-    return messages.filter(msg => {
-      if (seenIds.has(msg.id)) return false;
-      seenIds.add(msg.id);
-      return true;
-    });
-  }, [messages]);
-
-  const invertedMessages = useMemo(() => [...uniqueMessages].reverse(), [uniqueMessages]);
-  
-  const showWelcome = !isReadOnly && uniqueMessages.length === 0;
+  const getItemType = useCallback((item: ChatMessage) => {
+    if (item.attachment_type === 'audio') return 'audio';
+    if (item.attachment_type === 'image') return 'image';
+    return item.role; // 'user' | 'assistant'
+  }, []);
 
   if (isScreenLoading || !bootstrap) {
     return (
       <SafeAreaView style={s.screen}>
-         <ChatHeader
+        <ChatHeader
           title={route.params.botName}
           subtitle={route.params.botHandle}
           avatarUrl={route.params.botAvatarUrl}
@@ -330,57 +347,48 @@ const ChatScreen: React.FC = () => {
       />
 
       <KeyboardAvoidingView
-        style={{ flex: 1 }}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        style={s.keyboardAvoidingView}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
       >
-        <FlatList
-          ref={flatListRef}
+        <FlashList
+          ref={flashListRef}
           data={invertedMessages}
-          keyExtractor={keyExtractor}
           renderItem={renderMessage}
+          keyExtractor={keyExtractor}
+          getItemType={getItemType}
+          // @ts-expect-error: estimatedItemSize é suportado pela FlashList em runtime, mas falta nos tipos locais
+          estimatedItemSize={100}
           inverted
-          style={s.flatList}
-          
-          // --- CONFIGURAÇÃO DE LAYOUT AJUSTADA ---
-          contentContainerStyle={{
-            paddingHorizontal: 16,
-            paddingBottom: 20, // Espaço para não colar no input (fundo visual)
-            paddingTop: 20,    // Espaço no topo visual (fim do histórico)
-            flexGrow: 1,       // Garante que o container ocupe todo o espaço
-          }}
-          
-          maintainVisibleContentPosition={{
-            minIndexForVisible: 0,
-            autoscrollToTopThreshold: 10,
-          }}
-          
-          removeClippedSubviews={false} 
-          
-          initialNumToRender={15}          
-          maxToRenderPerBatch={10}          
-          windowSize={10} 
-          
-          extraData={uniqueMessages}
+          contentContainerStyle={s.flatListContent}
           keyboardShouldPersistTaps="handled"
-
           onEndReached={() => {
             if (!isReadOnly && !isLoadingMore && hasLoadedOnce) {
               loadMoreMessages();
             }
           }}
-          onEndReachedThreshold={0.2}
-          ListHeaderComponent={
-            isLoadingMore ? <ActivityIndicator style={{ marginVertical: 16 }} color={theme.brand.normal} /> : null
-          }
+          onEndReachedThreshold={0.5}
           ListFooterComponent={
-            <ChatWelcome
-              botAvatar={bootstrap.bot.avatarUrl}
-              welcomeText={bootstrap.welcome}
-              suggestions={bootstrap.suggestions}
-              onSuggestionPress={handleSuggestionPress}
-              showSuggestions={showWelcome}
-            />
+            <>
+              {isLoadingMore && (
+                <ActivityIndicator
+                  style={{ marginVertical: 16 }}
+                  color={theme.brand.normal}
+                />
+              )}
+              {!isLoadingMore &&
+                hasLoadedOnce &&
+                messages.length === 0 &&
+                !isReadOnly && (
+                  <ChatWelcome
+                    botAvatar={bootstrap.bot.avatarUrl}
+                    welcomeText={bootstrap.welcome}
+                    suggestions={bootstrap.suggestions}
+                    onSuggestionPress={handleSuggestionPress}
+                    showSuggestions={true}
+                  />
+                )}
+            </>
           }
         />
 
@@ -392,35 +400,46 @@ const ChatScreen: React.FC = () => {
 
         <View>
           {selectedAttachments.length > 0 && (
-             <ScrollView
-             horizontal
-             showsHorizontalScrollIndicator={false}
-             contentContainerStyle={s.attachmentsScrollView}
-             keyboardShouldPersistTaps="handled"
-           >
-             {selectedAttachments.map((attachment) => (
-               <View key={attachment.uri} style={s.attachmentsContainer}>
-                 <AttachmentPreview attachment={attachment} onRemove={onRemoveAttachment} />
-               </View>
-             ))}
-             {isPickerLoading && <ActivityIndicator size="small" color={theme.brand.normal} style={s.attachmentLoader} />}
-           </ScrollView>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={s.attachmentsScrollView}
+              keyboardShouldPersistTaps="handled"
+            >
+              {selectedAttachments.map((attachment) => (
+                <View key={attachment.uri} style={s.attachmentsContainer}>
+                  <AttachmentPreview
+                    attachment={attachment}
+                    onRemove={onRemoveAttachment}
+                  />
+                </View>
+              ))}
+              {isPickerLoading && (
+                <ActivityIndicator
+                  size="small"
+                  color={theme.brand.normal}
+                  style={s.attachmentLoader}
+                />
+              )}
+            </ScrollView>
           )}
 
           {isReadOnly ? (
             <View style={s.activateBanner}>
               <Text style={{ color: theme.textSecondary, textAlign: 'center' }}>
-                {t('chat.readOnlyMessage', { defaultValue: 'This chat is archived.' })}
+                {t('chat.readOnlyMessage', {
+                  defaultValue: 'This chat is archived.',
+                })}
               </Text>
             </View>
           ) : (
             <View>
-               {isSending && (
-                  <View style={s.loadingOverlay}>
-                    <ActivityIndicator size="small" color={theme.brand.normal} />
-                  </View>
-               )}
-               <ChatInput
+              {isSending && (
+                <View style={s.loadingOverlay}>
+                  <ActivityIndicator size="small" color={theme.brand.normal} />
+                </View>
+              )}
+              <ChatInput
                 value={inputText}
                 onChangeText={setInputText}
                 onSend={handleSend}
