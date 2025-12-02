@@ -37,6 +37,14 @@ export const useAudioRecorder = (meteringSharedValue?: SharedValue<number>) => {
   }, []);
 
   const startRecording = useCallback(async (): Promise<boolean> => {
+    // --- 1. Cleanup Prévio Agressivo (Safety First) ---
+    // Garante que nunca tentaremos criar uma nova gravação se uma antiga ficou pendurada.
+    if (recordingRef.current) {
+      console.log('[AudioRecorder] Limpando instância anterior antes de iniciar...');
+      try { await recordingRef.current.stopAndUnloadAsync(); } catch(e) {}
+      recordingRef.current = null;
+    }
+
     if (isInitializingRef.current) {
         console.warn('[AudioRecorder] Bloqueio: Já existe uma inicialização em andamento.');
         return false;
@@ -46,6 +54,7 @@ export const useAudioRecorder = (meteringSharedValue?: SharedValue<number>) => {
     setRecordingState('initializing'); 
 
     try {
+      // --- 2. Permissões dentro do bloco Try/Catch ---
       const permission = await Audio.requestPermissionsAsync();
       if (permission.status !== 'granted') {
         console.warn('[AudioRecorder] Permissão de áudio negada.');
@@ -64,14 +73,11 @@ export const useAudioRecorder = (meteringSharedValue?: SharedValue<number>) => {
       const { recording } = await Audio.Recording.createAsync(
         Audio.RecordingOptionsPresets.HIGH_QUALITY,
         (status) => {
-          // --- OTIMIZAÇÃO: Atualização direta do SharedValue ---
-          // Isso roda a cada ~50-100ms e NÃO causa re-render do componente React
           if (status.isRecording && meteringSharedValue) {
-            // status.metering varia de -160 (silêncio) a 0 (máximo)
             meteringSharedValue.value = status.metering || -160;
           }
         },
-        100 // Intervalo de atualização de status (ms)
+        100 
       );
 
       recordingRef.current = recording;
@@ -89,6 +95,8 @@ export const useAudioRecorder = (meteringSharedValue?: SharedValue<number>) => {
       console.error('[AudioRecorder] Erro fatal ao iniciar:', err);
       setRecordingState('idle');
       isInitializingRef.current = false;
+      
+      // Cleanup extra em caso de falha na criação
       if (recordingRef.current) {
           try { await recordingRef.current.stopAndUnloadAsync(); } catch(e) {}
           recordingRef.current = null;
@@ -125,76 +133,71 @@ export const useAudioRecorder = (meteringSharedValue?: SharedValue<number>) => {
   }, []);
 
   const stopRecording = useCallback(async (): Promise<string | null> => {
-    if (isInitializingRef.current) {
-        await new Promise(resolve => setTimeout(resolve, 300));
-    }
-
     // Reset do medidor visual ao parar
     if (meteringSharedValue) {
         meteringSharedValue.value = -160;
     }
 
+    if (timerRef.current) {
+      clearInterval(timerRef.current);
+      timerRef.current = null;
+    }
+
+    // --- 3. Safety Stop Simplificado ---
     if (!recordingRef.current) {
         setRecordingState('idle');
         setDuration(0);
-        return null;
+        return null; 
     }
 
     setRecordingState('stopping');
 
-    if (startTimeRef.current) {
-        const elapsed = Date.now() - startTimeRef.current;
-        if (elapsed < 500) {
-            console.log(`[AudioRecorder] Gravação curta (${elapsed}ms). Aguardando buffer...`);
-            await new Promise(resolve => setTimeout(resolve, 500 - elapsed));
-        }
-    }
-
     try {
-      if (timerRef.current) {
-        clearInterval(timerRef.current);
-        timerRef.current = null;
-      }
-
-      try {
+       // Verifica duração real consultando o status nativo
+       const status = await recordingRef.current.getStatusAsync();
+       
+       // Se for muito curto (< 500ms), descartamos para evitar arquivos de áudio vazios/corrompidos
+       if (status.durationMillis < 500) {
+          console.log('[AudioRecorder] Gravação muito curta (<500ms). Descartando.');
           await recordingRef.current.stopAndUnloadAsync();
-      } catch (stopError: any) {
-          if (stopError.message && stopError.message.includes('no valid audio data')) {
-              console.warn('[AudioRecorder] Erro conhecido: Gravação sem dados válidos.');
-              recordingRef.current = null;
-              setRecordingState('idle');
-              setDuration(0);
-              return null; 
-          }
-          throw stopError;
-      }
+          recordingRef.current = null;
+          
+          setRecordingState('idle');
+          setDuration(0);
+          return null;
+       }
 
-      const uri = recordingRef.current.getURI();
-      await Audio.setAudioModeAsync({ allowsRecordingIOS: false }); 
+       // Stop normal
+       await recordingRef.current.stopAndUnloadAsync();
+       const uri = recordingRef.current.getURI();
+       
+       await Audio.setAudioModeAsync({ allowsRecordingIOS: false }); 
 
-      recordingRef.current = null;
-      setRecordingState('idle');
-      setDuration(0);
+       recordingRef.current = null; // Zera a ref IMEDIATAMENTE após sucesso
+       
+       setRecordingState('idle');
+       setDuration(0);
 
-      return uri;
+       return uri;
 
-    } catch (err) {
-      console.error('[AudioRecorder] Erro crítico no stopRecording:', err);
-      try {
-          if (recordingRef.current) {
-              await recordingRef.current.stopAndUnloadAsync();
-          }
-      } catch (cleanupErr) {}
-      
-      recordingRef.current = null;
-      setRecordingState('idle');
-      setDuration(0);
-      return null;
+    } catch (error) {
+       console.error('[AudioRecorder] Erro seguro no stopRecording:', error);
+       
+       // Tentativa final de limpeza em caso de erro
+       try {
+         if (recordingRef.current) {
+            await recordingRef.current.stopAndUnloadAsync();
+         }
+       } catch (e) {}
+       
+       recordingRef.current = null; // Garante que a ref seja zerada
+       setRecordingState('idle');
+       setDuration(0);
+       return null;
     }
   }, [meteringSharedValue]);
 
   const cancelRecording = useCallback(async (): Promise<void> => {
-    // Reset do medidor visual ao cancelar
     if (meteringSharedValue) {
         meteringSharedValue.value = -160;
     }
@@ -216,6 +219,7 @@ export const useAudioRecorder = (meteringSharedValue?: SharedValue<number>) => {
       setDuration(0);
     } catch (err) {
       console.error('[AudioRecorder] Erro ao cancelar:', err);
+      recordingRef.current = null; // Força limpeza da ref
       setRecordingState('idle');
     }
   }, [meteringSharedValue]);

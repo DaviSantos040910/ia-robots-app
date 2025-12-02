@@ -2,7 +2,7 @@ import { useReducer, useRef, useCallback, useEffect } from 'react';
 import { Vibration, Platform } from 'react-native';
 import { Audio } from 'expo-av';
 import * as FileSystem from 'expo-file-system/legacy';
-import * as Haptics from 'expo-haptics'; // Importando Haptics
+import * as Haptics from 'expo-haptics';
 import { useSharedValue } from 'react-native-reanimated';
 import { useTranslation } from 'react-i18next';
 import { useAudioRecorder } from '../../../hooks/useAudioRecorder';
@@ -39,11 +39,7 @@ const initialState: VoiceCallState = {
 function voiceCallReducer(state: VoiceCallState, action: VoiceCallAction): VoiceCallState {
   switch (action.type) {
     case 'START_RECORDING':
-      // Permite transição de SPEAKING para RECORDING (Barge-in)
-      if (['IDLE', 'SPEAKING', 'ERROR'].includes(state.status)) {
-        return { ...state, status: 'RECORDING', errorMessage: undefined, transcription: '' };
-      }
-      return state;
+      return { ...state, status: 'RECORDING', errorMessage: undefined, transcription: '' };
 
     case 'STOP_RECORDING_AND_SEND':
       if (state.status === 'RECORDING') {
@@ -70,7 +66,6 @@ function voiceCallReducer(state: VoiceCallState, action: VoiceCallAction): Voice
       return state;
 
     case 'INTERRUPT':
-      // Reseta estado completamente
       return { ...initialState };
 
     case 'SET_ERROR':
@@ -81,7 +76,22 @@ function voiceCallReducer(state: VoiceCallState, action: VoiceCallAction): Voice
   }
 }
 
-// --- 3. Hook Principal ---
+// --- 3. Função Utilitária de Áudio (Global ao arquivo) ---
+const configureAudioSession = async () => {
+  try {
+    await Audio.setAudioModeAsync({
+      allowsRecordingIOS: true,
+      playsInSilentModeIOS: true,
+      staysActiveInBackground: false,
+      shouldDuckAndroid: true,
+      playThroughEarpieceAndroid: false, // GARANTE O SPEAKER
+    });
+  } catch (error) {
+    console.error('[VoiceLogic] Failed to set audio mode:', error);
+  }
+};
+
+// --- 4. Hook Principal ---
 
 type UseVoiceCallLogicProps = {
   chatId: string;
@@ -105,69 +115,69 @@ export const useVoiceCallLogic = ({ chatId, onError }: UseVoiceCallLogicProps) =
   
   const { playTTS, stopTTS, isPlaying: isTTSPlaying, isLoading: isTTSLoading } = useTTS();
 
-  // --- Audio Session Setup ---
-  useEffect(() => {
-    const configureAudioSession = async () => {
+  // Helper de Feedback Tátil
+  const triggerHaptic = async (style: Haptics.ImpactFeedbackStyle) => {
+    if (Platform.OS !== 'web') {
       try {
-        await Audio.setAudioModeAsync({
-          allowsRecordingIOS: true,
-          playsInSilentModeIOS: true,
-          staysActiveInBackground: false,
-          shouldDuckAndroid: true,
-          playThroughEarpieceAndroid: false, // Força saída no Speaker
-        });
-      } catch (error) {
-        console.error('[VoiceLogic] Failed to set audio mode:', error);
+        await Haptics.impactAsync(style);
+      } catch (e) {
+        Vibration.vibrate(50);
       }
-    };
+    }
+  };
 
-    configureAudioSession();
+  // --- Barge-in Logic ---
+  const cancelCurrentInteraction = useCallback(async () => {
+    console.log('[VoiceLogic] Barge-in: Cancelando interação atual...');
+    
+    // 1. Para TTS
+    await stopTTS();
 
+    // 2. Aborta API
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+      abortControllerRef.current = null;
+    }
+    
+    // 3. Prepara novo controller
+    abortControllerRef.current = new AbortController();
+  }, [stopTTS]);
+
+  // --- Efeitos ---
+
+  useEffect(() => {
+    configureAudioSession(); // Configura na montagem
     return () => {
-      cancelInteraction(); // Garante limpeza ao desmontar
+      // Limpeza na desmontagem
+      if (abortControllerRef.current) abortControllerRef.current.abort();
+      stopTTS();
+      cancelAudioRecorder();
     };
   }, []);
 
-  // Monitora fim da fala para voltar a IDLE
   useEffect(() => {
     if (state.status === 'SPEAKING' && !isTTSPlaying && !isTTSLoading) {
       dispatch({ type: 'FINISH_SPEAKING' });
     }
   }, [state.status, isTTSPlaying, isTTSLoading]);
 
-  // Função auxiliar para Haptics seguro (web fallback)
-  const triggerHaptic = async (style: Haptics.ImpactFeedbackStyle) => {
-    if (Platform.OS !== 'web') {
-      try {
-        await Haptics.impactAsync(style);
-      } catch (e) {
-        // Fallback para Vibration se Haptics falhar
-        Vibration.vibrate(50);
-      }
-    }
-  };
+  // --- Ações ---
 
   const startRecordingInCall = useCallback(async () => {
-    // 1. Feedback Tátil Imediato
+    // 1. Configura modo de áudio (Crítico para evitar Permission Denied no Android ao alternar)
+    await configureAudioSession();
+
+    // 2. Interrompe qualquer coisa acontecendo
+    await cancelCurrentInteraction();
+
+    // 3. Feedback Tátil e Visual
     triggerHaptic(Haptics.ImpactFeedbackStyle.Medium);
+    dispatch({ type: 'START_RECORDING' });
 
-    // 2. Barge-in: Para qualquer fala ou carregamento anterior imediatamente
-    if (state.status === 'SPEAKING' || isTTSPlaying || isTTSLoading) {
-      console.log('[VoiceLogic] Barge-in detectado. Parando TTS.');
-      // Aborta request de áudio pendente se houver
-      if (abortControllerRef.current) {
-        abortControllerRef.current.abort();
-        abortControllerRef.current = null;
-      }
-      await stopTTS();
-    }
-
+    // 4. Inicia Hardware
     try {
       const success = await startRecording();
-      
-      if (success) {
-        dispatch({ type: 'START_RECORDING' });
-      } else {
+      if (!success) {
         const errorMsg = t('voiceCall.errors.permission');
         if (onError) onError(errorMsg);
         dispatch({ type: 'SET_ERROR', message: errorMsg });
@@ -176,27 +186,37 @@ export const useVoiceCallLogic = ({ chatId, onError }: UseVoiceCallLogicProps) =
       console.error('[VoiceLogic] Erro ao iniciar hardware:', error);
       dispatch({ type: 'SET_ERROR', message: 'Erro de hardware' });
     }
-  }, [isTTSPlaying, isTTSLoading, stopTTS, startRecording, onError, t, state.status]);
+  }, [cancelCurrentInteraction, startRecording, onError, t]);
 
   const stopRecordingAndSend = useCallback(async () => {
     if (state.status !== 'RECORDING') return;
 
     try {
       const audioUri = await stopRecording();
-      const finalDuration = duration;
-
-      if (!audioUri || finalDuration < 500) {
-        console.warn(`[VoiceLogic] Áudio inválido ou curto (${finalDuration}ms).`);
+      
+      // --- Tratamento de Clique Rápido (Quick Click) ---
+      // Se audioUri for null, o hook useAudioRecorder já limpou tudo.
+      // Apenas resetamos o estado visual para IDLE silenciosamente.
+      if (!audioUri) {
+        console.warn('[VoiceLogic] Gravação descartada (curta ou inválida).');
         dispatch({ type: 'INTERRUPT' }); 
         return;
+      }
+
+      // Verificação extra de arquivo vazio
+      const fileInfo = await FileSystem.getInfoAsync(audioUri);
+      if (!fileInfo.exists || fileInfo.size <= 1024) {
+         console.warn('[VoiceLogic] Arquivo vazio.');
+         dispatch({ type: 'INTERRUPT' });
+         return;
       }
 
       // Feedback de envio
       triggerHaptic(Haptics.ImpactFeedbackStyle.Light);
       dispatch({ type: 'STOP_RECORDING_AND_SEND' });
 
-      // Inicia AbortController para esta requisição
-      abortControllerRef.current = new AbortController();
+      // Envio API
+      if (!abortControllerRef.current) abortControllerRef.current = new AbortController();
 
       const response = await chatService.sendVoiceInteraction(
         chatId, 
@@ -204,7 +224,6 @@ export const useVoiceCallLogic = ({ chatId, onError }: UseVoiceCallLogicProps) =
         { signal: abortControllerRef.current.signal }
       );
 
-      // Feedback de Sucesso na Resposta
       triggerHaptic(Haptics.ImpactFeedbackStyle.Medium);
 
       let audioIdToPlay: string | undefined;
@@ -226,38 +245,37 @@ export const useVoiceCallLogic = ({ chatId, onError }: UseVoiceCallLogicProps) =
       }
 
     } catch (error: any) {
-      if (error.name === 'AbortError') {
-        console.log('[VoiceLogic] Request cancelado pelo usuário.');
-        dispatch({ type: 'INTERRUPT' });
-      } else {
-        console.error('[VoiceLogic] Erro processamento:', error);
-        // Feedback de Erro
-        if (Platform.OS !== 'web') {
-            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error).catch(() => Vibration.vibrate([0, 50, 100, 50]));
-        }
-        const errorMsg = t('voiceCall.errors.processing');
-        if (onError) onError(errorMsg);
-        dispatch({ type: 'SET_ERROR', message: errorMsg });
+      if (error.name === 'AbortError' || error.code === 'ERR_CANCELED') {
+        console.log('[VoiceLogic] Request cancelado (Barge-in).');
+        return; // Ignora silenciosamente
       }
+
+      console.error('[VoiceLogic] Erro processamento:', error);
+      
+      if (Platform.OS !== 'web') {
+          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error).catch(() => Vibration.vibrate([0, 50, 100, 50]));
+      }
+      
+      const errorMsg = t('voiceCall.errors.processing');
+      if (onError) onError(errorMsg);
+      dispatch({ type: 'SET_ERROR', message: errorMsg });
     } finally {
       abortControllerRef.current = null;
     }
-  }, [state.status, stopRecording, duration, chatId, playTTS, t, onError]);
+  }, [state.status, stopRecording, chatId, playTTS, t, onError]);
 
   const cancelInteraction = useCallback(async () => {
-    // 1. Aborta requisição de rede pendente
+    // Ação manual de cancelamento (ex: botão voltar)
     if (abortControllerRef.current) {
       abortControllerRef.current.abort();
       abortControllerRef.current = null;
     }
     
-    // 2. Para hardware (Microfone e Player)
     await Promise.all([
       cancelAudioRecorder(),
       stopTTS()
     ]);
 
-    // 3. Reseta estado visual
     dispatch({ type: 'INTERRUPT' });
   }, [cancelAudioRecorder, stopTTS]);
 
