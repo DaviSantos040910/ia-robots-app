@@ -330,25 +330,28 @@ const ChatScreen: React.FC = () => {
   // --- FlashList Config ---
 
   const renderMessage: ListRenderItem<ChatMessage> = useCallback(
-    ({ item, index }) => {
-      if (!currentChatId) return null;
-      
-      const isLastMessage = index === messages.length - 1;
+  ({ item, index }) => {
+    if (!currentChatId) return null;
+    
+    // CORREÇÃO: Com ordem decrescente, a última mensagem cronológica
+    // agora está no índice 0 (não mais no último índice)
+    const isLastMessage = index === 0;
 
-      return (
-        <MessageBubble
-          message={item}
-          conversationId={currentChatId}
-          onCopy={handleCopyMessage}
-          onLike={handleLikeMessage}
-          onSuggestionPress={(_, text) => handleSuggestionPress(text)}
-          onImagePress={onImagePress}
-          isLastMessage={isLastMessage}
-        />
-      );
-    },
-    [currentChatId, messages.length, handleCopyMessage, handleLikeMessage, handleSuggestionPress, onImagePress]
-  );
+    return (
+      <MessageBubble
+        message={item}
+        conversationId={currentChatId}
+        onCopy={handleCopyMessage}
+        onLike={handleLikeMessage}
+        onSuggestionPress={(_, text) => handleSuggestionPress(text)}
+        onImagePress={onImagePress}
+        isLastMessage={isLastMessage}
+      />
+    );
+  },
+  [currentChatId, handleCopyMessage, handleLikeMessage, handleSuggestionPress, onImagePress]
+);
+
 
   const keyExtractor = useCallback((item: ChatMessage) => item.id, []);
 
