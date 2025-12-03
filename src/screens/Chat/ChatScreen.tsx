@@ -142,18 +142,19 @@ const ChatScreen: React.FC = () => {
    * Em uma FlashList invertida, scrollToOffset com offset: 0 leva ao final (mensagem mais recente).
    */
   const scrollToBottom = useCallback(() => {
-    if (flashListRef.current && messages.length > 0) {
-      try {
-        // Para listas invertidas, offset: 0 é o final da lista (mensagem mais recente)
-        flashListRef.current.scrollToOffset({ 
-          offset: 0, 
-          animated: true 
-        });
-      } catch (error) {
-        console.warn('Erro ao fazer scroll:', error);
-      }
+  if (flashListRef.current && messages.length > 0) {
+    try {
+      // Para listas invertidas com dados em ordem crescente,
+      // scrollToEnd vai para o final visual (mensagens mais recentes)
+      flashListRef.current.scrollToEnd({ animated: true });
+    } catch (error) {
+      console.warn('Erro ao fazer scroll:', error);
     }
-  }, [messages.length]);
+  }
+}, [messages.length]);
+
+
+
 
 
   // Autoscroll para a mensagem mais recente quando usuário envia mensagem
@@ -333,9 +334,8 @@ const ChatScreen: React.FC = () => {
   ({ item, index }) => {
     if (!currentChatId) return null;
     
-    // CORREÇÃO: Com ordem decrescente, a última mensagem cronológica
-    // agora está no índice 0 (não mais no último índice)
-    const isLastMessage = index === 0;
+    // Com ordem crescente, a última mensagem está no último índice
+    const isLastMessage = index === messages.length - 1;
 
     return (
       <MessageBubble
@@ -349,8 +349,9 @@ const ChatScreen: React.FC = () => {
       />
     );
   },
-  [currentChatId, handleCopyMessage, handleLikeMessage, handleSuggestionPress, onImagePress]
+  [currentChatId, messages.length, handleCopyMessage, handleLikeMessage, handleSuggestionPress, onImagePress]
 );
+
 
 
   const keyExtractor = useCallback((item: ChatMessage) => item.id, []);
@@ -449,7 +450,6 @@ const ChatScreen: React.FC = () => {
           estimatedItemSize={150} // Valor médio mais realista
           overrideItemLayout={overrideItemLayout}
           
-          inverted={true}
           
           contentContainerStyle={{
             paddingHorizontal: 16,

@@ -32,8 +32,8 @@ export const useChatLoader = ({ chats, updateChatData }: UseChatLoaderDeps) => {
     const uniqueMessages = allMessages.filter(
       (msg, index, self) => index === self.findIndex((m) => m.id === msg.id)
     );
-    return uniqueMessages.sort((a, b) =>
-    new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+     return uniqueMessages.sort((a, b) =>
+    new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
   );
   };
 
