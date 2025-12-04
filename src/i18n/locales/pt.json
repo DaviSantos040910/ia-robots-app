@@ -24,6 +24,7 @@
     "activateSuccess": "A conversa agora está ativa.",
     "botTyping": "Bot está digitando...",
     "transcribing": "Transcrevendo áudio...",
+    "readingDocument": "Lendo documento...",
     "typeMessage": "Enviar mensagem...",
     "recordingPermissionDenied": "É necessária permissão do microfone para gravar áudio.",
     "recordingFailed": "Falha ao salvar gravação.",
