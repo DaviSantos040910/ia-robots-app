@@ -34,7 +34,8 @@ export const useChatState = () => {
   const [isBotVoiceMode, setIsBotVoiceMode] = useState(false);
 
   // Ref para evitar envios duplicados (race conditions), não dispara re-render
-  const activeSendPromises = useRef<Record<string, Promise<void>>>({});
+  // CORREÇÃO: Adicionado '| undefined' para que o TS saiba que a chave pode não existir
+  const activeSendPromises = useRef<Record<string, Promise<void> | undefined>>({});
 
   /**
    * Atualiza atomicamente os dados de um chat específico.

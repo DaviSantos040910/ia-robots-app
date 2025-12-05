@@ -10,7 +10,8 @@ import { ChatData } from './useChatState';
 type UseChatSenderDeps = {
   updateChatData: (chatId: string, updater: (prevData: ChatData) => Partial<ChatData>) => void;
   setIsTypingById: React.Dispatch<React.SetStateAction<Record<string, boolean>>>;
-  activeSendPromises: React.MutableRefObject<Record<string, Promise<void>>>;
+  // CORREÇÃO: Tipagem atualizada para aceitar undefined, alinhado com useChatState
+  activeSendPromises: React.MutableRefObject<Record<string, Promise<void> | undefined>>;
   isBotVoiceMode: boolean;
 };
 
@@ -21,19 +22,17 @@ export const useChatSender = ({
   isBotVoiceMode,
 }: UseChatSenderDeps) => {
 
-  // --- CORREÇÃO STALE CLOSURE ---
-  // Usamos useRef para guardar o valor mais recente de isBotVoiceMode.
-  // Isso permite que sendMessage leia o valor atual sem precisar ser recriada
-  // sempre que o booleano mudar.
   const voiceModeRef = useRef(isBotVoiceMode);
 
   useEffect(() => {
     voiceModeRef.current = isBotVoiceMode;
   }, [isBotVoiceMode]);
 
-  const sendMessage = useCallback(async (chatId: string, text: string) => {
-    if (activeSendPromises.current[chatId] !== undefined) return;
-
+  /**
+   * Helper Interno: Processa o envio de texto (UI Otimista + API).
+   * Separado para ser reutilizado pelo sendMessage e sendCombinedMessage.
+   */
+  const processTextMessage = useCallback(async (chatId: string, text: string) => {
     const tempUserMsgId = uuidv4();
     
     const tempUserMsg: ChatMessage = {
@@ -49,50 +48,59 @@ export const useChatSender = ({
 
     setIsTypingById((prev) => ({ ...prev, [chatId]: true }));
 
-    // Lê o valor atual da Ref no momento do envio
     const shouldReplyWithAudio = voiceModeRef.current;
 
-    const sendPromise = chatService.sendMessage(chatId, text, shouldReplyWithAudio)
-      .then((apiReplies) => {
-        setIsTypingById((prev) => ({ ...prev, [chatId]: false }));
+    try {
+      const apiReplies = await chatService.sendMessage(chatId, text, shouldReplyWithAudio);
+      
+      updateChatData(chatId, (prev) => {
+        const messagesWithoutTemp = prev.messages.filter(m => m.id !== tempUserMsgId);
+        const existingIds = new Set(messagesWithoutTemp.map(m => m.id));
+        const uniqueReplies = apiReplies.filter(r => !existingIds.has(r.id));
+        const newFinalMessages = [...messagesWithoutTemp, ...uniqueReplies];
 
-        updateChatData(chatId, (prev) => {
-          const messagesWithoutTemp = prev.messages.filter(m => m.id !== tempUserMsgId);
-          const existingIds = new Set(messagesWithoutTemp.map(m => m.id));
-          const uniqueReplies = apiReplies.filter(r => !existingIds.has(r.id));
-          const newFinalMessages = [...messagesWithoutTemp, ...uniqueReplies];
+        setCachedChatData(chatId, {
+          messages: newFinalMessages,
+          nextPage: prev.nextPage,
+          timestamp: Date.now(),
+        }).catch(err => console.error('[ChatSender] Cache update failed:', err));
 
-          setCachedChatData(chatId, {
-            messages: newFinalMessages,
-            nextPage: prev.nextPage,
-            timestamp: Date.now(),
-          }).catch(err => console.error('[ChatSender] Cache update failed:', err));
+        return { messages: newFinalMessages };
+      });
+    } catch (error) {
+      console.error(`[ChatSender] Failed to send message:`, error);
+      
+      const errorMsg: ChatMessage = {
+          id: uuidv4(),
+          role: 'assistant',
+          content: 'Falha ao enviar mensagem. Verifique sua conexão e tente novamente.',
+          created_at: new Date().toISOString()
+      };
 
-          return { messages: newFinalMessages };
-        });
-      })
-      .catch(error => {
-        console.error(`[ChatSender] Failed to send message:`, error);
-        setIsTypingById((prev) => ({ ...prev, [chatId]: false }));
-        
-        const errorMsg: ChatMessage = {
-            id: uuidv4(),
-            role: 'assistant',
-            content: 'Falha ao enviar mensagem. Verifique sua conexão e tente novamente.',
-            created_at: new Date().toISOString()
-        };
+      updateChatData(chatId, (prev) => ({
+           messages: prev.messages.map(m => m.id === tempUserMsgId ? errorMsg : m)
+      }));
+      throw error;
+    } finally {
+      setIsTypingById((prev) => ({ ...prev, [chatId]: false }));
+    }
+  }, [updateChatData, setIsTypingById]);
 
-        updateChatData(chatId, (prev) => ({
-             messages: prev.messages.map(m => m.id === tempUserMsgId ? errorMsg : m)
-        }));
-      })
+  // --- Função Pública: Enviar Texto ---
+  const sendMessage = useCallback(async (chatId: string, text: string) => {
+    if (activeSendPromises.current[chatId]) return;
+
+    const promise = processTextMessage(chatId, text)
+      .catch(() => {})
       .finally(() => {
         delete activeSendPromises.current[chatId];
       });
 
-    activeSendPromises.current[chatId] = sendPromise;
-  }, [updateChatData, setIsTypingById, activeSendPromises]); // isBotVoiceMode removido das deps intencionalmente
+    activeSendPromises.current[chatId] = promise;
+    return promise;
+  }, [processTextMessage, activeSendPromises]);
 
+  // --- Função Pública: Enviar Áudio ---
   const sendVoiceMessage = useCallback(async (chatId: string, audioUri: string, durationMs: number, replyWithAudio: boolean) => {
     if (!audioUri) return;
     const tempId = uuidv4();
@@ -132,6 +140,7 @@ export const useChatSender = ({
     }
   }, [updateChatData, setIsTypingById]);
 
+  // --- Função Pública: Arquivar ---
   const archiveAndStartNew = useCallback(async (chatId: string): Promise<string | null> => {
     try {
       const { new_chat_id } = await chatService.archiveAndCreateNewChat(chatId);
@@ -140,6 +149,7 @@ export const useChatSender = ({
     } catch (error) { return null; }
   }, [updateChatData]);
 
+  // --- Função Pública: Enviar Anexos ---
   const sendMultipleAttachments = useCallback(async (chatId: string, files: AttachmentPickerResult[]) => {
     if (!files.length) return;
     const tempMessages: ChatMessage[] = files.map(file => ({
@@ -166,9 +176,42 @@ export const useChatSender = ({
     }
   }, [updateChatData]);
 
+  // --- NOVA FUNÇÃO: Envio Combinado (Sequencial) ---
+  const sendCombinedMessage = useCallback(async (chatId: string, text: string, attachments: AttachmentPickerResult[]) => {
+    // Agora o TS sabe que pode ser undefined, então esta verificação é válida
+    if (activeSendPromises.current[chatId]) return;
+
+    const flowPromise = (async () => {
+      try {
+        if (attachments.length > 0) {
+          await sendMultipleAttachments(chatId, attachments);
+        }
+
+        if (text.trim().length > 0) {
+          await processTextMessage(chatId, text);
+        }
+      } catch (error) {
+        console.error('[ChatSender] Erro no envio combinado:', error);
+        throw error;
+      } finally {
+        delete activeSendPromises.current[chatId];
+      }
+    })();
+
+    activeSendPromises.current[chatId] = flowPromise;
+    return flowPromise;
+  }, [activeSendPromises, sendMultipleAttachments, processTextMessage]);
+
   const sendAttachment = useCallback(async (chatId: string, file: AttachmentPickerResult) => {
     return sendMultipleAttachments(chatId, [file]);
   }, [sendMultipleAttachments]);
 
-  return { sendMessage, sendVoiceMessage, archiveAndStartNew, sendMultipleAttachments, sendAttachment };
+  return { 
+    sendMessage, 
+    sendVoiceMessage, 
+    archiveAndStartNew, 
+    sendMultipleAttachments, 
+    sendAttachment,
+    sendCombinedMessage
+  };
 };

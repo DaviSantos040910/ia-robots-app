@@ -28,6 +28,9 @@ export type ChatStore = {
   archiveAndStartNew: (chatId: string) => Promise<string | null>;
   sendMultipleAttachments: (chatId: string, files: AttachmentPickerResult[]) => Promise<void>;
   sendAttachment: (chatId: string, file: AttachmentPickerResult) => Promise<void>;
+  // --- NOVA FUNÇÃO ---
+  sendCombinedMessage: (chatId: string, text: string, attachments: AttachmentPickerResult[]) => Promise<void>;
+  
   playTTS: (conversationId: string, messageId: string) => Promise<void>;
   stopTTS: () => Promise<void>;
   handleCopyMessage: (message: ChatMessage) => void;
@@ -63,7 +66,8 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
     sendVoiceMessage, 
     archiveAndStartNew, 
     sendMultipleAttachments, 
-    sendAttachment 
+    sendAttachment,
+    sendCombinedMessage // Obtém do hook
   } = useChatSender({ 
     updateChatData, 
     setIsTypingById, 
@@ -128,6 +132,7 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
     archiveAndStartNew,
     sendMultipleAttachments,
     sendAttachment,
+    sendCombinedMessage, // Inclui na memoização
     playTTS,
     stopTTS,
     handleCopyMessage,
@@ -142,6 +147,7 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
     archiveAndStartNew,
     sendMultipleAttachments,
     sendAttachment,
+    sendCombinedMessage,
     playTTS,
     stopTTS,
     handleCopyMessage,
@@ -171,10 +177,6 @@ export const useChatController = (chatId: string | null) => {
   const chatData = chatId ? (ctx.chats[chatId] || initialChatData) : initialChatData;
   const isTyping = chatId ? !!ctx.isTypingById[chatId] : false;
 
-  // Construção do Controller Memoizado
-  // Aqui é onde a mágica acontece: mesmo que 'ctx' mude, se as propriedades específicas
-  // que este hook usa não mudarem, o objeto retornado deve ser referencialmente estável
-  // (na medida do possível, embora 'ctx' mudando force o hook a rodar).
   const controller = useMemo(() => ({
     ...chatData,
     isTyping,
@@ -193,6 +195,9 @@ export const useChatController = (chatId: string | null) => {
     archiveAndStartNew: () => chatId ? ctx.archiveAndStartNew(chatId) : Promise.resolve(null),
     sendAttachments: (files: AttachmentPickerResult[]) => chatId ? ctx.sendMultipleAttachments(chatId, files) : Promise.resolve(),
     sendAttachment: (file: AttachmentPickerResult) => chatId ? ctx.sendAttachment(chatId, file) : Promise.resolve(),
+    // --- Nova função no controller ---
+    sendCombinedMessage: (text: string, files: AttachmentPickerResult[]) => chatId ? ctx.sendCombinedMessage(chatId, text, files) : Promise.resolve(),
+    
     handleLikeMessage: (msg: ChatMessage) => chatId ? ctx.handleLikeMessage(chatId, msg) : Promise.resolve(),
     
     // Funções Globais
@@ -203,13 +208,13 @@ export const useChatController = (chatId: string | null) => {
     clearLocalChatState: ctx.clearLocalChatState,
   }), [
     chatId, 
-    chatData, // muda quando chegam mensagens
-    isTyping, // muda ao enviar
+    chatData, 
+    isTyping, 
     ctx.isBotVoiceMode,
     ctx.isTTSPlaying,
     ctx.isTTSLoading,
     ctx.currentTTSMessageId,
-    // Dependências de função (estáveis, vindas do functionsValue)
+    // Dependências de função
     ctx.loadInitialMessages,
     ctx.loadMoreMessages,
     ctx.sendMessage,
@@ -217,6 +222,7 @@ export const useChatController = (chatId: string | null) => {
     ctx.archiveAndStartNew,
     ctx.sendMultipleAttachments,
     ctx.sendAttachment,
+    ctx.sendCombinedMessage, // Dependência
     ctx.handleLikeMessage,
     ctx.playTTS,
     ctx.stopTTS,
