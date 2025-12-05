@@ -24,6 +24,7 @@
     "activateSuccess": "Conversation is now active.",
     "botTyping": "Bot is typing...",
     "transcribing": "Transcribing audio...",
+    "readingDocument": "Reading document...",
     "typeMessage": "Send message...",
     "recordingPermissionDenied": "Microphone permission is required to record audio.",
     "recordingFailed": "Failed to save recording.",

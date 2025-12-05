@@ -1,6 +1,6 @@
 // src/components/chat/MessageBubble.tsx
 
-import React, { memo, useState, useCallback, useMemo } from 'react';
+import React, { memo, useState, useCallback, useMemo, useEffect } from 'react';
 import { 
   ActivityIndicator, 
   Pressable, 
@@ -36,6 +36,7 @@ type MessageBubbleProps = {
 };
 
 const MAX_TEXT_LENGTH = 500;
+const PROCESSING_THRESHOLD_MS = 10000; // 10 segundos para mostrar "Lendo..."
 
 const MessageBubbleComponent: React.FC<MessageBubbleProps> = ({
   message,
@@ -60,6 +61,9 @@ const MessageBubbleComponent: React.FC<MessageBubbleProps> = ({
   
   const [expanded, setExpanded] = useState(false);
   const [showTranscription, setShowTranscription] = useState(false);
+  
+  // Estado local para controlar o visual "Lendo..." temporário
+  const [isProcessingFile, setIsProcessingFile] = useState(false);
 
   // --- TAREFA: Adicionado isTTSLoading ---
   const { playTTS, isTTSPlaying, currentTTSMessageId, isTTSLoading } = useChatController(conversationId);
@@ -72,6 +76,30 @@ const MessageBubbleComponent: React.FC<MessageBubbleProps> = ({
   const isTTSDisabled = isTTSLoading; 
 
   const isAudioMessage = message.attachment_type === 'audio';
+  const hasAttachment = !!message.attachment_url;
+  const isImageAttachment = message.attachment_type === 'image' || message.attachment_type?.startsWith('image/');
+  const isFileAttachment = hasAttachment && !isImageAttachment && !isAudioMessage; // Nova verificação explícita
+
+  // Efeito para determinar se o arquivo ainda está sendo "lido" pela IA
+  useEffect(() => {
+    if (isFileAttachment && message.created_at) {
+      const msgTime = new Date(message.created_at).getTime();
+      const now = Date.now();
+      const timeDiff = now - msgTime;
+
+      // Se a mensagem for recente (< 10s), mostramos o estado de processamento
+      if (timeDiff < PROCESSING_THRESHOLD_MS) {
+        setIsProcessingFile(true);
+        
+        // Define um timeout para remover o estado visual
+        const timeout = setTimeout(() => {
+          setIsProcessingFile(false);
+        }, PROCESSING_THRESHOLD_MS - timeDiff);
+        
+        return () => clearTimeout(timeout);
+      }
+    }
+  }, [isFileAttachment, message.created_at]);
   
   const displayedContent = useMemo(() => {
     if (isAudioMessage) return '';
@@ -85,9 +113,6 @@ const MessageBubbleComponent: React.FC<MessageBubbleProps> = ({
   const isPending = message.id.toString().startsWith('temp') || message.id.toString().length > 30;
   const shouldShowSuggestions = !isUser && !!message.suggestions?.length && isLastMessage;
   
-  const hasAttachment = !!message.attachment_url;
-  const isImageAttachment = message.attachment_type === 'image' || message.attachment_type?.startsWith('image/');
-
   // Estilos condicionados
   const rowStyle = isUser ? s.rowRight : s.rowLeft;
   const bubbleStyle = isUser ? s.bubbleUser : s.bubbleBot;
@@ -118,7 +143,10 @@ const MessageBubbleComponent: React.FC<MessageBubbleProps> = ({
 
   const handleLinkPress = useCallback(() => {
     if (message.attachment_url && !isPending) {
-      Linking.openURL(message.attachment_url).catch(console.error);
+      // Abre o arquivo no navegador ou app padrão
+      Linking.openURL(message.attachment_url).catch(err => 
+        console.error("Falha ao abrir arquivo:", err)
+      );
     }
   }, [message.attachment_url, isPending]);
 
@@ -236,15 +264,42 @@ const MessageBubbleComponent: React.FC<MessageBubbleProps> = ({
                 onPress={handleLinkPress}
                 style={[s.attachmentDocument, documentStyle]}
               >
-                <Feather name="file-text" size={20} color={isUser ? '#FFFFFF' : theme.textSecondary} />
-                <View style={{ flex: 1, marginHorizontal: Spacing['spacing-element-m'] }}>
+                {/* Ícone ou Spinner se estiver processando */}
+                <View style={{ 
+                  width: 36, 
+                  height: 36, 
+                  borderRadius: 18, 
+                  backgroundColor: isUser ? 'rgba(255,255,255,0.2)' : theme.surface,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  marginRight: Spacing['spacing-element-m']
+                }}>
+                  {isProcessingFile || isPending ? (
+                    <ActivityIndicator size="small" color={isUser ? '#FFFFFF' : theme.brand.normal} />
+                  ) : (
+                    // Ícone DOC/PDF
+                    <Feather name="file-text" size={20} color={isUser ? '#FFFFFF' : theme.textPrimary} />
+                  )}
+                </View>
+
+                <View style={{ flex: 1 }}>
                     <Text 
-                    style={[s.attachmentDocumentText, documentTextStyle]}
-                    numberOfLines={1}
-                    ellipsizeMode="middle"
+                      style={[s.attachmentDocumentText, documentTextStyle]}
+                      numberOfLines={1}
+                      ellipsizeMode="middle"
                     >
-                    {message.original_filename || 'Arquivo anexo'}
+                      {message.original_filename || 'Documento'}
                     </Text>
+                    
+                    {/* Texto de status (Lendo documento... ou Tamanho) */}
+                    {(isProcessingFile || isPending) ? (
+                      <Text style={[
+                        Typography.bodyRegular.small, 
+                        { color: isUser ? 'rgba(255,255,255,0.8)' : theme.textSecondary, marginTop: 2 }
+                      ]}>
+                        {isPending ? t('common.loading') : t('chat.readingDocument')}
+                      </Text>
+                    ) : null}
                 </View>
               </Pressable>
             )}
@@ -261,9 +316,11 @@ const MessageBubbleComponent: React.FC<MessageBubbleProps> = ({
     handleLinkPress, 
     documentStyle, 
     isUser, 
-    theme.textSecondary, 
+    theme, 
     documentTextStyle, 
-    message.original_filename
+    message.original_filename,
+    isProcessingFile,
+    t
   ]);
 
   const renderedActions = useMemo(() => {
@@ -335,7 +392,6 @@ const MessageBubbleComponent: React.FC<MessageBubbleProps> = ({
     isThisMessagePlaying, 
     handleRewrite, 
     message.rewriting,
-    // Novas dependências adicionadas ao useMemo
     isTTSDisabled,
     isLoadingThisMessage
   ]);
