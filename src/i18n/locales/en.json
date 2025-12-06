@@ -23,6 +23,7 @@
     "activateConfirmMessage": "This will archive your current active chat with this bot and restore this one. Do you want to proceed?",
     "activateSuccess": "Conversation is now active.",
     "botTyping": "Bot is typing...",
+    "creatingImage": "Creating image...",
     "transcribing": "Transcribing audio...",
     "readingDocument": "Reading document...",
     "typeMessage": "Send message...",

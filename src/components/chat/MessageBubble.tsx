@@ -7,7 +7,6 @@ import {
   View, 
   StyleSheet, 
   Text, 
-  Image, 
   Linking, 
   useColorScheme
 } from 'react-native';
@@ -22,6 +21,7 @@ import { Spacing } from '../../theme/spacing';
 import { Typography } from '../../theme/typography';
 import { useChatController } from '../../contexts/chat/ChatProvider';
 import { AudioMessagePlayer } from './AudioMessagePlayer';
+import { ChatImageBubble } from './ChatImageBubble'; // Importação do novo componente
 
 type MessageBubbleProps = {
   message: ChatMessage;
@@ -238,72 +238,64 @@ const MessageBubbleComponent: React.FC<MessageBubbleProps> = ({
   const renderedAttachment = useMemo(() => {
     if (!hasAttachment || isAudioMessage || !message.attachment_url) return null;
 
+    // --- INTEGRAÇÃO DO NOVO COMPONENTE DE IMAGEM ---
+    if (isImageAttachment) {
+      return (
+        <View style={s.attachmentContainer}>
+          <ChatImageBubble 
+            uri={message.attachment_url} 
+            onPress={handleImagePress} 
+          />
+        </View>
+      );
+    }
+
+    // Fallback para documentos/arquivos genéricos
     return (
       <View style={s.attachmentContainer}>
-            {isImageAttachment ? (
-              <Pressable
-                onPress={handleImagePress}
-                style={({ pressed }) => ({ opacity: pressed ? 0.9 : 1 })}
-              >
-                <Image
-                  source={{ uri: message.attachment_url! }}
-                  style={[
-                    s.attachmentImage,
-                    { opacity: isPending ? 0.5 : 1 }
-                  ]}
-                  resizeMode="cover"
-                />
-                {isPending && (
-                  <View style={s.attachmentLoadingOverlay}>
-                    <ActivityIndicator size="small" color="#FFFFFF" />
-                  </View>
-                )}
-              </Pressable>
+        <Pressable
+          onPress={handleLinkPress}
+          style={[s.attachmentDocument, documentStyle]}
+        >
+          {/* Ícone ou Spinner se estiver processando */}
+          <View style={{ 
+            width: 36, 
+            height: 36, 
+            borderRadius: 18, 
+            backgroundColor: isUser ? 'rgba(255,255,255,0.2)' : theme.surface,
+            alignItems: 'center',
+            justifyContent: 'center',
+            marginRight: Spacing['spacing-element-m']
+          }}>
+            {isProcessingFile || isPending ? (
+              <ActivityIndicator size="small" color={isUser ? '#FFFFFF' : theme.brand.normal} />
             ) : (
-              <Pressable
-                onPress={handleLinkPress}
-                style={[s.attachmentDocument, documentStyle]}
-              >
-                {/* Ícone ou Spinner se estiver processando */}
-                <View style={{ 
-                  width: 36, 
-                  height: 36, 
-                  borderRadius: 18, 
-                  backgroundColor: isUser ? 'rgba(255,255,255,0.2)' : theme.surface,
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  marginRight: Spacing['spacing-element-m']
-                }}>
-                  {isProcessingFile || isPending ? (
-                    <ActivityIndicator size="small" color={isUser ? '#FFFFFF' : theme.brand.normal} />
-                  ) : (
-                    // Ícone DOC/PDF
-                    <Feather name="file-text" size={20} color={isUser ? '#FFFFFF' : theme.textPrimary} />
-                  )}
-                </View>
-
-                <View style={{ flex: 1 }}>
-                    <Text 
-                      style={[s.attachmentDocumentText, documentTextStyle]}
-                      numberOfLines={1}
-                      ellipsizeMode="middle"
-                    >
-                      {message.original_filename || 'Documento'}
-                    </Text>
-                    
-                    {/* Texto de status (Lendo documento... ou Tamanho) */}
-                    {(isProcessingFile || isPending) ? (
-                      <Text style={[
-                        Typography.bodyRegular.small, 
-                        { color: isUser ? 'rgba(255,255,255,0.8)' : theme.textSecondary, marginTop: 2 }
-                      ]}>
-                        {isPending ? t('common.loading') : t('chat.readingDocument')}
-                      </Text>
-                    ) : null}
-                </View>
-              </Pressable>
+              // Ícone DOC/PDF
+              <Feather name="file-text" size={20} color={isUser ? '#FFFFFF' : theme.textPrimary} />
             )}
           </View>
+
+          <View style={{ flex: 1 }}>
+              <Text 
+                style={[s.attachmentDocumentText, documentTextStyle]}
+                numberOfLines={1}
+                ellipsizeMode="middle"
+              >
+                {message.original_filename || 'Documento'}
+              </Text>
+              
+              {/* Texto de status (Lendo documento... ou Tamanho) */}
+              {(isProcessingFile || isPending) ? (
+                <Text style={[
+                  Typography.bodyRegular.small, 
+                  { color: isUser ? 'rgba(255,255,255,0.8)' : theme.textSecondary, marginTop: 2 }
+                ]}>
+                  {isPending ? t('common.loading') : t('chat.readingDocument')}
+                </Text>
+              ) : null}
+          </View>
+        </Pressable>
+      </View>
     );
   }, [
     hasAttachment, 

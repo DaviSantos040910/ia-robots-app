@@ -60,6 +60,7 @@ const ChatScreen: React.FC = () => {
   const [menuAnchor, setMenuAnchor] = useState<Anchor>(null);
   const [isSending, setIsSending] = useState(false);
   const [isKeyboardVisible, setKeyboardVisible] = useState(false);
+  const [typingMessage, setTypingMessage] = useState('');
 
   // Ref da FlashList
   const flashListRef = useRef<FlashListRef<ChatMessage> | null>(null);
@@ -227,6 +228,11 @@ const ChatScreen: React.FC = () => {
 
     if (!textToSend && attachmentsToSend.length === 0) return;
 
+    // --- UX EXTRA MILE: Detecção otimista de intenção de imagem ---
+    // Verifica palavras-chave comuns para trocar a mensagem de loading
+    const isImageRequest = /cjrie|gerar|imagem|foto|desenho|ilustra|image|picture|draw|generate/i.test(textToSend);
+    setTypingMessage(isImageRequest ? t('chat.creatingImage') : t('chat.botTyping'));
+
     setIsSending(true);
     setInputText('');
     clearAttachments();
@@ -251,6 +257,8 @@ const ChatScreen: React.FC = () => {
       Alert.alert(t('common.error'), t('chat.sendError'));
     } finally {
       setIsSending(false);
+      // Reset da mensagem opcional, embora ela só apareça quando isTyping=true
+      // setTypingMessage(''); 
     }
   }, [
    isReadOnly,
@@ -469,7 +477,7 @@ const ChatScreen: React.FC = () => {
 
         <Animated.View style={typingContainerStyle}>
           <Text style={s.typingIndicator}>
-            {t('chat.botTyping', { defaultValue: 'Bot is typing...' })}
+            {typingMessage || t('chat.botTyping', { defaultValue: 'Bot is typing...' })}
           </Text>
         </Animated.View>
 

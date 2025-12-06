@@ -23,6 +23,7 @@
     "activateConfirmMessage": "Isso arquivará seu chat ativo atual com este bot e restaurará este. Deseja prosseguir?",
     "activateSuccess": "A conversa agora está ativa.",
     "botTyping": "Bot está digitando...",
+    "creatingImage": "Criando imagem...",
     "transcribing": "Transcrevendo áudio...",
     "readingDocument": "Lendo documento...",
     "typeMessage": "Enviar mensagem...",
