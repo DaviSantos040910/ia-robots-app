@@ -181,6 +181,7 @@ export const useChatController = (chatId: string | null) => {
     ...chatData,
     isTyping,
     // Propriedades globais reativas
+    chats: ctx.chats,
     isBotVoiceMode: ctx.isBotVoiceMode,
     isTTSPlaying: ctx.isTTSPlaying,
     isTTSLoading: ctx.isTTSLoading,

@@ -13,6 +13,7 @@ const env = config();
 /** Metadados recebidos nos eventos SSE */
 export interface StreamMetadata {
     message_id?: string;
+    user_message_id?: string; // Adicionado para suportar o ID real da mensagem do usuário
     type?: 'start' | 'chunk' | 'end' | 'error';
     text?: string;
     detail?: string;
@@ -22,6 +23,7 @@ export interface StreamMetadata {
 
 /** Callbacks para eventos do stream */
 interface StreamCallbacks {
+    onStart?: (metadata: StreamMetadata) => void; // Novo callback opcional para o evento 'start'
     onChunk: (text: string) => void;
     onFinish: (metadata: StreamMetadata) => void;
     onError: (error: Error) => void;
@@ -29,8 +31,7 @@ interface StreamCallbacks {
 
 /**
  * Inicia conexão SSE para streaming de mensagem.
- * 
- * @param chatId - ID do chat
+ * * @param chatId - ID do chat
  * @param content - Conteúdo da mensagem do usuário
  * @param callbacks - Handlers para eventos do stream
  * @returns Função de cleanup para cancelar a conexão
@@ -81,7 +82,11 @@ export const streamMessage = async (
                     
                     switch (data.type) {
                         case 'start':
-                            // Stream iniciado, aguardando chunks
+                            // Repassa o evento start se o callback estiver definido
+                            // Isso permite capturar o ID real do usuário imediatamente
+                            if (callbacks.onStart) {
+                                callbacks.onStart(data);
+                            }
                             break;
                         case 'chunk':
                             if (data.text) {

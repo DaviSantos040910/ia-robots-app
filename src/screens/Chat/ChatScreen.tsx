@@ -89,8 +89,9 @@ const ChatScreen: React.FC = () => {
     initialLoadDoneForCurrentId,
   } = useChatBootstrap({ ...route.params });
 
+  // --- SELEÇÃO DE DADOS ---
   const {
-    messages,
+    chats, 
     isTyping,
     isLoadingMore,
     hasLoadedOnce,
@@ -103,7 +104,56 @@ const ChatScreen: React.FC = () => {
     isBotVoiceMode,
     toggleBotVoiceMode,
     sendVoiceMessage,
+    clearLocalChatState,
   } = useChatController(currentChatId);
+
+  const chatIdStr = String(currentChatId || '');
+  const rawMessages = chats[chatIdStr]?.messages || [];
+
+  // --- FILTRAGEM VISUAL FINAL (Deduplicação e Ordenação) ---
+  const renderMessages = useMemo(() => {
+    if (!rawMessages) return [];
+
+    // Helper de normalização agressiva (igual ao do Loader)
+    const normalize = (str?: string) => (str || '').replace(/\s+/g, '').toLowerCase();
+
+    // 1. Identificar assinaturas de mensagens REAIS (já confirmadas pelo servidor)
+    // Assinatura = Role + Conteúdo Normalizado
+    const realMessageSignatures = new Set<string>();
+    
+    rawMessages.forEach(m => {
+        if (!String(m.id).startsWith('temp-')) {
+            realMessageSignatures.add(`${m.role}:${normalize(m.content)}`);
+        }
+    });
+
+    // 2. Filtrar e Ordenar
+    return rawMessages
+        .filter(m => {
+            const idStr = String(m.id);
+            // Se for temporária, verifica se já existe uma "real" com o mesmo conteúdo semântico
+            if (idStr.startsWith('temp-')) {
+                const signature = `${m.role}:${normalize(m.content)}`;
+                if (realMessageSignatures.has(signature)) {
+                    // BLOQUEIA VISUALMENTE: A mensagem real já está na lista, escondemos a temp.
+                    return false; 
+                }
+            }
+            return true;
+        })
+        .sort((a, b) => 
+            new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+        );
+  }, [rawMessages]);
+
+  // --- EFEITO DE CLEANUP ---
+  useEffect(() => {
+    return () => {
+      if (currentChatId) {
+        clearLocalChatState(currentChatId);
+      }
+    };
+  }, [currentChatId, clearLocalChatState]);
 
   const {
     attachmentMenuVisible,
@@ -126,63 +176,51 @@ const ChatScreen: React.FC = () => {
   });
 
   const scrollToBottom = useCallback(() => {
-    if (flashListRef.current && messages.length > 0) {
+    if (flashListRef.current && renderMessages.length > 0) {
       try {
-        // Para listas invertidas, o offset 0 é o fundo (mensagens mais recentes)
-        // Se a lista for normal, scrollToEnd é mais apropriado
-        // Assumindo lista normal baseada no código anterior
         flashListRef.current.scrollToEnd({ animated: true });
       } catch (error) {
         console.warn('Erro ao fazer scroll:', error);
       }
     }
-  }, [messages.length]);
+  }, [renderMessages.length]);
 
-  // --- AUTO-SCROLL INTELIGENTE PARA STREAMING ---
+  // --- AUTO-SCROLL INTELIGENTE ---
   useEffect(() => {
-    if (messages.length > 0) {
-      const lastMsg = messages[messages.length - 1];
-      // CORREÇÃO: Converter id para string antes de chamar startsWith para evitar erro se for number
+    if (renderMessages.length > 0) {
+      const lastMsg = renderMessages[renderMessages.length - 1];
       const lastMsgIdStr = String(lastMsg.id);
       const isStreamingMessage = lastMsg.role === 'assistant' && lastMsgIdStr.startsWith('temp-stream');
       
-      // Lógica de Auto-Scroll durante o streaming
       if (isStreamingMessage) {
          const currentLength = lastMsg.content.length;
          const diff = currentLength - lastMessageContentLengthRef.current;
          
-         // Só faz scroll se o conteúdo cresceu significativamente (evita jitter) ou é o início
          if (diff > 20 || lastMessageContentLengthRef.current === 0) {
              scrollToBottom();
              lastMessageContentLengthRef.current = currentLength;
          }
       } else {
-        // Para mensagens novas normais (não-stream), sempre rola para o fundo se mudou o ID ou tamanho
-        // CORREÇÃO: Usar a string convertida na verificação também
         if (lastMessageContentLengthRef.current !== 0 && !lastMsgIdStr.startsWith('temp-stream')) {
-            // Finalizou o stream ou nova mensagem
             lastMessageContentLengthRef.current = 0;
             scrollToBottom();
         } else if (lastMessageContentLengthRef.current === 0) {
-            // Primeira carga ou nova mensagem direta
             scrollToBottom();
         }
       }
     }
-  }, [messages, scrollToBottom]);
+  }, [renderMessages, scrollToBottom]);
 
-  // Effect para rolar para o fundo ao entrar no chat (quando as mensagens iniciais carregam)
+  // Effect para rolar para o fundo ao entrar no chat
   useEffect(() => {
-    if (hasLoadedOnce && messages.length > 0) {
-        // Pequeno delay para garantir renderização do FlashList
+    if (hasLoadedOnce && renderMessages.length > 0) {
         setTimeout(() => {
             scrollToBottom();
         }, 100);
     }
-  }, [hasLoadedOnce, currentChatId]); // Dependências para disparar ao carregar chat
+  }, [hasLoadedOnce, currentChatId]);
 
   // Animação do Indicador de Digitação
-  // isTyping deve ficar FALSE assim que o stream começa a retornar dados (tratado no useChatSender)
   useEffect(() => {
     Animated.timing(typingAnim, {
       toValue: isTyping ? 1 : 0,
@@ -246,7 +284,6 @@ const ChatScreen: React.FC = () => {
       if (textToSend) {
         await sendMessage(textToSend);
       }
-      // Scroll imediato para mostrar a mensagem do usuário
       setTimeout(() => { scrollToBottom(); }, 100);
     } catch (error) {
       if (textToSend) setInputText(textToSend);
@@ -290,7 +327,7 @@ const ChatScreen: React.FC = () => {
 
   const renderMessage: ListRenderItem<ChatMessage> = useCallback(({ item, index }) => {
     if (!currentChatId) return null;
-    const isLastMessage = index === messages.length - 1;
+    const isLastMessage = index === renderMessages.length - 1;
     return (
       <MessageBubble
         message={item}
@@ -302,9 +339,13 @@ const ChatScreen: React.FC = () => {
         isLastMessage={isLastMessage}
       />
     );
-  }, [currentChatId, messages.length, handleCopyMessage, handleLikeMessage, handleSuggestionPress, onImagePress]);
+  }, [currentChatId, renderMessages.length, handleCopyMessage, handleLikeMessage, handleSuggestionPress, onImagePress]);
 
-  const keyExtractor = useCallback((item: ChatMessage) => item.id, []);
+  // --- KEY EXTRACTOR BLINDADO ---
+  const keyExtractor = useCallback((item: ChatMessage) => {
+    return item.id ? String(item.id) : `temp-${Math.random()}`;
+  }, []);
+
   const getItemType = useCallback((item: ChatMessage) => {
     if (item.attachment_type === 'audio') return 'audio';
     if (item.attachment_type === 'image') return 'image';
@@ -312,7 +353,6 @@ const ChatScreen: React.FC = () => {
   }, []);
   
   const overrideItemLayout = useCallback((layout: any, item: ChatMessage) => {
-    // Otimização para FlashList: alturas conhecidas
     if (item.attachment_type === 'audio') { layout.size = 80; }
   }, []);
 
@@ -325,11 +365,11 @@ const ChatScreen: React.FC = () => {
           welcomeText={bootstrap?.welcome || ''}
           suggestions={bootstrap?.suggestions || []}
           onSuggestionPress={handleSuggestionPress}
-          showSuggestions={messages.length === 0}
+          showSuggestions={renderMessages.length === 0}
         />
       )}
     </>
-  ), [isLoadingMore, hasLoadedOnce, isReadOnly, bootstrap, handleSuggestionPress, messages.length, theme.brand.normal]);
+  ), [isLoadingMore, hasLoadedOnce, isReadOnly, bootstrap, handleSuggestionPress, renderMessages.length, theme.brand.normal]);
 
   const typingContainerStyle = {
     height: typingAnim.interpolate({ inputRange: [0, 1], outputRange: [0, 36] }),
@@ -367,40 +407,26 @@ const ChatScreen: React.FC = () => {
       >
         <FlashList
           ref={flashListRef}
-          data={messages}
+          data={renderMessages} // <-- USA A LISTA FILTRADA AGORA
           renderItem={renderMessage}
           keyExtractor={keyExtractor}
           getItemType={getItemType}
-          // @ts-expect-error: estimatedItemSize é suportado mas pode faltar nos tipos locais
-
+          // @ts-expect-error
           estimatedItemSize={120} 
           overrideItemLayout={overrideItemLayout}
-          
           contentContainerStyle={s.flatListContent}
-          
-          // Inverted pode ser melhor para chat, mas mantemos o padrão atual se a lógica de ordem for cronológica (cima->baixo)
-          // Se messages[0] é a mais antiga, então NÃO é inverted.
-          // Se messages[0] é a mais nova, ENTÃO é inverted.
-          // Assumindo ordem cronológica (padrão array.push):
-          
           keyboardShouldPersistTaps="handled"
           onEndReached={() => { if (!isReadOnly && !isLoadingMore && hasLoadedOnce) loadMoreMessages(); }}
           onEndReachedThreshold={0.5}
-          
-          // Footer aparece no topo se não for invertido? Não, footer é footer.
-          // No layout padrão (não invertido), ListHeader é no topo, ListFooter no fundo.
-          // ChatWelcome deve ser no topo (Header).
           ListHeaderComponent={renderListFooter}
         />
 
-        {/* Área do Indicador de Digitação (Fora da lista para não pular) */}
         <Animated.View style={typingContainerStyle}>
           <Text style={s.typingIndicator}>
             {typingMessage || t('chat.botTyping', { defaultValue: 'Bot is typing...' })}
           </Text>
         </Animated.View>
 
-        {/* Área de Anexos e Input */}
         <View>
           {selectedAttachments.length > 0 && (
             <ScrollView 

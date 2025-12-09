@@ -14,8 +14,9 @@ export type ChatMessage = {
   attachment_url?: string | null;
   attachment_type?: string | null;
   original_filename?: string | null;
-    duration?: number; 
-
+  duration?: number;
+  // Status do envio da mensagem (controle local)
+  status?: 'sending' | 'sent' | 'error';
 };
 
 // Represents the bot's details.

@@ -125,7 +125,14 @@ export const getCachedChatData = async (chatId: string): Promise<ChatCacheData |
 export const setCachedChatData = async (chatId: string, data: ChatCacheData): Promise<void> => {
   try {
     const key = getCacheKey(chatId);
-    const messagesToCache = data.messages.slice(-MAX_CACHE_MESSAGES);
+
+    // FILTRO CRÍTICO: Remover mensagens temporárias antes de salvar no disco.
+    // Isso evita que, ao reabrir o app, mensagens não-confirmadas reapareçam como "reais".
+    const cleanMessages = data.messages.filter(m => !String(m.id).startsWith('temp-'));
+
+    // Aplica o limite de tamanho do cache apenas nas mensagens limpas
+    const messagesToCache = cleanMessages.slice(-MAX_CACHE_MESSAGES);
+    
     const dataToStore: ChatCacheData = {
       ...data,
       messages: messagesToCache,

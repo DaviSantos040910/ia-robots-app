@@ -49,7 +49,7 @@ export const useChatSender = ({
     }, []);
 
     /**
-     * Finaliza atualização de mensagens após resposta da API.
+     * Finaliza atualização de mensagens após resposta da API (Modo não-streaming).
      */
     const finalizeMessageUpdate = useCallback((
         chatId: string,
@@ -60,7 +60,11 @@ export const useChatSender = ({
             const messagesWithoutTemp = prev.messages.filter(m => m.id !== tempUserId);
             const existingIds = new Set(messagesWithoutTemp.map(m => m.id));
             const uniqueReplies = apiReplies.filter(r => !existingIds.has(r.id));
-            const newFinalMessages = [...messagesWithoutTemp, ...uniqueReplies];
+            
+            // Marca as mensagens vindas da API como 'sent' usando as const para tipagem estrita
+            const sentReplies = uniqueReplies.map(m => ({ ...m, status: 'sent' as const }));
+            
+            const newFinalMessages = [...messagesWithoutTemp, ...sentReplies];
 
             // Atualizar cache
             setCachedChatData(chatId, {
@@ -93,7 +97,8 @@ export const useChatSender = ({
                 id: uuidv4(),
                 role: 'assistant',
                 content: 'Falha ao processar resposta.',
-                created_at: new Date().toISOString()
+                created_at: new Date().toISOString(),
+                status: 'error' as const,
             };
             updateChatData(chatId, (prev) => ({
                 messages: prev.messages.map(m => m.id === targetId ? errorMsg : m)
@@ -106,12 +111,13 @@ export const useChatSender = ({
      * Usa streaming por padrão, exceto em modo de voz.
      */
     const processTextMessage = useCallback(async (chatId: string, text: string) => {
-        const tempUserMsgId = uuidv4();
+        const tempUserMsgId = uuidv4(); 
         const tempUserMsg: ChatMessage = {
             id: tempUserMsgId,
             role: 'user',
             content: text,
             created_at: new Date().toISOString(),
+            status: 'sending' as const,
         };
 
         // Adicionar mensagem do usuário imediatamente
@@ -144,6 +150,7 @@ export const useChatSender = ({
             role: 'assistant',
             content: '',
             created_at: new Date().toISOString(),
+            status: 'sending' as const, // Bot pensando/digitando
         };
 
         // Adicionar placeholder da resposta do bot
@@ -155,14 +162,27 @@ export const useChatSender = ({
             let isFirstChunk = true;
 
             const cancel = await streamMessage(chatId, text, {
+                // Callback onStart: Tenta capturar o ID real do usuário imediatamente
+                // @ts-ignore
+                onStart: (data: any) => {
+                    if (data.type === 'start' && data.user_message_id) {
+                        const realId = String(data.user_message_id);
+                        updateChatData(chatId, (prev) => ({
+                            messages: prev.messages.map(msg => 
+                                msg.id === tempUserMsgId 
+                                    ? { ...msg, id: realId, status: 'sent' as const }
+                                    : msg
+                            )
+                        }));
+                    }
+                },
+
                 onChunk: (textChunk: string) => {
-                    // Desativar "digitando" no primeiro chunk
                     if (isFirstChunk) {
                         setIsTypingById((prev) => ({ ...prev, [chatId]: false }));
                         isFirstChunk = false;
                     }
 
-                    // Acumular texto
                     updateChatData(chatId, (prev) => ({
                         messages: prev.messages.map(msg => {
                             if (msg.id === tempBotId) {
@@ -173,28 +193,34 @@ export const useChatSender = ({
                     }));
                 },
 
+                // Callback onFinish: Onde ocorre a "mágica" da substituição final
                 onFinish: (metadata: StreamMetadata) => {
                     setIsTypingById((prev) => ({ ...prev, [chatId]: false }));
 
                     updateChatData(chatId, (prev) => {
+                        // Se o backend mandou o ID real, usamos ele. Se não, geramos um permanente local.
+                        const finalId = metadata.message_id || uuidv4();
+
+                        // 1. Substituição do ID Temporário pelo Real (Swap)
                         const finalMessages = prev.messages.map(msg => {
                             if (msg.id === tempBotId) {
                                 return {
                                     ...msg,
-                                    id: metadata.message_id || uuidv4(),
+                                    id: finalId, // SUBSTITUIÇÃO DO ID: temp -> real
                                     content: metadata.clean_content || msg.content,
-                                    suggestions: metadata.suggestions || []
+                                    suggestions: metadata.suggestions || [],
+                                    status: 'sent' as const, // Marca como finalizado
                                 };
                             }
                             return msg;
                         });
 
-                        // Atualizar cache
+                        // 2. Atualizar cache com o estado limpo e ids reais
                         setCachedChatData(chatId, {
                             messages: finalMessages,
                             nextPage: prev.nextPage,
                             timestamp: Date.now(),
-                        }).catch(console.error);
+                        }).catch(err => console.error('[ChatSender] Cache update failed in stream finish:', err));
 
                         return { messages: finalMessages };
                     });
@@ -252,7 +278,8 @@ export const useChatSender = ({
             created_at: new Date().toISOString(),
             attachment_type: 'audio',
             attachment_url: audioUri,
-            duration: durationMs
+            duration: durationMs,
+            status: 'sending' as const,
         };
 
         updateChatData(chatId, (prev) => ({
@@ -307,6 +334,7 @@ export const useChatSender = ({
             attachment_url: file.uri,
             attachment_type: file.type || 'application/octet-stream',
             original_filename: file.name,
+            status: 'sending' as const,
         }));
 
         const tempIds = new Set(tempMessages.map(m => m.id));
@@ -322,7 +350,11 @@ export const useChatSender = ({
                 const messagesClean = prev.messages.filter(m => !tempIds.has(m.id));
                 const existingIds = new Set(messagesClean.map(m => m.id));
                 const uniqueReplies = apiReplies.filter(r => !existingIds.has(r.id));
-                const finalMessages = [...messagesClean, ...uniqueReplies];
+                
+                // Marca respostas como enviadas
+                const sentReplies = uniqueReplies.map(m => ({ ...m, status: 'sent' as const }));
+                
+                const finalMessages = [...messagesClean, ...sentReplies];
 
                 setCachedChatData(chatId, {
                     messages: finalMessages,
