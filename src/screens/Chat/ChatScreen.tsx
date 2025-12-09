@@ -11,7 +11,6 @@ import {
   Keyboard,
   Animated,
   Easing,
-  Dimensions,
 } from 'react-native';
 import { SafeAreaView, Edge } from 'react-native-safe-area-context';
 import { useColorScheme } from 'react-native';
@@ -21,7 +20,6 @@ import { NativeStackNavigationProp, NativeStackScreenProps } from '@react-naviga
 import { Ionicons } from '@expo/vector-icons';
 import { FlashList, type ListRenderItem, type FlashListRef } from '@shopify/flash-list';
 
-// Components
 import { ChatHeader } from '../../components/chat/ChatHeader';
 import { ChatInput } from '../../components/chat/ChatInput';
 import { MessageBubble } from '../../components/chat/MessageBubble';
@@ -32,13 +30,11 @@ import { ImageViewerModal } from '../../components/chat/ImageViewerModal';
 import { ActionSheetMenu, type Anchor } from '../../components/chat/ActionSheetMenu';
 import { smoothLayout } from '../../components/shared/Motion';
 
-// Hooks
 import { useChatBootstrap } from './hooks/useChatBootstrap';
 import { useChatController } from '../../contexts/chat/ChatProvider';
 import { useChatMediaLogic } from './hooks/useChatMediaLogic';
 import { useChatAudioLogic } from './hooks/useChatAudioLogic';
 
-// Styles & Types
 import { createChatStyles, getTheme } from './Chat.styles';
 import { RootStackParamList } from '../../types/navigation';
 import { ChatMessage } from '../../types/chat';
@@ -54,7 +50,6 @@ const ChatScreen: React.FC = () => {
   const theme = useMemo(() => getTheme(scheme === 'dark'), [scheme]);
   const s = useMemo(() => createChatStyles(theme), [theme]);
 
-  // UI State
   const [inputText, setInputText] = useState('');
   const [menuOpen, setMenuOpen] = useState(false);
   const [menuAnchor, setMenuAnchor] = useState<Anchor>(null);
@@ -62,27 +57,20 @@ const ChatScreen: React.FC = () => {
   const [isKeyboardVisible, setKeyboardVisible] = useState(false);
   const [typingMessage, setTypingMessage] = useState('');
 
-  // Ref da FlashList
   const flashListRef = useRef<FlashListRef<ChatMessage> | null>(null);
-  
-  // Ref para animação do Typing Indicator
   const typingAnim = useRef(new Animated.Value(0)).current;
+  
+  // Ref para guardar o tamanho da última mensagem e controlar auto-scroll
+  const lastMessageContentLengthRef = useRef(0);
 
-  // Gerenciamento de listeners do teclado
   useEffect(() => {
     const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
     const hideEvent = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
-
     const onShow = () => setKeyboardVisible(true);
     const onHide = () => setKeyboardVisible(false);
-
     const showSub = Keyboard.addListener(showEvent, onShow);
     const hideSub = Keyboard.addListener(hideEvent, onHide);
-
-    return () => {
-      showSub.remove();
-      hideSub.remove();
-    };
+    return () => { showSub.remove(); hideSub.remove(); };
   }, []);
 
   const safeAreaEdges: Edge[] = useMemo(
@@ -90,7 +78,6 @@ const ChatScreen: React.FC = () => {
     [isKeyboardVisible]
   );
 
-  // Business Logic Hooks
   const {
     currentChatId,
     bootstrap,
@@ -138,60 +125,78 @@ const ChatScreen: React.FC = () => {
     onSendVoice: sendVoiceMessage,
   });
 
-    /**
-   * Função auxiliar para fazer scroll até a mensagem mais recente.
-   * Em uma FlashList invertida, scrollToOffset com offset: 0 leva ao final (mensagem mais recente).
-   */
   const scrollToBottom = useCallback(() => {
-  if (flashListRef.current && messages.length > 0) {
-    try {
-      // Para listas invertidas com dados em ordem crescente,
-      // scrollToEnd vai para o final visual (mensagens mais recentes)
-      flashListRef.current.scrollToEnd({ animated: true });
-    } catch (error) {
-      console.warn('Erro ao fazer scroll:', error);
+    if (flashListRef.current && messages.length > 0) {
+      try {
+        // Para listas invertidas, o offset 0 é o fundo (mensagens mais recentes)
+        // Se a lista for normal, scrollToEnd é mais apropriado
+        // Assumindo lista normal baseada no código anterior
+        flashListRef.current.scrollToEnd({ animated: true });
+      } catch (error) {
+        console.warn('Erro ao fazer scroll:', error);
+      }
     }
-  }
-}, [messages.length]);
+  }, [messages.length]);
 
-
-
-
-
-  // Autoscroll para a mensagem mais recente quando usuário envia mensagem
-    /**
-   * Autoscroll para a mensagem mais recente quando uma nova mensagem chega.
-   * Este efeito é acionado sempre que o número de mensagens muda.
-   */
+  // --- AUTO-SCROLL INTELIGENTE PARA STREAMING ---
   useEffect(() => {
     if (messages.length > 0) {
-      // Pequeno delay para garantir que a mensagem foi renderizada
-      setTimeout(() => {
-        scrollToBottom();
-      }, 100);
+      const lastMsg = messages[messages.length - 1];
+      // CORREÇÃO: Converter id para string antes de chamar startsWith para evitar erro se for number
+      const lastMsgIdStr = String(lastMsg.id);
+      const isStreamingMessage = lastMsg.role === 'assistant' && lastMsgIdStr.startsWith('temp-stream');
+      
+      // Lógica de Auto-Scroll durante o streaming
+      if (isStreamingMessage) {
+         const currentLength = lastMsg.content.length;
+         const diff = currentLength - lastMessageContentLengthRef.current;
+         
+         // Só faz scroll se o conteúdo cresceu significativamente (evita jitter) ou é o início
+         if (diff > 20 || lastMessageContentLengthRef.current === 0) {
+             scrollToBottom();
+             lastMessageContentLengthRef.current = currentLength;
+         }
+      } else {
+        // Para mensagens novas normais (não-stream), sempre rola para o fundo se mudou o ID ou tamanho
+        // CORREÇÃO: Usar a string convertida na verificação também
+        if (lastMessageContentLengthRef.current !== 0 && !lastMsgIdStr.startsWith('temp-stream')) {
+            // Finalizou o stream ou nova mensagem
+            lastMessageContentLengthRef.current = 0;
+            scrollToBottom();
+        } else if (lastMessageContentLengthRef.current === 0) {
+            // Primeira carga ou nova mensagem direta
+            scrollToBottom();
+        }
+      }
     }
-  }, [messages.length, scrollToBottom]);
+  }, [messages, scrollToBottom]);
 
+  // Effect para rolar para o fundo ao entrar no chat (quando as mensagens iniciais carregam)
+  useEffect(() => {
+    if (hasLoadedOnce && messages.length > 0) {
+        // Pequeno delay para garantir renderização do FlashList
+        setTimeout(() => {
+            scrollToBottom();
+        }, 100);
+    }
+  }, [hasLoadedOnce, currentChatId]); // Dependências para disparar ao carregar chat
 
   // Animação do Indicador de Digitação
+  // isTyping deve ficar FALSE assim que o stream começa a retornar dados (tratado no useChatSender)
   useEffect(() => {
     Animated.timing(typingAnim, {
       toValue: isTyping ? 1 : 0,
-      duration: 300,
+      duration: 200,
       useNativeDriver: false,
       easing: Easing.out(Easing.ease),
     }).start();
   }, [isTyping, typingAnim]);
 
-  // --- Handlers ---
-
   const handleBackPress = useCallback(() => {
     if (isReadOnly) {
       navigation.goBack();
     } else {
-      navigation.canGoBack()
-        ? navigation.goBack()
-        : navigation.navigate('Main', { screen: 'Chat' });
+      navigation.canGoBack() ? navigation.goBack() : navigation.navigate('Main', { screen: 'Chat' });
     }
   }, [isReadOnly, navigation]);
 
@@ -222,14 +227,10 @@ const ChatScreen: React.FC = () => {
 
   const handleSend = useCallback(async () => {
     if (isReadOnly || !currentChatId || isSending) return;
-    
     const textToSend = inputText.trim();
     const attachmentsToSend = selectedAttachments;
-
     if (!textToSend && attachmentsToSend.length === 0) return;
 
-    // --- UX EXTRA MILE: Detecção otimista de intenção de imagem ---
-    // Verifica palavras-chave comuns para trocar a mensagem de loading
     const isImageRequest = /cjrie|gerar|imagem|foto|desenho|ilustra|image|picture|draw|generate/i.test(textToSend);
     setTypingMessage(isImageRequest ? t('chat.creatingImage') : t('chat.botTyping'));
 
@@ -242,49 +243,27 @@ const ChatScreen: React.FC = () => {
       if (attachmentsToSend.length > 0) {
         await sendAttachments(attachmentsToSend);
       }
-      
-      // Depois envia o texto, se houver
       if (textToSend) {
         await sendMessage(textToSend);
       }
-      
-      // Faz scroll para a mensagem mais recente após envio bem-sucedido
-      setTimeout(() => {
-        scrollToBottom();
-      }, 150);
+      // Scroll imediato para mostrar a mensagem do usuário
+      setTimeout(() => { scrollToBottom(); }, 100);
     } catch (error) {
       if (textToSend) setInputText(textToSend);
       Alert.alert(t('common.error'), t('chat.sendError'));
     } finally {
       setIsSending(false);
-      // Reset da mensagem opcional, embora ela só apareça quando isTyping=true
-      // setTypingMessage(''); 
     }
-  }, [
-   isReadOnly,
-    currentChatId,
-    isSending,
-    inputText,
-    selectedAttachments,
-    clearAttachments,
-    sendAttachments,
-    sendMessage,
-    scrollToBottom,
-    t,
-  ]);
+  }, [isReadOnly, currentChatId, isSending, inputText, selectedAttachments, clearAttachments, sendAttachments, sendMessage, scrollToBottom, t]);
 
-  const handleSuggestionPress = useCallback(
-    (label: string) => {
+  const handleSuggestionPress = useCallback((label: string) => {
       if (isReadOnly || !currentChatId) return;
       sendMessage(label);
-    },
-    [isReadOnly, currentChatId, sendMessage]
-  );
+    }, [isReadOnly, currentChatId, sendMessage]);
 
   const handleArchiveAndStartNew = useCallback(() => {
     setMenuOpen(false);
     if (!currentChatId) return;
-
     Alert.alert(t('chat.newChatTitle'), t('chat.newChatMessage'), [
       { text: t('common.cancel'), style: 'cancel' },
       {
@@ -301,50 +280,17 @@ const ChatScreen: React.FC = () => {
         },
       },
     ]);
-  }, [
-    currentChatId,
-    t,
-    archiveAndStartNew,
-    setBootstrap,
-    setIsReadOnly,
-    setCurrentChatId,
-    initialLoadDoneForCurrentId,
-  ]);
+  }, [currentChatId, t, archiveAndStartNew, setBootstrap, setIsReadOnly, setCurrentChatId, initialLoadDoneForCurrentId]);
 
-  const menuItems = useMemo(
-    () => [
-      {
-        label: t('chat.menuSettings'),
-        onPress: handleOpenSettings,
-        icon: <Ionicons name="settings-outline" size={18} color={theme.textPrimary} />,
-      },
-      ...(!isReadOnly
-        ? [
-            {
-              label: t('chat.menuNewChat'),
-              onPress: handleArchiveAndStartNew,
-              icon: <Ionicons name="add-circle-outline" size={18} color={theme.textPrimary} />,
-            },
-          ]
-        : []),
-      {
-        label: t('chat.menuArchivedChats'),
-        onPress: handleViewArchived,
-        icon: <Ionicons name="archive-outline" size={18} color={theme.textPrimary} />,
-      },
-    ],
-    [isReadOnly, theme, t, handleOpenSettings, handleArchiveAndStartNew, handleViewArchived]
-  );
+  const menuItems = useMemo(() => [
+      { label: t('chat.menuSettings'), onPress: handleOpenSettings, icon: <Ionicons name="settings-outline" size={18} color={theme.textPrimary} /> },
+      ...(!isReadOnly ? [{ label: t('chat.menuNewChat'), onPress: handleArchiveAndStartNew, icon: <Ionicons name="add-circle-outline" size={18} color={theme.textPrimary} /> }] : []),
+      { label: t('chat.menuArchivedChats'), onPress: handleViewArchived, icon: <Ionicons name="archive-outline" size={18} color={theme.textPrimary} /> },
+    ], [isReadOnly, theme, t, handleOpenSettings, handleArchiveAndStartNew, handleViewArchived]);
 
-  // --- FlashList Config ---
-
-  const renderMessage: ListRenderItem<ChatMessage> = useCallback(
-  ({ item, index }) => {
+  const renderMessage: ListRenderItem<ChatMessage> = useCallback(({ item, index }) => {
     if (!currentChatId) return null;
-    
-    // Com ordem crescente, a última mensagem está no último índice
     const isLastMessage = index === messages.length - 1;
-
     return (
       <MessageBubble
         message={item}
@@ -356,37 +302,23 @@ const ChatScreen: React.FC = () => {
         isLastMessage={isLastMessage}
       />
     );
-  },
-  [currentChatId, messages.length, handleCopyMessage, handleLikeMessage, handleSuggestionPress, onImagePress]
-);
-
-
+  }, [currentChatId, messages.length, handleCopyMessage, handleLikeMessage, handleSuggestionPress, onImagePress]);
 
   const keyExtractor = useCallback((item: ChatMessage) => item.id, []);
-
   const getItemType = useCallback((item: ChatMessage) => {
     if (item.attachment_type === 'audio') return 'audio';
     if (item.attachment_type === 'image') return 'image';
     return item.role;
   }, []);
-
-  // --- OTIMIZAÇÃO: Altura Fixa para Itens Conhecidos ---
+  
   const overrideItemLayout = useCallback((layout: any, item: ChatMessage) => {
-    // Se for áudio, sabemos que o tamanho é aproximadamente fixo (dependendo do estilo)
-    if (item.attachment_type === 'audio') {
-      layout.size = 80; // Altura aproximada do player + margens
-    }
-    // Para texto e imagens, o tamanho varia, então deixamos o FlashList calcular.
+    // Otimização para FlashList: alturas conhecidas
+    if (item.attachment_type === 'audio') { layout.size = 80; }
   }, []);
 
   const renderListFooter = useMemo(() => (
     <>
-      {isLoadingMore && (
-        <ActivityIndicator
-          style={{ marginVertical: 16 }}
-          color={theme.brand.normal}
-        />
-      )}
+      {isLoadingMore && <ActivityIndicator style={{ marginVertical: 16 }} color={theme.brand.normal} />}
       {!isLoadingMore && hasLoadedOnce && !isReadOnly && (
         <ChatWelcome
           botAvatar={bootstrap?.bot.avatarUrl}
@@ -399,12 +331,8 @@ const ChatScreen: React.FC = () => {
     </>
   ), [isLoadingMore, hasLoadedOnce, isReadOnly, bootstrap, handleSuggestionPress, messages.length, theme.brand.normal]);
 
-  // Estilo interpolado para o indicador de digitação
   const typingContainerStyle = {
-    height: typingAnim.interpolate({
-      inputRange: [0, 1],
-      outputRange: [0, 36],
-    }),
+    height: typingAnim.interpolate({ inputRange: [0, 1], outputRange: [0, 36] }),
     opacity: typingAnim,
     overflow: 'hidden' as const,
     justifyContent: 'center' as const,
@@ -413,15 +341,8 @@ const ChatScreen: React.FC = () => {
   if (isScreenLoading || !bootstrap) {
     return (
       <SafeAreaView style={s.screen}>
-        <ChatHeader
-          title={route.params.botName}
-          subtitle={route.params.botHandle}
-          avatarUrl={route.params.botAvatarUrl}
-          onBack={handleBackPress}
-        />
-        <View style={s.loadingContainer}>
-          <ActivityIndicator size="large" color={theme.brand.normal} />
-        </View>
+        <ChatHeader title={route.params.botName} subtitle={route.params.botHandle} avatarUrl={route.params.botAvatarUrl} onBack={handleBackPress} />
+        <View style={s.loadingContainer}><ActivityIndicator size="large" color={theme.brand.normal} /></View>
       </SafeAreaView>
     );
   }
@@ -436,83 +357,71 @@ const ChatScreen: React.FC = () => {
         onPhone={handlePhonePress}
         onVolume={toggleBotVoiceMode}
         isVoiceModeEnabled={isBotVoiceMode}
-        onMorePress={(anchor) => {
-          setMenuAnchor(anchor);
-          setMenuOpen(true);
-        }}
+        onMorePress={(anchor) => { setMenuAnchor(anchor); setMenuOpen(true); }}
       />
-
-      <KeyboardAvoidingView
+      
+      <KeyboardAvoidingView 
         style={{ flex: 1 }}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
       >
         <FlashList
           ref={flashListRef}
-          data={messages}  
+          data={messages}
           renderItem={renderMessage}
           keyExtractor={keyExtractor}
           getItemType={getItemType}
-          
           // @ts-expect-error: estimatedItemSize é suportado mas pode faltar nos tipos locais
-          estimatedItemSize={150} // Valor médio mais realista
+
+          estimatedItemSize={120} 
           overrideItemLayout={overrideItemLayout}
           
+          contentContainerStyle={s.flatListContent}
           
-          contentContainerStyle={{
-            paddingHorizontal: 16,
-            paddingTop: 20,    
-            paddingBottom: 30,
-          }}
+          // Inverted pode ser melhor para chat, mas mantemos o padrão atual se a lógica de ordem for cronológica (cima->baixo)
+          // Se messages[0] é a mais antiga, então NÃO é inverted.
+          // Se messages[0] é a mais nova, ENTÃO é inverted.
+          // Assumindo ordem cronológica (padrão array.push):
           
           keyboardShouldPersistTaps="handled"
-          onEndReached={() => {
-            if (!isReadOnly && !isLoadingMore && hasLoadedOnce) {
-              loadMoreMessages();
-            }
-          }}
+          onEndReached={() => { if (!isReadOnly && !isLoadingMore && hasLoadedOnce) loadMoreMessages(); }}
           onEndReachedThreshold={0.5}
+          
+          // Footer aparece no topo se não for invertido? Não, footer é footer.
+          // No layout padrão (não invertido), ListHeader é no topo, ListFooter no fundo.
+          // ChatWelcome deve ser no topo (Header).
           ListHeaderComponent={renderListFooter}
         />
 
+        {/* Área do Indicador de Digitação (Fora da lista para não pular) */}
         <Animated.View style={typingContainerStyle}>
           <Text style={s.typingIndicator}>
             {typingMessage || t('chat.botTyping', { defaultValue: 'Bot is typing...' })}
           </Text>
         </Animated.View>
 
+        {/* Área de Anexos e Input */}
         <View>
           {selectedAttachments.length > 0 && (
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={s.attachmentsScrollView}
-              keyboardShouldPersistTaps="handled"
+            <ScrollView 
+                horizontal 
+                showsHorizontalScrollIndicator={false} 
+                contentContainerStyle={s.attachmentsScrollView} 
+                keyboardShouldPersistTaps="handled"
             >
               {selectedAttachments.map((attachment) => (
                 <View key={attachment.uri} style={s.attachmentsContainer}>
-                  <AttachmentPreview
-                    attachment={attachment}
-                    onRemove={onRemoveAttachment}
-                  />
+                  <AttachmentPreview attachment={attachment} onRemove={onRemoveAttachment} />
                 </View>
               ))}
-              {isPickerLoading && (
-                <ActivityIndicator
-                  size="small"
-                  color={theme.brand.normal}
-                  style={s.attachmentLoader}
-                />
-              )}
+              {isPickerLoading && <ActivityIndicator size="small" color={theme.brand.normal} style={s.attachmentLoader} />}
             </ScrollView>
           )}
 
           {isReadOnly ? (
             <View style={s.activateBanner}>
               <Text style={{ color: theme.textSecondary, textAlign: 'center' }}>
-                {t('chat.readOnlyMessage', {
-                  defaultValue: 'This chat is archived.',
-                })}
+                {t('chat.readOnlyMessage', { defaultValue: 'This chat is archived.' })}
               </Text>
             </View>
           ) : (
@@ -522,11 +431,6 @@ const ChatScreen: React.FC = () => {
                   <ActivityIndicator size="small" color={theme.brand.normal} />
                 </View>
               )}
-              {/* ChatInput já é memoizado.
-                As funções passadas (handleSend, onAttachPress) são useCallback.
-                audioProps é useMemo.
-                Portanto, não causará re-renders na lista ao digitar.
-              */}
               <ChatInput
                 value={inputText}
                 onChangeText={setInputText}
@@ -539,26 +443,9 @@ const ChatScreen: React.FC = () => {
         </View>
       </KeyboardAvoidingView>
 
-      <ActionSheetMenu
-        visible={menuOpen}
-        onClose={() => setMenuOpen(false)}
-        anchor={menuAnchor}
-        items={menuItems}
-      />
-
-      <AttachmentMenu
-        visible={attachmentMenuVisible}
-        onClose={() => setAttachmentMenuVisible(false)}
-        onSelectImage={onImageSelected}
-        onSelectDocument={onDocumentSelected}
-        onTakePhoto={onCameraPress}
-      />
-
-      <ImageViewerModal
-        visible={!!viewingImageUrl}
-        imageUrl={viewingImageUrl}
-        onClose={onCloseImageViewer}
-      />
+      <ActionSheetMenu visible={menuOpen} onClose={() => setMenuOpen(false)} anchor={menuAnchor} items={menuItems} />
+      <AttachmentMenu visible={attachmentMenuVisible} onClose={() => setAttachmentMenuVisible(false)} onSelectImage={onImageSelected} onSelectDocument={onDocumentSelected} onTakePhoto={onCameraPress} />
+      <ImageViewerModal visible={!!viewingImageUrl} imageUrl={viewingImageUrl} onClose={onCloseImageViewer} />
     </SafeAreaView>
   );
 };
