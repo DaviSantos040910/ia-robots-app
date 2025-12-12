@@ -9,6 +9,7 @@ import {
   Image,
   TextInput,
   ActivityIndicator,
+  Switch, // Import Switch
 } from 'react-native';
 import { useColorScheme } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -28,6 +29,7 @@ import { BottomActionSheet } from '../../components/shared/BottomActionSheet';
 import * as ImagePicker from 'expo-image-picker';
 import { exploreService, Category } from '../../services/exploreService'; // Import exploreService and Category type
 import { CategorySelector } from '../../components/create/CategorySelector'; // Import the new component
+import { Colors } from '../../theme/colors';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Create'>;
 
@@ -39,25 +41,25 @@ const CreateBotScreen: React.FC<Props> = ({ navigation }) => {
 
   // --- State for Bot Creation Form ---
   const [botName, setBotName] = useState('');
-  const [botDescription, setBotDescription] = useState(''); // NOVO: State para a descrição
+  const [botDescription, setBotDescription] = useState('');
   const [botPrompt, setBotPrompt] = useState('');
   const [botVoice, setBotVoice] = useState('EnergeticYouth');
   const [botPublicity, setBotPublicity] = useState<'Private' | 'Guests' | 'Public'>('Public');
+  // --- NEW: State for Web Search ---
+  const [allowWebSearch, setAllowWebSearch] = useState(false);
+  
   const [avatarUrl, setAvatarUrl] = useState<string | undefined>(undefined);
 
   // --- State for Categories ---
-  // Holds all available categories fetched from the backend.
   const [allCategories, setAllCategories] = useState<Category[]>([]);
-  // Holds the IDs of the categories the user has selected.
   const [selectedCategoryIds, setSelectedCategoryIds] = useState<string[]>([]);
-  // Manages the loading state while fetching categories.
   const [isLoadingCategories, setIsLoadingCategories] = useState(true);
 
   // --- UI and Validation State ---
   const [isLoading, setIsLoading] = useState(false);
   const [nameError, setNameError] = useState('');
   const [promptError, setPromptError] = useState('');
-  const [categoryError, setCategoryError] = useState(''); // For category selection validation.
+  const [categoryError, setCategoryError] = useState('');
   const [isAvatarActionSheetVisible, setIsAvatarActionSheetVisible] = useState(false);
 
   // --- Menu State (for Voice and Publicity dropdowns) ---
@@ -70,9 +72,10 @@ const CreateBotScreen: React.FC<Props> = ({ navigation }) => {
   const headerAnim = useFadeSlideIn({ dy: -8, duration: 280 });
   const avatarAnim = useFadeSlideIn({ delay: 80, dy: 12 });
   const nameInputAnim = useFadeSlideIn({ delay: 140, dy: 12 });
-  const descriptionInputAnim = useFadeSlideIn({ delay: 200, dy: 12 }); // NOVO: Animação para a descrição
+  const descriptionInputAnim = useFadeSlideIn({ delay: 200, dy: 12 });
   const promptInputAnim = useFadeSlideIn({ delay: 200, dy: 12 });
-  const categoryAnim = useFadeSlideIn({ delay: 260, dy: 12 }); // Animation for the new category section.
+  const categoryAnim = useFadeSlideIn({ delay: 260, dy: 12 });
+  const webSearchAnim = useFadeSlideIn({ delay: 290, dy: 12 }); // Animation for web search
   const settingsAnim = useFadeSlideIn({ delay: 320, dy: 12 });
   const buttonAnim = useFadeSlideIn({ delay: 380, dy: 12 });
 
@@ -84,7 +87,6 @@ const CreateBotScreen: React.FC<Props> = ({ navigation }) => {
         setAllCategories(categories);
       } catch (error) {
         console.error("Failed to fetch categories:", error);
-        // Optionally, show an alert to inform the user about the failure.
         Alert.alert("Error", "Could not load categories. Please try again later.");
       } finally {
         setIsLoadingCategories(false);
@@ -95,26 +97,19 @@ const CreateBotScreen: React.FC<Props> = ({ navigation }) => {
 
   // --- Handlers ---
 
-  // Toggles the selection of a category chip.
-  // Enforces a maximum of 3 selected categories.
   const handleToggleCategory = useCallback((id: string) => {
-    // Clear any previous validation error when the user interacts.
     if (categoryError) setCategoryError('');
 
     setSelectedCategoryIds(prevIds => {
       if (prevIds.includes(id)) {
-        // If the category is already selected, deselect it.
         return prevIds.filter(prevId => prevId !== id);
       } else if (prevIds.length < 3) {
-        // If not selected and the limit is not reached, select it.
         return [...prevIds, id];
       }
-      // If the limit of 3 is reached, do nothing.
       return prevIds;
     });
   }, [categoryError]);
 
-  // Validates the form and sends the data to the backend.
   const handleCreateBot = async () => {
     let isValid = true;
     if (!botName.trim()) { setNameError(t('createBot.nameRequired')); isValid = false; } else { setNameError(''); }
@@ -128,10 +123,11 @@ const CreateBotScreen: React.FC<Props> = ({ navigation }) => {
       const payload: CreateBotPayload = {
         name: botName.trim(),
         prompt: botPrompt.trim(),
-        description: botDescription.trim(), // NOVO: Adicionar descrição ao payload
+        description: botDescription.trim(),
         avatarUrl,
         settings: { voice: botVoice, publicity: botPublicity },
-        category_ids: selectedCategoryIds, // Include the selected category IDs in the payload.
+        category_ids: selectedCategoryIds,
+        allow_web_search: allowWebSearch, // Enviando estado do switch
       };
       const newBot = await createBotService.createBot(payload);
       Alert.alert(t('createBot.creationSuccess'), `Bot "${newBot.name}" created!`, [{ text: 'OK', onPress: () => navigation.goBack() }]);
@@ -208,8 +204,8 @@ const CreateBotScreen: React.FC<Props> = ({ navigation }) => {
             placeholder={t('createBot.descriptionPlaceholder')}
             value={botDescription}
             onChangeText={setBotDescription}
-            maxLength={255} // Corresponde ao max_length do modelo
-            style={s.descriptionInput}// Estilo para um campo de texto um pouco maior
+            maxLength={255} 
+            style={s.descriptionInput}
             multiline
           />
         </Animated.View>
@@ -228,7 +224,7 @@ const CreateBotScreen: React.FC<Props> = ({ navigation }) => {
           />
         </Animated.View>
 
-        {/* --- NEW: Category Selection Section --- */}
+        {/* --- Category Selection Section --- */}
         <Animated.View style={[s.categorySection, categoryAnim]}>
           <Text style={s.categoryLabel}>{t('createBot.categoryLabel')}</Text>
           {isLoadingCategories ? (
@@ -243,7 +239,23 @@ const CreateBotScreen: React.FC<Props> = ({ navigation }) => {
           {categoryError ? <Text style={s.inputErrorText}>{categoryError}</Text> : null}
         </Animated.View>
 
-        {/* --- Settings Section (Language removed) --- */}
+        {/* --- NEW: Web Search Switch --- */}
+        <Animated.View style={[s.formSection, { padding: 16, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }, webSearchAnim]}>
+          <View style={{ flex: 1, marginRight: 16 }}>
+            <Text style={{ ...s.nameInputLabel, marginBottom: 4 }}>Permitir pesquisa no Google</Text>
+            <Text style={{ ...s.labeledInputDescription, marginBottom: 0 }}>
+              O bot poderá buscar informações atualizadas na internet.
+            </Text>
+          </View>
+          <Switch
+            value={allowWebSearch}
+            onValueChange={setAllowWebSearch}
+            trackColor={{ false: theme.border, true: Colors.brand.light.normal }}
+            thumbColor={NeutralColors.neutral.light.white1}
+          />
+        </Animated.View>
+
+        {/* --- Settings Section --- */}
         <Animated.View style={[s.formSection, s.settingsCard, settingsAnim]}>
           <SettingRow label={t('botSettings.voice')} value={botVoice} iconName="volume-2" iconBgColor="#4A90E2" onPress={(anchor) => openMenu(setVoiceMenuOpen, setVoiceAnchor, anchor)} />
           <View style={s.divider} />

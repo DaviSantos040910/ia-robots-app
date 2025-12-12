@@ -8,7 +8,7 @@ import { BotDetails } from './botSettingsService'; // Reusing BotDetails type fo
  */
 export type CreateBotPayload = {
   name: string;
-  description?: string; // Adicionado
+  description?: string;
   prompt: string;
   avatarUrl?: string; // Optional for initial creation
   settings: {
@@ -17,6 +17,8 @@ export type CreateBotPayload = {
   };
   // The list of category IDs selected by the user
   category_ids: string[];
+  // --- NEW: Web Search Flag ---
+  allow_web_search: boolean;
 };
 
 /**
@@ -40,6 +42,7 @@ const realCreateBotService = {
       prompt: payload.prompt,
       voice: payload.settings.voice,
       publicity: payload.settings.publicity,
+      allow_web_search: payload.allow_web_search, // Enviando o novo campo
       category_ids: payload.category_ids,
     };
 
@@ -100,6 +103,7 @@ const mockCreateBotService = {
         voice: payload.settings.voice,
         language: 'English', // language is removed but mock can keep it for now
         publicity: payload.settings.publicity,
+        allow_web_search: payload.allow_web_search, // Mock support
       },
       tags: ['newly_created'],
       createdByMe: true,

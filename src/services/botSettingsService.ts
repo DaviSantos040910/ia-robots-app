@@ -15,6 +15,8 @@ export type BotDetails = {
     voice: string;
     language: string;
     publicity: 'Private' | 'Guests' | 'Public';
+    // --- NEW: Added to reflect backend model ---
+    allow_web_search: boolean;
   };
   tags: string[];
   // This flag will be sent by the backend to determine user permissions.
@@ -46,6 +48,7 @@ const mockBotSettingsService = {
         voice: 'EnergeticYouth',
         language: 'English',
         publicity: 'Public',
+        allow_web_search: true, // Mock value
       },
       tags: ['featured', 'popular'],
       createdByMe: true, // Set to `false` to test the non-owner view.
