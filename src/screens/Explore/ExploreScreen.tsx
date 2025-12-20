@@ -1,217 +1,251 @@
-// src/screens/Explore/ExploreScreen.tsx
-import React, { useEffect, useState, useCallback, useRef } from 'react';
-import { View, Text, FlatList, TextInput, ScrollView, Pressable, ActivityIndicator, Animated, Keyboard } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { useColorScheme } from 'react-native';
-import { useTranslation } from 'react-i18next';
-import { useNavigation } from '@react-navigation/native';
-import { Ionicons } from '@expo/vector-icons';
-import { createExploreStyles, getTheme } from './Explore.styles';
-import { exploreService, Category } from '../../services/exploreService'; // Updated service
-import { ExploreBotRow, ExploreBotItem } from '../../components/explore/ExploreBotRow';
-import { useFadeSlideIn, ScalePressable, smoothLayout } from '../../components/shared/Motion';
-import searchHistoryService, { SearchHistoryItem } from '../../services/searchHistoryService';
-import SearchHistory from '../../components/explore/SearchHistory';
+import React, { useState, useEffect } from "react";
+import {
+  View,
+  StyleSheet,
+  ScrollView,
+  Text,
+  RefreshControl,
+} from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useNavigation } from "@react-navigation/native";
+import { NativeStackNavigationProp } from "@react-navigation/native-stack";
+import { useTheme } from "../../theme/colors";
+import { spacing } from "../../theme/spacing";
+import { typography } from "../../theme/typography";
+import { exploreService } from "../../services/exploreService";
+import { botService } from "../../services/botService";
+import { ExploreBotRow } from "../../components/explore/ExploreBotRow";
+import SearchHistory from "../../components/explore/SearchHistory";
+import { CategorySelector } from "../../components/create/CategorySelector";
+import { LabeledTextInput } from "../../components/shared/LabeledTextInput";
+import { SkeletonBlock } from "../../components/shared/Skeleton";
+import { useTranslation } from "react-i18next"; // Importando i18n
+import { FEATURES } from "../../config/featureFlags"; // Importando Flags
+import type { Category, ExploreBotItem } from "../../services/exploreService";
+import type { SearchHistoryItem } from "../../services/searchHistoryService";
+import type { RootStackParamList } from "../../types/navigation";
 
-// --- Sub-components (SearchBar, CategoryFilter) can remain the same ---
-
-const SearchBar: React.FC<{
-  onFocus: () => void;
-  onCancel: () => void;
-  isSearchActive: boolean;
-}> = ({ onFocus, onCancel, isSearchActive }) => {
+export const ExploreScreen = () => {
+  const theme = useTheme();
+  const insets = useSafeAreaInsets();
   const { t } = useTranslation();
-  const theme = getTheme(useColorScheme() === 'dark');
-  const s = createExploreStyles(theme);
-  const cancelAnim = useRef(new Animated.Value(0)).current;
+  const navigation =
+    useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+
+  const [searchQuery, setSearchQuery] = useState("");
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const [bots, setBots] = useState<ExploreBotItem[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [history, setHistory] = useState<SearchHistoryItem[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    Animated.timing(cancelAnim, {
-      toValue: isSearchActive ? 1 : 0,
-      duration: 200,
-      useNativeDriver: false,
-    }).start();
-  }, [isSearchActive]);
+    const fetchCategories = async () => {
+      try {
+        const data = await exploreService.getCategories();
+        setCategories(data);
+      } catch (error) {
+        console.error(error);
+      }
+    };
+    fetchCategories();
+  }, []);
 
-  const cancelWidth = cancelAnim.interpolate({
-    inputRange: [0, 1],
-    outputRange: [0, 80],
-  });
+  const fetchBots = async () => {
+    setIsLoading(true);
+    try {
+      const q = searchQuery.trim();
+      const data = q
+        ? await exploreService.searchBots(q)
+        : await exploreService.getBots(selectedCategory ?? undefined);
+
+      setBots(data);
+    } catch (error) {
+      console.error(error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchBots();
+  }, [selectedCategory]); // Recarrega ao mudar categoria
+
+  const selectedCategoryName = selectedCategory
+    ? categories.find((c) => c.id === selectedCategory)?.name
+    : null;
+
+  const handleBotPress = async (botId: string) => {
+    try {
+      const bootstrapData = await botService.getChatBootstrap(botId);
+      navigation.navigate("ChatScreen", {
+        chatId: bootstrapData.conversationId,
+        botId,
+        botName: bootstrapData.bot.name,
+        botHandle: bootstrapData.bot.handle,
+        botAvatarUrl: bootstrapData.bot.avatarUrl,
+      });
+    } catch (error) {
+      console.error(error);
+    }
+  };
 
   return (
-    <View style={s.searchSection}>
-      <View style={s.searchBarContainer}>
-        <Ionicons name="search" size={20} color={theme.textSecondary} />
-        <TextInput
-          placeholder={t('explore.searchPlaceholder')}
-          placeholderTextColor={theme.textSecondary}
-          style={s.searchInput}
-          onFocus={onFocus}
-        />
+    <View
+      style={[
+        s.container,
+        { backgroundColor: theme.brand.background, paddingTop: insets.top },
+      ]}
+    >
+      <View style={s.header}>
+        <Text style={[s.title, { color: theme.brand.text }]}>
+          {t("mainTabs.explore")}
+        </Text>
       </View>
-      <Animated.View style={{ width: cancelWidth, overflow: 'hidden' }}>
-        <Pressable onPress={onCancel} style={s.cancelButton}>
-          <Text style={s.cancelButtonText}>{t('common.cancel')}</Text>
-        </Pressable>
-      </Animated.View>
+
+      <ScrollView
+        contentContainerStyle={s.scrollContent}
+        refreshControl={
+          <RefreshControl
+            refreshing={isLoading}
+            onRefresh={fetchBots}
+            tintColor={theme.brand.normal}
+          />
+        }
+      >
+        {/* Barra de Busca (Controlada por Flag) */}
+        {FEATURES.SHOW_EXPLORE_SEARCH_BAR && (
+          <View style={s.searchContainer}>
+            <LabeledTextInput
+              label={t("explore.searchPlaceholder") || "Buscar..."}
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+              placeholder={t("explore.searchPlaceholder") || "Buscar..."}
+              returnKeyType="search"
+              onSubmitEditing={fetchBots}
+            />
+          </View>
+        )}
+
+        {/* Histórico de Busca (Controlado por Flag) */}
+        {FEATURES.SHOW_EXPLORE_HISTORY && (
+          <View style={s.section}>
+            <SearchHistory
+              history={history}
+              onRemoveItem={(id) =>
+                setHistory((prev) => prev.filter((h) => h.id !== id))
+              }
+              onClearAll={() => setHistory([])}
+              onPressItem={(term) => {
+                setSearchQuery(term);
+                fetchBots();
+              }}
+            />
+          </View>
+        )}
+
+        {/* Sugestões/Categorias (Filtro Rápido) */}
+        {FEATURES.SHOW_EXPLORE_SUGGESTIONS && (
+          <View style={s.section}>
+            <CategorySelector
+              allCategories={categories}
+              selectedIds={selectedCategory ? [selectedCategory] : []}
+              onToggleCategory={(id) =>
+                setSelectedCategory((prev) => (prev === id ? null : id))
+              }
+            />
+          </View>
+        )}
+
+        {/* Lista de Resultados */}
+        <View style={s.listContainer}>
+          <Text style={[s.sectionTitle, { color: theme.brand.text }]}>
+            {selectedCategoryName ||
+              t("explore.allDocuments") ||
+              "Todos os Documentos"}
+          </Text>
+
+          {isLoading ? (
+            <>
+              <SkeletonBlock
+                width="100%"
+                height={80}
+                style={{ marginBottom: 10 }}
+              />
+              <SkeletonBlock
+                width="100%"
+                height={80}
+                style={{ marginBottom: 10 }}
+              />
+              <SkeletonBlock
+                width="100%"
+                height={80}
+                style={{ marginBottom: 10 }}
+              />
+            </>
+          ) : (
+            bots.map((bot) => (
+              <ExploreBotRow
+                key={bot.id}
+                id={bot.id}
+                name={bot.name}
+                description={bot.description}
+                imageUrl={
+                  (bot as any).imageUrl ?? (bot as any).avatar_url ?? null
+                }
+                onPress={() => handleBotPress(bot.id)}
+              />
+            ))
+          )}
+
+          {!isLoading && bots.length === 0 && (
+            <Text
+              style={{
+                color: theme.brand.textSecondary,
+                textAlign: "center",
+                marginTop: 20,
+              }}
+            >
+              {t("common.noResults") || "Nenhum documento encontrado."}
+            </Text>
+          )}
+        </View>
+      </ScrollView>
     </View>
   );
 };
 
-const CategoryFilter: React.FC<{
-  categories: Category[];
-  activeCategoryId: string;
-  onSelectCategory: (id: string) => void;
-}> = ({ categories, activeCategoryId, onSelectCategory }) => {
-  const theme = getTheme(useColorScheme() === 'dark');
-  const s = createExploreStyles(theme);
-  return (
-    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.categoryScrollView}>
-      {categories.map(category => (
-        <ScalePressable key={category.id} onPress={() => onSelectCategory(category.id)}>
-          <View style={[s.categoryChip, activeCategoryId === category.id && s.categoryChipActive]}>
-            <Text style={[s.categoryText, activeCategoryId === category.id && s.categoryTextActive]}>
-              {category.name}
-            </Text>
-          </View>
-        </ScalePressable>
-      ))}
-    </ScrollView>
-  );
-};
-
-const AnimatedBotRow: React.FC<{ item: ExploreBotItem; index: number; }> = ({ item, index }) => {
-  const anim = useFadeSlideIn({ delay: index * 60, dy: 12, duration: 350 });
-  return (
-    <Animated.View style={anim}>
-      {/* The component now handles its own press and subscription logic */}
-      <ExploreBotRow item={item} />
-    </Animated.View>
-  );
-};
-
-// --- Main Screen Component ---
-const ExploreScreen: React.FC = () => {
-  const scheme = useColorScheme();
-  const theme = getTheme(scheme === 'dark');
-  const s = createExploreStyles(theme);
-  const navigation = useNavigation<any>();
-  const { t } = useTranslation();
-
-  // --- State Management ---
-  const [isSearchActive, setIsSearchActive] = useState(false);
-  const [searchHistory, setSearchHistory] = useState<SearchHistoryItem[]>([]);
-  const [loadingCategories, setLoadingCategories] = useState(true);
-  const [loadingBots, setLoadingBots] = useState(true);
-  const [categories, setCategories] = useState<Category[]>([]);
-  const [bots, setBots] = useState<ExploreBotItem[]>([]);
-  const [activeCategoryId, setActiveCategoryId] = useState('featured'); // Default category
-
-  // --- Data Fetching ---
-  useEffect(() => {
-    const fetchInitialData = async () => {
-      setLoadingCategories(true);
-      try {
-        const [categoriesData, historyData] = await Promise.all([
-          exploreService.getCategories(),
-          searchHistoryService.getHistory(),
-        ]);
-        setCategories(categoriesData);
-        setSearchHistory(historyData);
-        // Set the first category as active if 'featured' doesn't exist
-        if (categoriesData.length > 0 && !categoriesData.some(c => c.id === activeCategoryId)) {
-          setActiveCategoryId(categoriesData[0].id);
-        }
-      } catch (error) {
-        console.error("Failed to fetch initial data:", error);
-      } finally {
-        setLoadingCategories(false);
-      }
-    };
-    fetchInitialData();
-  }, []);
-
-  useEffect(() => {
-    const fetchBots = async () => {
-      if (!activeCategoryId) return;
-      setLoadingBots(true);
-      setBots([]); // Clear previous bots
-      try {
-        const data = await exploreService.getBots(activeCategoryId);
-        smoothLayout();
-        setBots(data);
-      } catch (error) {
-        console.error(`Failed to fetch bots for category ${activeCategoryId}:`, error);
-      } finally {
-        setLoadingBots(false);
-      }
-    };
-    fetchBots();
-  }, [activeCategoryId]);
-
-  // --- Handlers ---
-  const handleSearchFocus = () => setIsSearchActive(true);
-  const handleSearchCancel = () => {
-    Keyboard.dismiss();
-    setIsSearchActive(false);
-  };
-  
-  const handleRemoveHistoryItem = async (id: string) => {
-    const updatedHistory = await searchHistoryService.removeSearchTerm(id);
-    setSearchHistory(updatedHistory);
-  };
-
-  const handleClearHistory = async () => {
-    await searchHistoryService.clearHistory();
-    setSearchHistory([]);
-  };
-  
-  const ItemSeparator = () => <View style={s.divider} />;
-
-  return (
-    <SafeAreaView style={s.screen} edges={['top']}>
-        <View style={s.header}>
-          <SearchBar 
-            onFocus={handleSearchFocus}
-            onCancel={handleSearchCancel}
-            isSearchActive={isSearchActive}
-          />
-        </View>
-
-        {isSearchActive ? (
-          <SearchHistory 
-            history={searchHistory}
-            onRemoveItem={handleRemoveHistoryItem}
-            onClearAll={handleClearHistory}
-            onPressItem={(term) => console.log('Search for:', term)}
-          />
-        ) : (
-          <>
-            {loadingCategories ? (
-              <ActivityIndicator style={{ marginTop: 20 }} size="large" color={theme.brand.normal} />
-            ) : (
-              <FlatList
-                data={bots}
-                keyExtractor={item => item.id.toString()}
-                renderItem={({ item, index }) => <AnimatedBotRow item={item} index={index} />}
-                ListHeaderComponent={
-                  <CategoryFilter
-                    categories={categories}
-                    activeCategoryId={activeCategoryId}
-                    onSelectCategory={setActiveCategoryId}
-                  />
-                }
-                ListFooterComponent={
-                  loadingBots ? <ActivityIndicator style={{ marginVertical: 20 }} color={theme.brand.normal} /> : null
-                }
-                contentContainerStyle={s.listContentContainer}
-                ItemSeparatorComponent={ItemSeparator}
-              />
-            )}
-          </>
-        )}
-    </SafeAreaView>
-  );
-};
-
-export default ExploreScreen;
+const s = StyleSheet.create({
+  container: {
+    flex: 1,
+  },
+  header: {
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
+    borderBottomWidth: 1,
+    borderBottomColor: "rgba(0,0,0,0.05)",
+  },
+  title: {
+    ...typography.h4,
+    fontWeight: "700",
+  },
+  scrollContent: {
+    paddingBottom: spacing.xxl,
+  },
+  searchContainer: {
+    paddingHorizontal: spacing.lg,
+    marginTop: spacing.md,
+  },
+  section: {
+    marginTop: spacing.lg,
+  },
+  listContainer: {
+    paddingHorizontal: spacing.lg,
+    marginTop: spacing.lg,
+  },
+  sectionTitle: {
+    ...typography.h6,
+    marginBottom: spacing.md,
+    fontWeight: "600",
+  },
+});

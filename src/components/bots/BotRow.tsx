@@ -1,55 +1,116 @@
-// src/components/bots/BotRow.tsx
 import React from 'react';
-import { Pressable, Text, View, Image } from 'react-native';
-import { useColorScheme } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
-import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { botService } from '../../services/botService'; // Import the service
-import { Bot } from '../../types/chat';
-import { RootStackParamList } from '../../types/navigation';
-import { getTheme } from '../../screens/ChatList/ChatList.styles';
-import { createBotsScreenStyles } from '../../screens/Bots/Bots.styles';
+import { TouchableOpacity, View, Text, StyleSheet, Image } from 'react-native';
+import { useTheme } from '../../theme/colors';
+import { spacing } from '../../theme/spacing';
+import { radius } from '../../theme/radius';
+import { typography } from '../../theme/typography';
+import { Ionicons } from '@expo/vector-icons';
+import { FEATURES } from '../../config/featureFlags'; // Importando Flags
 
-type Props = {
-  item: Bot;
-};
+interface BotRowProps {
+  id: string;
+  name: string;
+  description: string;
+  imageUrl?: string | null;
+  onPress: () => void;
+  showBorder?: boolean;
+}
 
-export const BotRow: React.FC<Props> = ({ item }) => {
-  const scheme = useColorScheme();
-  const theme = getTheme(scheme === 'dark');
-  const s = createBotsScreenStyles(theme);
-  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
-
-  // --- REFACTORED: Now uses the service layer ---
-  const handlePress = async () => {
-    try {
-      // Call the bootstrap function from the bot service.
-      const bootstrapData = await botService.getChatBootstrap(item.id);
-      
-      navigation.navigate('ChatScreen', {
-        chatId: bootstrapData.conversationId,
-        botId: item.id, // --- ADICIONADO: Passa o botId para o ecrã de chat ---
-        botName: bootstrapData.bot.name,
-        botHandle: bootstrapData.bot.handle,
-        botAvatarUrl: bootstrapData.bot.avatarUrl,
-      });
-    } catch (error) {
-      console.error("Failed to bootstrap chat from Bots screen:", error);
-    }
-  };
+export const BotRow: React.FC<BotRowProps> = ({
+  name,
+  description,
+  imageUrl,
+  onPress,
+  showBorder = true,
+}) => {
+  const theme = useTheme();
 
   return (
-    <Pressable onPress={handlePress} style={({ pressed }) => ({ backgroundColor: pressed ? theme.surfaceAlt : 'transparent' })}>
-      <View style={s.row}>
-        <Image 
-          source={item.avatar_url ? { uri: item.avatar_url } : require('../../assets/avatar.png')} 
-          style={s.avatar} 
+    <TouchableOpacity
+      style={[
+        s.container,
+        {
+          backgroundColor: theme.brand.background,
+          borderBottomColor: theme.brand.border,
+          borderBottomWidth: showBorder ? 1 : 0,
+        },
+      ]}
+      onPress={onPress}
+      activeOpacity={0.7}
+    >
+      {/* Avatar Lógica: Flag define se mostra Imagem ou Ícone de Pasta */}
+      {FEATURES.USE_CHARACTER_AVATAR ? (
+        <Image
+          source={imageUrl ? { uri: imageUrl } : require('../../assets/avatar.png')}
+          style={s.avatar}
         />
-        <View style={s.body}>
-          <Text style={s.title} numberOfLines={1}>{item.name}</Text>
-          <Text style={s.description} numberOfLines={2}>{item.description}</Text>
+      ) : (
+        <View style={[s.avatarPlaceholder, { backgroundColor: theme.brand.surface, borderColor: theme.brand.border }]}>
+           {/* Ícone técnico de 'Documento/Base de Conhecimento' */}
+          <Ionicons name="library-outline" size={24} color={theme.brand.normal} />
         </View>
+      )}
+
+      <View style={s.content}>
+        <View style={s.header}>
+          <Text style={[s.name, { color: theme.brand.text }]} numberOfLines={1}>
+            {name}
+          </Text>
+        </View>
+
+        <Text
+          style={[s.description, { color: theme.brand.textSecondary }]}
+          numberOfLines={2}
+        >
+          {description}
+        </Text>
       </View>
-    </Pressable>
+      
+      {/* Seta discreta indicando navegação */}
+      <Ionicons name="chevron-forward" size={16} color={theme.brand.border} />
+    </TouchableOpacity>
   );
 };
+
+const s = StyleSheet.create({
+  container: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.lg,
+  },
+  avatar: {
+    width: 48,
+    height: 48,
+    borderRadius: radius.medium, // Avatar quadrado (técnico)
+    marginRight: spacing.md,
+    backgroundColor: '#E2E8F0',
+  },
+  avatarPlaceholder: {
+    width: 48,
+    height: 48,
+    borderRadius: radius.medium,
+    marginRight: spacing.md,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+  },
+  content: {
+    flex: 1,
+    marginRight: spacing.sm,
+  },
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 2,
+  },
+  name: {
+    ...typography.subtitle1,
+    fontWeight: '600',
+  },
+  description: {
+    ...typography.body2,
+    lineHeight: 18,
+  },
+});

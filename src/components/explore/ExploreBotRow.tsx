@@ -1,87 +1,125 @@
-// src/components/explore/ExploreBotRow.tsx
-import React, { useState } from 'react';
-import { Pressable, Text, View, Image, ActivityIndicator } from 'react-native';
-import { useColorScheme } from 'react-native';
+import React from 'react';
+import { TouchableOpacity, View, Text, StyleSheet, Image } from 'react-native';
+import { useTheme } from '../../theme/colors';
+import { spacing } from '../../theme/spacing';
+import { radius } from '../../theme/radius';
+import { typography } from '../../theme/typography';
 import { Ionicons } from '@expo/vector-icons';
-import { createExploreStyles, getTheme } from '../../screens/Explore/Explore.styles';
-import { Bot } from '../../types/chat';
-import { ScalePressable } from '../shared/Motion';
-import { useNavigation } from '@react-navigation/native';
-import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { RootStackParamList } from '../../types/navigation';
-import { botService } from '../../services/botService'; // Import botService
-import { exploreService } from '../../services/exploreService'; // Import exploreService
+import { FEATURES } from '../../config/featureFlags'; // Import flags
 
-export type ExploreBotItem = Bot & { is_subscribed?: boolean };
-
-interface Props {
-  item: ExploreBotItem;
+interface ExploreBotRowProps {
+  id: string;
+  name: string;
+  description: string;
+  imageUrl?: string | null;
+  category?: string;
+  author?: string;
+  isSubscribed?: boolean;
+  onToggleSubscribe?: () => void;
+  onPress: () => void;
 }
 
-export const ExploreBotRow: React.FC<Props> = ({ item }) => {
-  const scheme = useColorScheme();
-  const theme = getTheme(scheme === 'dark');
-  const s = createExploreStyles(theme);
-  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
-
-  const [isSubscribed, setIsSubscribed] = useState(item.is_subscribed ?? false);
-  const [isLoading, setIsLoading] = useState(false);
-
-  // --- REFACTORED: Now uses the service layer ---
-  const handleToggleSubscribe = async () => {
-    setIsLoading(true);
-    try {
-      // Call the dedicated function from the service file.
-      await exploreService.toggleBotSubscription(item.id);
-      setIsSubscribed(prev => !prev);
-    } catch (error) {
-      console.error("Failed to toggle subscription:", error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  // --- REFACTORED: Now uses the service layer ---
-  const handleRowPress = async () => {
-    try {
-      // Call the bootstrap function from the bot service.
-      const bootstrapData = await botService.getChatBootstrap(item.id);
-      
-      navigation.navigate('ChatScreen', {
-        chatId: bootstrapData.conversationId,
-        botId: item.id, // --- ADICIONADO: Passa o botId para o ecrã de chat ---
-        botName: bootstrapData.bot.name,
-        botHandle: bootstrapData.bot.handle,
-        botAvatarUrl: bootstrapData.bot.avatarUrl,
-      });
-    } catch (error) {
-      console.error("Failed to bootstrap chat from explore:", error);
-    }
-  };
+export const ExploreBotRow: React.FC<ExploreBotRowProps> = ({
+  name,
+  description,
+  imageUrl,
+  category,
+  author,
+  isSubscribed,
+  onToggleSubscribe,
+  onPress,
+}) => {
+  const theme = useTheme();
 
   return (
-    <Pressable onPress={handleRowPress} style={({ pressed }) => [s.row, { backgroundColor: pressed ? theme.surfaceAlt : 'transparent' }]}>
-      <Image 
-        source={item.avatar_url ? { uri: item.avatar_url } : require('../../assets/avatar.png')} 
-        style={s.avatar} 
-      />
-      
-      <View style={s.body}>
-        <Text style={s.title} numberOfLines={1}>{item.name}</Text>
-        <Text style={s.desc} numberOfLines={1}>{item.description}</Text>
-      </View>
+    <TouchableOpacity
+      style={[
+        s.container,
+        {
+          backgroundColor: theme.brand.background,
+          borderColor: theme.brand.border,
+        },
+      ]}
+      onPress={onPress}
+      activeOpacity={0.7}
+    >
+      {/* Lógica de Avatar: Usa imagem se existir, senão ícone de biblioteca */}
+      {imageUrl ? (
+        <Image
+          source={{ uri: imageUrl }}
+          style={s.avatar}
+        />
+      ) : (
+        <View style={[s.avatarPlaceholder, { backgroundColor: theme.brand.surface, borderColor: theme.brand.border }]}>
+          <Ionicons name="library-outline" size={24} color={theme.brand.normal} />
+        </View>
+      )}
 
-      <ScalePressable onPress={handleToggleSubscribe} disabled={isLoading} style={s.followButton}>
-        {isLoading ? (
-          <ActivityIndicator size="small" color={theme.brand.normal} />
-        ) : (
-          <Ionicons 
-            name={isSubscribed ? "checkmark-circle" : "add-circle-outline"}
-            size={32}
-            color={isSubscribed ? theme.brand.normal : theme.textSecondary}
-          />
-        )}
-      </ScalePressable>
-    </Pressable>
+      <View style={s.content}>
+        <View style={s.header}>
+          <Text style={[s.name, { color: theme.brand.text }]} numberOfLines={1}>
+            {name}
+          </Text>
+        </View>
+
+        <Text
+          style={[s.description, { color: theme.brand.textSecondary }]}
+          numberOfLines={2}
+        >
+          {description}
+        </Text>
+      </View>
+      
+      {/* Seta de navegação técnica */}
+      <Ionicons name="chevron-forward" size={16} color={theme.brand.border} />
+    </TouchableOpacity>
   );
 };
+
+const s = StyleSheet.create({
+  container: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: spacing.md,
+    marginBottom: spacing.sm,
+    borderWidth: 1,
+    borderRadius: radius.medium,
+  },
+  avatar: {
+    width: 50,
+    height: 50,
+    borderRadius: radius.medium,
+    marginRight: spacing.md,
+    backgroundColor: '#f1f1f1',
+  },
+  avatarPlaceholder: {
+    width: 50,
+    height: 50,
+    borderRadius: radius.medium,
+    marginRight: spacing.md,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+  },
+  content: {
+    flex: 1,
+    marginRight: spacing.sm,
+  },
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
+  name: {
+    ...typography.subtitle1,
+    fontWeight: '600',
+    flex: 1,
+    marginRight: spacing.xs,
+  },
+  description: {
+    ...typography.body2,
+    lineHeight: 18,
+    marginBottom: 0,
+  }
+});

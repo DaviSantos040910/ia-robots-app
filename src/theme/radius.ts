@@ -10,3 +10,5 @@ export const Radius = {
   round: 999,
   circle: 50,
 };
+
+export const radius = Radius;

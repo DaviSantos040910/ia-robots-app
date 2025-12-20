@@ -1,135 +1,229 @@
-// src/components/chat/ChatHeader.tsx
-import React, { useRef } from 'react';
-import { View, Text, Pressable, Image, useColorScheme, UIManager, findNodeHandle, StyleSheet } from 'react-native';
-import { getTheme } from '../../screens/Chat/Chat.styles';
-import { Feather } from '@expo/vector-icons';
-import { Typography } from '../../theme/typography';
-import type { Anchor } from './ActionSheetMenu';
+import React, { useCallback, useRef } from "react";
+import { View, Text, StyleSheet, TouchableOpacity, Image } from "react-native";
+import { useNavigation } from "@react-navigation/native";
+import { Ionicons } from "@expo/vector-icons";
+import { useTheme } from "../../theme/colors";
+import { spacing } from "../../theme/spacing";
+import { typography } from "../../theme/typography";
+import { radius } from "../../theme/radius";
+import { FEATURES } from "../../config/featureFlags"; // Importando Flags
+import type { Anchor } from "./ActionSheetMenu";
 
-export const ChatHeader: React.FC<{
-  avatarUrl?: string | null;
-  title: string;
+interface ChatHeaderProps {
+  botName?: string;
+  botImage?: string | null;
+  isTyping?: boolean;
+  onPressProfile?: () => void;
+  onCallPress?: () => void; // Mantemos a prop para compatibilidade, mas controlamos a view
+
+  title?: string;
   subtitle?: string;
+  avatarUrl?: string | null;
   onBack?: () => void;
   onPhone?: () => void;
   onVolume?: () => void;
-  isVoiceModeEnabled?: boolean; // Nova prop para controlar o ícone
+  isVoiceModeEnabled?: boolean;
   onMorePress?: (anchor: Anchor) => void;
-}> = ({ 
-  avatarUrl, 
-  title, 
-  subtitle, 
-  onBack, 
-  onPhone, 
-  onVolume, 
-  isVoiceModeEnabled = false, 
-  onMorePress 
-}) => {
-  const scheme = useColorScheme();
-  const t = getTheme(scheme === 'dark');
-  const moreRef = useRef<View>(null);
+}
 
-  const openMenu = () => {
-    const handle = findNodeHandle(moreRef.current);
-    if (!handle) {
-      onMorePress && onMorePress(null);
+export const ChatHeader: React.FC<ChatHeaderProps> = ({
+  botName,
+  botImage,
+  isTyping,
+  onPressProfile,
+  onCallPress,
+  title,
+  subtitle,
+  avatarUrl,
+  onBack,
+  onPhone,
+  onVolume,
+  isVoiceModeEnabled,
+  onMorePress,
+}) => {
+  const theme = useTheme();
+  const navigation = useNavigation();
+
+  const moreButtonRef = useRef<View | null>(null);
+
+  const handleBack = useCallback(() => {
+    if (onBack) return onBack();
+    navigation.goBack();
+  }, [navigation, onBack]);
+
+  const handleMorePress = useCallback(() => {
+    if (onMorePress) {
+      moreButtonRef.current?.measureInWindow((x, y, width, height) => {
+        onMorePress({ x, y, width, height });
+      });
       return;
     }
-    UIManager.measureInWindow(handle, (x, y, width, height) => {
-      onMorePress && onMorePress({ x, y, width, height });
-    });
-  };
+    onPressProfile?.();
+  }, [onMorePress, onPressProfile]);
+
+  const displayName = title ?? botName ?? "";
+  const displaySubtitle = subtitle;
+  const displayImage = avatarUrl ?? botImage;
+  const phoneHandler = onPhone ?? onCallPress;
 
   return (
-    <View style={[styles.container, { backgroundColor: t.surface, borderColor: t.border }]}>
-      <Pressable onPress={onBack} hitSlop={10} style={styles.backButton}>
-        <Feather name="chevron-left" size={24} color={t.textPrimary} />
-      </Pressable>
+    <View
+      style={[
+        s.container,
+        {
+          backgroundColor: theme.brand.background,
+          borderBottomColor: theme.brand.border,
+        },
+      ]}
+    >
+      <View style={s.leftContainer}>
+        <TouchableOpacity onPress={handleBack} style={s.backButton}>
+          <Ionicons name="arrow-back" size={24} color={theme.brand.text} />
+        </TouchableOpacity>
 
-      {/* Avatar */}
-      <View style={[styles.avatarContainer, { backgroundColor: t.surfaceAlt }]}>
-        {avatarUrl ? (
-          <Image source={{ uri: avatarUrl }} style={styles.avatarImage} />
-        ) : null}
+        <TouchableOpacity
+          onPress={onPressProfile}
+          style={s.profileContainer}
+          activeOpacity={0.8}
+        >
+          {FEATURES.USE_CHARACTER_AVATAR ? (
+            <Image
+              source={
+                displayImage
+                  ? { uri: displayImage }
+                  : require("../../assets/avatar.png")
+              }
+              style={s.avatar}
+            />
+          ) : (
+            // Ícone técnico no header também
+            <View
+              style={[
+                s.avatarPlaceholder,
+                {
+                  backgroundColor: theme.brand.surface,
+                  borderColor: theme.brand.border,
+                },
+              ]}
+            >
+              <Ionicons
+                name="library-outline"
+                size={20}
+                color={theme.brand.normal}
+              />
+            </View>
+          )}
+          <View>
+            <Text style={[s.name, { color: theme.brand.text }]}>
+              {displayName}
+            </Text>
+            {!!displaySubtitle ? (
+              <Text style={[s.status, { color: theme.brand.textSecondary }]}>
+                {displaySubtitle}
+              </Text>
+            ) : isTyping ? (
+              <Text style={[s.status, { color: theme.brand.primary }]}>
+                Processando...
+              </Text>
+            ) : null}
+          </View>
+        </TouchableOpacity>
       </View>
 
-      {/* Titles */}
-      <View style={styles.titleContainer}>
-        <Text style={[styles.titleText, { color: t.textPrimary }]} numberOfLines={1}>{title}</Text>
-        {!!subtitle && <Text style={[styles.subtitleText, { color: t.textSecondary }]} numberOfLines={1}>{subtitle}</Text>}
+      <View style={s.rightContainer}>
+        {/* Toggle de TTS (Feature Flag) */}
+        {FEATURES.SHOW_HEADER_TTS_TOGGLE && !!onVolume && (
+          <TouchableOpacity onPress={onVolume} style={s.iconButton}>
+            <Ionicons
+              name={
+                isVoiceModeEnabled
+                  ? "volume-high-outline"
+                  : "volume-mute-outline"
+              }
+              size={24}
+              color={theme.brand.text}
+            />
+          </TouchableOpacity>
+        )}
+
+        {/* Botão de Chamada (Feature Flag) */}
+        {FEATURES.SHOW_PHONE_CALL_BUTTON && !!phoneHandler && (
+          <TouchableOpacity onPress={phoneHandler} style={s.iconButton}>
+            <Ionicons name="call-outline" size={24} color={theme.brand.text} />
+          </TouchableOpacity>
+        )}
+
+        {/* Menu de Configurações do Bot/Doc (Sempre visível) */}
+        <TouchableOpacity
+          ref={moreButtonRef}
+          onPress={handleMorePress}
+          style={s.iconButton}
+        >
+          <Ionicons
+            name="ellipsis-vertical"
+            size={24}
+            color={theme.brand.text}
+          />
+        </TouchableOpacity>
       </View>
-
-      {/* Actions */}
-      
-      {/* Botão de Chamada */}
-      <Pressable 
-        onPress={onPhone} 
-        hitSlop={10} 
-        style={styles.actionButton}
-        accessibilityRole="button"
-        accessibilityLabel="Call"
-      >
-        <Feather name="phone-call" size={20} color={t.textPrimary} />
-      </Pressable>
-
-      {/* Botão de Volume (Toggle Voice Mode) */}
-      <Pressable 
-        onPress={onVolume} 
-        hitSlop={10} 
-        style={styles.actionButton}
-        accessibilityRole="button"
-        accessibilityLabel={isVoiceModeEnabled ? "Desativar voz" : "Ativar voz"}
-      >
-        {/* Alterna ícone e cor para dar feedback visual */}
-        <Feather 
-          name={isVoiceModeEnabled ? "volume-2" : "volume-x"} 
-          size={20} 
-          color={isVoiceModeEnabled ? t.brand.normal : t.textSecondary} 
-        />
-      </Pressable>
-      
-      {/* Menu Mais */}
-      <Pressable ref={moreRef} onPress={openMenu} hitSlop={10} style={[styles.actionButton, { marginRight: 0 }]}>
-        <Feather name="more-vertical" size={22} color={t.textPrimary} />
-      </Pressable>
     </View>
   );
 };
 
-const styles = StyleSheet.create({
+const s = StyleSheet.create({
   container: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    borderBottomWidth: 0.5,
+    height: 60,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: spacing.md,
+    borderBottomWidth: 1,
+    elevation: 2, // Leve sombra
   },
-  backButton: {
-    padding: 6,
-    marginRight: 8,
-  },
-  avatarContainer: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    marginRight: 10,
-    overflow: 'hidden',
-  },
-  avatarImage: {
-    width: '100%',
-    height: '100%',
-  },
-  titleContainer: {
+  leftContainer: {
+    flexDirection: "row",
+    alignItems: "center",
     flex: 1,
   },
-  titleText: {
-    ...Typography.bodySemiBold.medium,
+  backButton: {
+    padding: spacing.sm,
+    marginRight: spacing.xs,
   },
-  subtitleText: {
-    ...Typography.bodyRegular.small,
+  profileContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    flex: 1,
   },
-  actionButton: {
-    padding: 6,
-    marginHorizontal: 4,
-  }
+  avatar: {
+    width: 36,
+    height: 36,
+    borderRadius: radius.medium, // Quadrado
+    marginRight: spacing.sm,
+    backgroundColor: "#e0e0e0",
+  },
+  avatarPlaceholder: {
+    width: 36,
+    height: 36,
+    borderRadius: radius.medium,
+    marginRight: spacing.sm,
+    justifyContent: "center",
+    alignItems: "center",
+    borderWidth: 1,
+  },
+  name: {
+    ...typography.subtitle1,
+    fontWeight: "700",
+  },
+  status: {
+    ...typography.caption,
+    fontWeight: "500",
+  },
+  rightContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  iconButton: {
+    padding: spacing.sm,
+    marginLeft: spacing.xs,
+  },
 });

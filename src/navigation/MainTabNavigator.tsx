@@ -1,60 +1,67 @@
-// src/navigation/MainTabNavigator.tsx
-import React from 'react';
-import { createBottomTabNavigator, BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
-import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { View, Text } from 'react-native';
-
-// Import your screens
-import ChatListScreen from '../screens/ChatList/ChatListScreen'; // Renamed from AllChatsScreen
-import ExploreScreen from '../screens/Explore/ExploreScreen';
-import BotsScreen from '../screens/Bots/BotsScreen'; // New Screen
-
-// Import the custom BottomNav
-import { BottomNav } from '../components/navigation/BottomNav';
-import { RootStackParamList } from '../types/navigation';
-
-// These are dummy components that will never be displayed.
-const CreatePlaceholderScreen = () => null;
-const MeScreen = () => <View style={{flex: 1, justifyContent: 'center', alignItems: 'center'}}><Text>Me</Text></View>;
-
-// Define the param list for the tab navigator
-export type MainTabParamList = {
-  Chat: undefined;
-  Explore: undefined;
-  Create: undefined;
-  Bots: undefined; // Replaced Message with Bots
-  Me: undefined;
-};
+import React from "react";
+import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
+import { View, Text } from "react-native";
+import ChatListScreen from "../screens/ChatList/ChatListScreen";
+import { ExploreScreen } from "../screens/Explore/ExploreScreen";
+import CreateBotScreen from "../screens/CreateBot/CreateBotScreen";
+import { BottomNav } from "../components/navigation/BottomNav";
+import { MainTabParamList } from "../types/navigation";
+import { useTranslation } from "react-i18next";
+import { FEATURES } from "../config/featureFlags"; // Importando Flags
 
 const Tab = createBottomTabNavigator<MainTabParamList>();
 
-export const MainTabNavigator: React.FC = () => {
+const CreateBotTabScreen: React.FC = (props) => {
+  return <CreateBotScreen {...(props as any)} />;
+};
+
+const VoiceCallTabScreen: React.FC = () => {
+  return (
+    <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>
+      <Text>Inicie uma chamada por voz a partir de um chat.</Text>
+    </View>
+  );
+};
+
+export const MainTabNavigator = () => {
+  const { t } = useTranslation();
+
   return (
     <Tab.Navigator
-      tabBar={props => <BottomNav {...props} />}
+      tabBar={(props) => <BottomNav {...props} />}
       screenOptions={{
         headerShown: false,
       }}
     >
-      <Tab.Screen name="Chat" component={ChatListScreen} />
-      <Tab.Screen name="Explore" component={ExploreScreen} />
       <Tab.Screen
-        name="Create"
-        component={CreatePlaceholderScreen}
-        listeners={({
-          navigation,
-        }: {
-          navigation: BottomTabNavigationProp<MainTabParamList>;
-        }) => ({
-          tabPress: (e) => {
-            e.preventDefault();
-            // Get the parent StackNavigator and navigate to the 'Create' screen from there.
-            navigation.getParent<NativeStackNavigationProp<RootStackParamList>>()?.navigate('Create');
-          },
-        })}
+        name="ChatList"
+        component={ChatListScreen}
+        options={{ title: t("mainTabs.chats") }} // "Espaços"
       />
-      <Tab.Screen name="Bots" component={BotsScreen} />
-      <Tab.Screen name="Me" component={MeScreen} />
+
+      {/* Aba Explorar (Agora Biblioteca) */}
+      {FEATURES.SHOW_EXPLORE_TAB && (
+        <Tab.Screen
+          name="Explore"
+          component={ExploreScreen}
+          options={{ title: t("mainTabs.explore") }} // "Biblioteca"
+        />
+      )}
+
+      <Tab.Screen
+        name="CreateBot"
+        component={CreateBotTabScreen}
+        options={{ title: t("mainTabs.create") }} // "Novo Doc"
+      />
+
+      {/* Aba de Voz (Ocultada por Flag) */}
+      {FEATURES.SHOW_VOICE_CALL_TAB && (
+        <Tab.Screen
+          name="VoiceCall"
+          component={VoiceCallTabScreen}
+          options={{ title: t("mainTabs.voice") }}
+        />
+      )}
     </Tab.Navigator>
   );
 };

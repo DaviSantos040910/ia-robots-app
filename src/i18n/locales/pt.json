@@ -7,30 +7,40 @@
     "ops": "Ops",
     "play": "Reproduzir",
     "pause": "Pausar",
-    "loading": "Carregando..."
+    "loading": "Carregando...",
+    "save": "Salvar",
+    "delete": "Excluir",
+    "edit": "Editar",
+    "back": "Voltar",
+    "next": "Próximo",
+    "confirm": "Confirmar",
+    "success": "Sucesso",
+    "noResults": "Nenhum documento encontrado."
   },
+
   "error": "Erro",
+
   "chat": {
     "menuSettings": "Configurações",
-    "menuNewChat": "Novo Chat",
-    "menuArchivedChats": "Ver Chats Arquivados",
-    "inputPlaceholder": "Enviar mensagem...",
-    "newChatTitle": "Iniciar Novo Chat?",
-    "newChatMessage": "Isso arquivará a conversa atual e iniciará uma nova. Deseja prosseguir?",
+    "menuNewChat": "Iniciar novo chat",
+    "menuArchivedChats": "Ver chats arquivados",
+    "newChatTitle": "Iniciar novo chat?",
+    "newChatMessage": "Isso arquivará a conversa atual e iniciará uma nova. Deseja continuar?",
     "proceed": "Prosseguir",
+    "inputPlaceholder": "Interrogar base de conhecimento...",
     "activateButton": "Tornar esta conversa ativa",
     "activateConfirmTitle": "Ativar este chat?",
-    "activateConfirmMessage": "Isso arquivará seu chat ativo atual com este bot e restaurará este. Deseja prosseguir?",
+    "activateConfirmMessage": "Isso arquivará o chat ativo atual com este bot e restaurará este. Deseja continuar?",
     "activateSuccess": "A conversa agora está ativa.",
-    "botTyping": "Bot está digitando...",
+    "botTyping": "O bot está digitando...",
     "creatingImage": "Criando imagem...",
     "transcribing": "Transcrevendo áudio...",
     "readingDocument": "Lendo documento...",
     "typeMessage": "Enviar mensagem...",
-    "recordingPermissionDenied": "É necessária permissão do microfone para gravar áudio.",
-    "recordingFailed": "Falha ao salvar gravação.",
-    "transcriptionFailed": "Falha ao transcrever áudio.",
-    "sendError": "Não foi possível enviar a mensagem.",
+    "recordingPermissionDenied": "Permissão de microfone necessária para gravar áudio.",
+    "recordingFailed": "Falha ao salvar a gravação.",
+    "transcriptionFailed": "Falha ao transcrever o áudio.",
+    "sendError": "Falha ao enviar a mensagem.",
     "audioSendError": "Falha ao enviar áudio. Tente novamente.",
     "voiceCallNavigationError": "Não foi possível abrir a tela de chamada.",
     "voiceModeOn": "Modo de voz ativado",
@@ -39,6 +49,8 @@
     "showTranscription": "Transcrever",
     "hideTranscription": "Ocultar transcrição",
     "audioError": "Erro ao carregar áudio",
+    "recording": "Gravando nota...",
+    "typing": "Processando dados...",
     "attachmentMenu": {
       "camera": "Câmera",
       "gallery": "Galeria",
@@ -52,7 +64,7 @@
       "likeMessage": "Curtir mensagem",
       "unlikeMessage": "Descurtir mensagem",
       "readAloud": "Ler em voz alta",
-      "stopReading": "Parar leitura em voz alta",
+      "stopReading": "Parar leitura",
       "rewriteMessage": "Reescrever mensagem",
       "activateVoice": "Ativar modo de voz",
       "deactivateVoice": "Desativar modo de voz",
@@ -61,13 +73,14 @@
       "audioProgress": "Barra de progresso do áudio"
     }
   },
+
   "voiceCall": {
     "status": {
       "preparing": "Preparando...",
       "listening": "Ouvindo...",
       "processing": "Pensando...",
       "speaking": "Falando...",
-      "idle": "Toque e segure para falar"
+      "idle": "Segure para falar"
     },
     "errors": {
       "permission": "Permissão de microfone negada.",
@@ -75,27 +88,34 @@
       "emptyAudio": "Áudio vazio detectado."
     },
     "accessibility": {
-        "close": "Fechar chamada",
-        "mic": "Microfone para falar"
+      "close": "Encerrar chamada",
+      "mic": "Microfone para falar"
     }
   },
+
   "archivedChats": {
     "title": "Chats Arquivados",
-    "empty": "Nenhum chat arquivado encontrado.",
+    "empty": "Nenhum chat arquivado encontrado para este bot.",
     "chatFrom": "Chat de"
   },
+
   "mainTabs": {
     "chat": "Chat",
-    "explore": "Explorar",
-    "create": "Criar",
+    "chats": "Meus Espaços",
+    "explore": "Biblioteca",
+    "create": "Novo",
+    "voice": "Voz",
+    "profile": "Perfil",
     "bots": "Bots",
     "me": "Eu"
   },
+
   "botsScreen": {
     "title": "Meus Bots",
-    "emptyTitle": "Nenhum Bot Ainda",
-    "emptyMessage": "Bots que você criar ou adicionar da aba Explorar aparecerão aqui."
+    "emptyTitle": "Nenhum bot ainda",
+    "emptyMessage": "Bots que você criar ou adicionar pela aba Biblioteca aparecerão aqui."
   },
+
   "botSettings": {
     "by": "Por",
     "monthlyUsers": "{{value}} usuários mensais",
@@ -114,92 +134,112 @@
     "publicityGuests": "Convidados",
     "publicityPublic": "Público"
   },
+
   "createBot": {
-    "title": "Criar um bot",
+    "title": "Novo Módulo",
     "nameLabel": "Nome",
-    "descriptionLabel": "Descrição", 
-    "descriptionPlaceholder": "Ex: Um assistente amigável para planear viagens.", 
-    "promptLabel": "Instruções (Prompt)",
-    "promptPlaceholder": "Você é um viajante espacial. Você está familiarizado com a personalização de planos de viagem globais e o planejamento de destinos turísticos.",
-    "createButton": "Criar bot",
-    "nameRequired": "O nome do bot é obrigatório.",
-    "promptRequired": "As instruções (prompt) são obrigatórias.",
+    "descriptionLabel": "Descrição",
+    "descriptionPlaceholder": "ex: Um assistente amigável para planejamento de viagens.",
+    "promptLabel": "Prompt",
+    "promptPlaceholder": "Você é um viajante espacial...",
+    "categoryLabel": "Categoria",
+    "categoryDescription": "Selecione até 3 categorias que melhor descrevem seu bot.",
+    "createButton": "Inicializar Módulo",
+    "nameRequired": "Nome do bot é obrigatório.",
+    "promptRequired": "Prompt é obrigatório.",
     "categoryRequired": "Selecione pelo menos uma categoria.",
     "creationSuccess": "Bot criado com sucesso!",
-    "creationError": "Falha ao criar o bot. Por favor, tente novamente.",
+    "creationError": "Falha ao criar bot. Tente novamente.",
     "avatarActionSheetTitle": "Esta imagem será usada como avatar do bot.",
     "takeNewPhoto": "Tirar nova foto",
-    "chooseFromGallery": "Escolher da Galeria",
-    "categoryLabel": "Categoria", 
-    "categoryDescription": "Selecione até 3 categorias que melhor descrevem seu bot."
+    "chooseFromGallery": "Escolher da galeria",
+    "namePlaceholder": "Nome do Módulo (ex: Financeiro)",
+    "descPlaceholder": "Defina o escopo deste módulo de conhecimento...",
+    "systemPromptPlaceholder": "Instruções de sistema (Prompt Engenharia)..."
   },
+
   "explore": {
-    "searchPlaceholder": "Buscar por bots ou pessoas",
-    "clearHistory": "Limpar todo o histórico de busca"
+    "title": "Biblioteca Central",
+    "searchPlaceholder": "Pesquisar na base...",
+    "allDocuments": "Todos os Módulos",
+    "clearHistory": "Limpar histórico de pesquisa"
   },
+
   "categories": {
     "productivity": "Produtividade",
-    "learning": "Aprendizagem",
+    "learning": "Aprendizado",
     "creativity": "Criatividade",
     "wellness": "Bem-estar",
-    "roleplay": "Roleplay",
+    "roleplay": "Interpretação de papéis",
     "games": "Jogos",
     "text": "Texto",
     "image": "Imagem"
   },
+
   "login": {
-      "emailOrUsername": "Email ou Usuário",
-      "password": "Password",
-      "greeting": "Bem-vindo de volta",
-      "subtitle": "Entre na sua conta",
-      "description": "Insira suas credenciais para continuar",
-      "signIn": "Entrar",
-      "forgotPassword": "Esqueceu a senha?",
-      "forgotPasswordSuccess": "Email de redefinição enviado com sucesso.",
-      "forgotPasswordError": "Erro ao enviar email de redefinição.",
-      "enterEmailOrUsernameForReset": "Insira seu email ou usuário para redefinir a senha.",
-      "continueWithGoogle": "Continuar com Google",
-      "continueWithApple": "Continuar com Apple",
-      "disclaimer": {
-        "part1": "Ao continuar, você concorda com nosso",
-        "userAgreement": "Contrato de Usuário",
-        "and": "e",
-        "privacyPolicy": "Política de Privacidade"
-      }
+    "emailOrUsername": "Email ou nome de usuário",
+    "password": "Senha",
+    "greeting": "Bem-vindo de volta",
+    "subtitle": "Acesse sua conta",
+    "description": "Informe suas credenciais para continuar",
+    "signIn": "Entrar",
+    "forgotPassword": "Esqueci a senha?",
+    "forgotPasswordSuccess": "Email de redefinição enviado com sucesso.",
+    "forgotPasswordError": "Erro ao enviar email de redefinição.",
+    "enterEmailOrUsernameForReset": "Informe seu email ou nome de usuário para redefinir a senha.",
+    "continueWithGoogle": "Continuar com Google",
+    "continueWithApple": "Continuar com Apple",
+    "disclaimer": {
+      "part1": "Ao continuar, você concorda com nosso",
+      "userAgreement": "Contrato do Usuário",
+      "and": "e",
+      "privacyPolicy": "Política de Privacidade"
+    }
   },
+
   "signup": {
-      "title": "Crie sua conta",
-      "subtitle": "Junte-se à nossa comunidade",
-      "name": "Nome",
-      "email": "Email",
-      "password": "Password",
-      "confirmPassword": "Confirmar Password",
-      "namePlaceholder": "Seu nome completo",
-      "emailPlaceholder": "seu.email@exemplo.com",
-      "passwordPlaceholder": "Mínimo 8 caracteres",
-      "confirmPasswordPlaceholder": "Confirme sua senha",
-      "button": "Criar conta",
-      "haveAccount": "Já tem uma conta?",
-      "signIn": "Entrar"
+    "title": "Criar Conta",
+    "subtitle": "Junte-se à nossa comunidade",
+    "name": "Nome",
+    "email": "Email",
+    "password": "Senha",
+    "confirmPassword": "Confirmar Senha",
+    "namePlaceholder": "Seu nome completo",
+    "emailPlaceholder": "seu.email@exemplo.com",
+    "passwordPlaceholder": "Mínimo 8 caracteres",
+    "confirmPasswordPlaceholder": "Confirme sua senha",
+    "button": "Criar Conta",
+    "haveAccount": "Já possui uma conta?",
+    "signIn": "Entrar"
   },
+
   "validation": {
-      "required": "{{field}} é obrigatório.",
-      "email": "Email inválido.",
-      "password": {
-          "minLength": "A senha deve ter pelo menos 8 caracteres.",
-          "complexity": "A senha deve conter letras maiúsculas, minúsculas, números e caracteres especiais.",
-          "mismatch": "As senhas não coincidem."
-      }
+    "required": "{{field}} é obrigatório.",
+    "email": "Email inválido.",
+    "password": {
+      "minLength": "A senha deve ter pelo menos 8 caracteres.",
+      "complexity": "A senha deve conter letras maiúsculas, minúsculas, números e caracteres especiais.",
+      "mismatch": "As senhas não coincidem."
+    }
   },
+
   "accessibility": {
-      "avatar": "Avatar do usuário",
-      "enterEmailOrUsername": "Insira seu email ou nome de usuário",
-      "enterPassword": "Insira sua senha",
-      "showPassword": "Mostrar senha",
-      "hidePassword": "Ocultar senha"
+    "avatar": "Avatar do usuário",
+    "enterEmailOrUsername": "Informe seu email ou nome de usuário",
+    "enterPassword": "Informe sua senha",
+    "showPassword": "Mostrar senha",
+    "hidePassword": "Ocultar senha"
   },
+
   "errors": {
-      "generic": "Ocorreu um erro inesperado. Tente novamente mais tarde.",
-      "required": "Campo obrigatório."
+    "generic": "Ocorreu um erro inesperado. Tente novamente mais tarde.",
+    "required": "Campo obrigatório."
+  },
+
+  "settings": {
+    "title": "Configurações",
+    "theme": "Tema da Interface",
+    "language": "Idioma",
+    "logout": "Encerrar Sessão"
   }
 }
