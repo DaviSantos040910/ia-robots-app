@@ -5,22 +5,23 @@ import {
   ScrollView,
   Text,
   RefreshControl,
+  TouchableOpacity,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useNavigation } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { useTheme } from "../../theme/colors";
+import { NeutralColors } from "../../theme/neutralColors";
 import { spacing } from "../../theme/spacing";
-import { typography } from "../../theme/typography";
+import { Typography } from "../../theme/typography";
 import { exploreService } from "../../services/exploreService";
 import { botService } from "../../services/botService";
 import { ExploreBotRow } from "../../components/explore/ExploreBotRow";
 import SearchHistory from "../../components/explore/SearchHistory";
-import { CategorySelector } from "../../components/create/CategorySelector";
 import { LabeledTextInput } from "../../components/shared/LabeledTextInput";
 import { SkeletonBlock } from "../../components/shared/Skeleton";
-import { useTranslation } from "react-i18next"; // Importando i18n
-import { FEATURES } from "../../config/featureFlags"; // Importando Flags
+import { useTranslation } from "react-i18next";
+import { FEATURES } from "../../config/featureFlags";
 import type { Category, ExploreBotItem } from "../../services/exploreService";
 import type { SearchHistoryItem } from "../../services/searchHistoryService";
 import type { RootStackParamList } from "../../types/navigation";
@@ -69,11 +70,7 @@ export const ExploreScreen = () => {
 
   useEffect(() => {
     fetchBots();
-  }, [selectedCategory]); // Recarrega ao mudar categoria
-
-  const selectedCategoryName = selectedCategory
-    ? categories.find((c) => c.id === selectedCategory)?.name
-    : null;
+  }, [selectedCategory]);
 
   const handleBotPress = async (botId: string) => {
     try {
@@ -97,11 +94,7 @@ export const ExploreScreen = () => {
         { backgroundColor: theme.brand.background, paddingTop: insets.top },
       ]}
     >
-      <View style={s.header}>
-        <Text style={[s.title, { color: theme.brand.text }]}>
-          {t("mainTabs.explore")}
-        </Text>
-      </View>
+      {/* HEADER REMOVIDO CONFORME SOLICITADO */}
 
       <ScrollView
         contentContainerStyle={s.scrollContent}
@@ -144,26 +137,55 @@ export const ExploreScreen = () => {
           </View>
         )}
 
-        {/* Sugestões/Categorias (Filtro Rápido) */}
+        {/* Categorias (Lista Horizontal) */}
         {FEATURES.SHOW_EXPLORE_SUGGESTIONS && (
-          <View style={s.section}>
-            <CategorySelector
-              allCategories={categories}
-              selectedIds={selectedCategory ? [selectedCategory] : []}
-              onToggleCategory={(id) =>
-                setSelectedCategory((prev) => (prev === id ? null : id))
-              }
-            />
+          <View style={s.categoriesSection}>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={s.categoriesContent}
+            >
+              {categories.map((category) => {
+                const isSelected = selectedCategory === category.id;
+                return (
+                  <TouchableOpacity
+                    key={category.id}
+                    onPress={() =>
+                      setSelectedCategory((prev) =>
+                        prev === category.id ? null : category.id
+                      )
+                    }
+                    style={[
+                      s.categoryChip,
+                      {
+                        backgroundColor: isSelected
+                          ? theme.brand.normal
+                          : theme.brand.surface, // Fallback caso surfaceAlt não exista no tema direto
+                      },
+                    ]}
+                  >
+                    <Text
+                      style={[
+                        s.categoryText,
+                        {
+                          color: isSelected
+                            ? NeutralColors.neutral.light.white1
+                            : theme.brand.primary,
+                        },
+                      ]}
+                    >
+                      {category.name}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
           </View>
         )}
 
         {/* Lista de Resultados */}
         <View style={s.listContainer}>
-          <Text style={[s.sectionTitle, { color: theme.brand.text }]}>
-            {selectedCategoryName ||
-              t("explore.allDocuments") ||
-              "Todos os Documentos"}
-          </Text>
+          {/* TÍTULO "ALL MODULOS" REMOVIDO CONFORME SOLICITADO */}
 
           {isLoading ? (
             <>
@@ -201,7 +223,7 @@ export const ExploreScreen = () => {
           {!isLoading && bots.length === 0 && (
             <Text
               style={{
-                color: theme.brand.textSecondary,
+                color: theme.brand.text,
                 textAlign: "center",
                 marginTop: 20,
               }}
@@ -219,16 +241,7 @@ const s = StyleSheet.create({
   container: {
     flex: 1,
   },
-  header: {
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.md,
-    borderBottomWidth: 1,
-    borderBottomColor: "rgba(0,0,0,0.05)",
-  },
-  title: {
-    ...typography.h4,
-    fontWeight: "700",
-  },
+  // Estilos de Header removidos pois o componente foi removido
   scrollContent: {
     paddingBottom: spacing.xxl,
   },
@@ -239,13 +252,24 @@ const s = StyleSheet.create({
   section: {
     marginTop: spacing.lg,
   },
+  // Novos estilos para as categorias (Aba horizontal)
+  categoriesSection: {
+    marginTop: spacing.lg,
+  },
+  categoriesContent: {
+    paddingHorizontal: spacing.lg,
+  },
+  categoryChip: {
+    paddingVertical: 8,
+    paddingHorizontal: 18,
+    borderRadius: 100, // Radius.round
+    marginRight: 8,
+  },
+  categoryText: {
+    ...Typography.bodySemiBold.medium,
+  },
   listContainer: {
     paddingHorizontal: spacing.lg,
     marginTop: spacing.lg,
-  },
-  sectionTitle: {
-    ...typography.h6,
-    marginBottom: spacing.md,
-    fontWeight: "600",
   },
 });
