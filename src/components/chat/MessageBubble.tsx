@@ -1,27 +1,29 @@
 // src/components/chat/MessageBubble.tsx
 
-import React, { memo, useState, useCallback, useMemo, useEffect } from 'react';
-import { 
-  ActivityIndicator, 
-  Pressable, 
-  View, 
-  StyleSheet, 
-  Text, 
-  Linking, 
-  useColorScheme
-} from 'react-native';
-import { Feather } from '@expo/vector-icons';
-import Markdown from 'react-native-markdown-display';
-import { useTranslation } from 'react-i18next';
+import React, { memo, useState, useCallback, useMemo, useEffect } from "react";
+import {
+  ActivityIndicator,
+  Pressable,
+  View,
+  StyleSheet,
+  Text,
+  Linking,
+  useColorScheme,
+} from "react-native";
+import Ionicons from "@expo/vector-icons/Ionicons";
+import Markdown from "react-native-markdown-display";
+import { useTranslation } from "react-i18next";
 
-import { ChatMessage } from '../../types/chat';
-import { createChatStyles, getTheme } from '../../screens/Chat/Chat.styles';
-import { MiniSuggestionChip } from './MiniSuggestionChip';
-import { Spacing } from '../../theme/spacing';
-import { Typography } from '../../theme/typography';
-import { useChatController } from '../../contexts/chat/ChatProvider';
-import { AudioMessagePlayer } from './AudioMessagePlayer';
-import { ChatImageBubble } from './ChatImageBubble'; // Importação do novo componente
+import { ChatMessage } from "../../types/chat";
+import { createChatStyles, getTheme } from "../../screens/Chat/Chat.styles";
+import { MiniSuggestionChip } from "./MiniSuggestionChip";
+import { Spacing } from "../../theme/spacing";
+import { Typography } from "../../theme/typography";
+import { NeutralColors } from "../../theme/neutralColors";
+import { useChatController } from "../../contexts/chat/ChatProvider";
+import { AudioMessagePlayer } from "./AudioMessagePlayer";
+import { ChatImageBubble } from "./ChatImageBubble"; // Importação do novo componente
+import { createMessageBubbleStyles } from "./MessageBubble.styles";
 
 type MessageBubbleProps = {
   message: ChatMessage;
@@ -51,34 +53,41 @@ const MessageBubbleComponent: React.FC<MessageBubbleProps> = ({
 }) => {
   const { t } = useTranslation();
   const scheme = useColorScheme();
-  const isDark = scheme === 'dark';
+  const isDark = scheme === "dark";
 
   // Memoização de Estilos e Tema
   const theme = useMemo(() => getTheme(isDark), [isDark]);
   const s = useMemo(() => createChatStyles(theme), [theme]);
+  const ms = useMemo(() => createMessageBubbleStyles(theme), [theme]);
 
-  const isUser = message.role === 'user';
-  
+  const isUser = message.role === "user";
+
   const [expanded, setExpanded] = useState(false);
   const [showTranscription, setShowTranscription] = useState(false);
-  
+
   // Estado local para controlar o visual "Lendo..." temporário
   const [isProcessingFile, setIsProcessingFile] = useState(false);
 
   // --- TAREFA: Adicionado isTTSLoading ---
-  const { playTTS, isTTSPlaying, currentTTSMessageId, isTTSLoading } = useChatController(conversationId);
-  
-  const isThisMessagePlaying = isTTSPlaying && currentTTSMessageId === message.id;
-  
-  // --- NOVA LÓGICA DE FEEDBACK VISUAL ---
-  const isLoadingThisMessage = isTTSLoading && currentTTSMessageId === message.id;
-  // Desabilita se estiver carregando qualquer coisa para evitar conflito (race condition)
-  const isTTSDisabled = isTTSLoading; 
+  const { playTTS, isTTSPlaying, currentTTSMessageId, isTTSLoading } =
+    useChatController(conversationId);
 
-  const isAudioMessage = message.attachment_type === 'audio';
+  const isThisMessagePlaying =
+    isTTSPlaying && currentTTSMessageId === message.id;
+
+  // --- NOVA LÓGICA DE FEEDBACK VISUAL ---
+  const isLoadingThisMessage =
+    isTTSLoading && currentTTSMessageId === message.id;
+  // Desabilita se estiver carregando qualquer coisa para evitar conflito (race condition)
+  const isTTSDisabled = isTTSLoading;
+
+  const isAudioMessage = message.attachment_type === "audio";
   const hasAttachment = !!message.attachment_url;
-  const isImageAttachment = message.attachment_type === 'image' || message.attachment_type?.startsWith('image/');
-  const isFileAttachment = hasAttachment && !isImageAttachment && !isAudioMessage; // Nova verificação explícita
+  const isImageAttachment =
+    message.attachment_type === "image" ||
+    message.attachment_type?.startsWith("image/");
+  const isFileAttachment =
+    hasAttachment && !isImageAttachment && !isAudioMessage; // Nova verificação explícita
 
   // Efeito para determinar se o arquivo ainda está sendo "lido" pela IA
   useEffect(() => {
@@ -90,49 +99,66 @@ const MessageBubbleComponent: React.FC<MessageBubbleProps> = ({
       // Se a mensagem for recente (< 10s), mostramos o estado de processamento
       if (timeDiff < PROCESSING_THRESHOLD_MS) {
         setIsProcessingFile(true);
-        
+
         // Define um timeout para remover o estado visual
         const timeout = setTimeout(() => {
           setIsProcessingFile(false);
         }, PROCESSING_THRESHOLD_MS - timeDiff);
-        
+
         return () => clearTimeout(timeout);
       }
     }
   }, [isFileAttachment, message.created_at]);
-  
+
   const displayedContent = useMemo(() => {
-    if (isAudioMessage) return '';
-    const shouldTruncate = message.content && message.content.length > MAX_TEXT_LENGTH;
-    return shouldTruncate && !expanded 
-      ? message.content.slice(0, MAX_TEXT_LENGTH) + '...' 
+    if (isAudioMessage) return "";
+    const shouldTruncate =
+      message.content && message.content.length > MAX_TEXT_LENGTH;
+    return shouldTruncate && !expanded
+      ? message.content.slice(0, MAX_TEXT_LENGTH) + "..."
       : message.content;
   }, [message.content, expanded, isAudioMessage]);
 
-  const shouldTruncate = !isAudioMessage && message.content && message.content.length > MAX_TEXT_LENGTH;
-  const isPending = message.id.toString().startsWith('temp') || message.id.toString().length > 30;
-  const shouldShowSuggestions = !isUser && !!message.suggestions?.length && isLastMessage;
-  
+  const shouldTruncate =
+    !isAudioMessage &&
+    message.content &&
+    message.content.length > MAX_TEXT_LENGTH;
+  const isPending =
+    message.id.toString().startsWith("temp") ||
+    message.id.toString().length > 30;
+  const shouldShowSuggestions =
+    !isUser && !!message.suggestions?.length && isLastMessage;
+
   // Estilos condicionados
   const rowStyle = isUser ? s.rowRight : s.rowLeft;
   const bubbleStyle = isUser ? s.bubbleUser : s.bubbleBot;
   const textStyle = isUser ? s.userText : s.bubbleText;
 
-  const markdownStyle = useMemo(() => StyleSheet.create({
-    body: { ...textStyle },
-    strong: { fontWeight: 'bold', color: textStyle.color },
-    link: { color: theme.brand.normal, textDecorationLine: 'underline' },
-  }), [textStyle, theme]);
+  const markdownStyle = useMemo(
+    () =>
+      StyleSheet.create({
+        body: { ...textStyle },
+        strong: { fontWeight: "bold", color: textStyle.color },
+        link: { color: theme.brand.normal, textDecorationLine: "underline" },
+      }),
+    [textStyle, theme]
+  );
 
-  const documentStyle = useMemo(() => ({
-    backgroundColor: isUser ? 'rgba(255, 255, 255, 0.2)' : theme.surfaceAlt,
-    borderColor: isUser ? 'rgba(255, 255, 255, 0.3)' : theme.border,
-    opacity: isPending ? 0.7 : 1,
-  }), [isUser, theme, isPending]);
+  const documentStyle = useMemo(
+    () => ({
+      backgroundColor: isUser ? "rgba(255, 255, 255, 0.2)" : theme.surfaceAlt,
+      borderColor: isUser ? "rgba(255, 255, 255, 0.3)" : theme.border,
+      opacity: isPending ? 0.7 : 1,
+    }),
+    [isUser, theme, isPending]
+  );
 
-  const documentTextStyle = useMemo(() => ({
-    color: isUser ? '#FFFFFF' : theme.textPrimary 
-  }), [isUser, theme]);
+  const documentTextStyle = useMemo(
+    () => ({
+      color: isUser ? NeutralColors.neutral.light.white1 : theme.textPrimary,
+    }),
+    [isUser, theme]
+  );
 
   // Handlers
   const handleImagePress = useCallback(() => {
@@ -144,14 +170,14 @@ const MessageBubbleComponent: React.FC<MessageBubbleProps> = ({
   const handleLinkPress = useCallback(() => {
     if (message.attachment_url && !isPending) {
       // Abre o arquivo no navegador ou app padrão
-      Linking.openURL(message.attachment_url).catch(err => 
+      Linking.openURL(message.attachment_url).catch((err) =>
         console.error("Falha ao abrir arquivo:", err)
       );
     }
   }, [message.attachment_url, isPending]);
 
   const handleToggleTranscription = useCallback(() => {
-    setShowTranscription(prev => !prev);
+    setShowTranscription((prev) => !prev);
   }, []);
 
   const handleReadMore = useCallback(() => {
@@ -160,91 +186,105 @@ const MessageBubbleComponent: React.FC<MessageBubbleProps> = ({
 
   const handleCopy = useCallback(() => onCopy?.(message), [onCopy, message]);
   const handleLike = useCallback(() => onLike?.(message), [onLike, message]);
-  const handleRewrite = useCallback(() => onRewrite?.(message), [onRewrite, message]);
-  const handlePlayTTS = useCallback(() => playTTS(conversationId, message.id), [playTTS, conversationId, message.id]);
+  const handleRewrite = useCallback(
+    () => onRewrite?.(message),
+    [onRewrite, message]
+  );
+  const handlePlayTTS = useCallback(
+    () => playTTS(conversationId, message.id),
+    [playTTS, conversationId, message.id]
+  );
 
   const renderedContent = useMemo(() => {
     if (isAudioMessage && message.attachment_url) {
       return (
-        <View style={{ marginBottom: message.content ? 8 : 0 }}>
-            <AudioMessagePlayer 
-              uri={message.attachment_url} 
-              isUser={isUser}
-              duration={message.duration} 
-            />
-            
-            {message.content ? (
-              <View>
-                {showTranscription && (
-                  <Text style={[textStyle, s.transcriptionText]}>
-                      {message.content}
-                  </Text>
-                )}
-                <Pressable 
-                  onPress={handleToggleTranscription}
-                  hitSlop={10}
-                  style={s.transcriptionToggle}
+        <View
+          style={
+            message.content ? ms.audioWrap : [ms.audioWrap, { marginBottom: 0 }]
+          }
+        >
+          <AudioMessagePlayer
+            uri={message.attachment_url}
+            isUser={isUser}
+            duration={message.duration}
+          />
+
+          {message.content ? (
+            <View>
+              {showTranscription && (
+                <Text style={[textStyle, s.transcriptionText]}>
+                  {message.content}
+                </Text>
+              )}
+              <Pressable
+                onPress={handleToggleTranscription}
+                hitSlop={10}
+                style={s.transcriptionToggle}
+              >
+                <Text
+                  style={[
+                    ms.transcriptionLinkText,
+                    {
+                      color: isUser
+                        ? NeutralColors.fontAndIcon.dark.wh2
+                        : theme.textSecondary,
+                    },
+                  ]}
                 >
-                  <Text style={[
-                    Typography.bodyRegular.small, 
-                    { 
-                      color: isUser ? 'rgba(255,255,255,0.8)' : theme.textSecondary,
-                      textDecorationLine: 'underline'
-                    }
-                  ]}>
-                    {showTranscription ? t('chat.hideTranscription') : t('chat.showTranscription')}
-                  </Text>
-                </Pressable>
-              </View>
-            ) : null}
-          </View>
+                  {showTranscription
+                    ? t("chat.hideTranscription")
+                    : t("chat.showTranscription")}
+                </Text>
+              </Pressable>
+            </View>
+          ) : null}
+        </View>
       );
     }
 
     if (message.content) {
       return (
         <View>
-            <Markdown style={markdownStyle}>
-              {displayedContent}
-            </Markdown>
-            {shouldTruncate && !expanded && (
-            <Pressable onPress={handleReadMore} style={{ marginTop: 4 }}>
-                <Text style={s.readMore}>Ler mais</Text>
+          <Markdown style={markdownStyle}>{displayedContent}</Markdown>
+          {shouldTruncate && !expanded && (
+            <Pressable onPress={handleReadMore} style={ms.readMorePressable}>
+              <Text style={s.readMore}>Ler mais</Text>
             </Pressable>
-            )}
+          )}
         </View>
       );
     }
     return null;
   }, [
-    isAudioMessage, 
-    message.attachment_url, 
+    isAudioMessage,
+    message.attachment_url,
     message.content,
-    message.duration, 
-    isUser, 
-    showTranscription, 
-    textStyle, 
-    s, 
-    handleToggleTranscription, 
-    theme.textSecondary, 
-    t, 
-    markdownStyle, 
-    displayedContent, 
-    shouldTruncate, 
-    expanded, 
-    handleReadMore
+    message.duration,
+    isUser,
+    showTranscription,
+    textStyle,
+    s,
+    handleToggleTranscription,
+    theme.textSecondary,
+    t,
+    markdownStyle,
+    displayedContent,
+    shouldTruncate,
+    expanded,
+    handleReadMore,
   ]);
 
   const renderedAttachment = useMemo(() => {
-    if (!hasAttachment || isAudioMessage || !message.attachment_url) return null;
+    if (!hasAttachment || isAudioMessage || !message.attachment_url)
+      return null;
 
     // --- INTEGRAÇÃO DO NOVO COMPONENTE DE IMAGEM ---
     if (isImageAttachment) {
       return (
         <View style={s.attachmentContainer}>
-          <ChatImageBubble 
-            uri={message.attachment_url} 
-            onPress={handleImagePress} 
+          <ChatImageBubble
+            uri={message.attachment_url}
+            onPress={handleImagePress}
           />
         </View>
       );
@@ -258,134 +298,171 @@ const MessageBubbleComponent: React.FC<MessageBubbleProps> = ({
           style={[s.attachmentDocument, documentStyle]}
         >
           {/* Ícone ou Spinner se estiver processando */}
-          <View style={{ 
-            width: 36, 
-            height: 36, 
-            borderRadius: 18, 
-            backgroundColor: isUser ? 'rgba(255,255,255,0.2)' : theme.surface,
-            alignItems: 'center',
-            justifyContent: 'center',
-            marginRight: Spacing['spacing-element-m']
-          }}>
+          <View
+            style={[
+              ms.attachmentIconWrap,
+              {
+                backgroundColor: isUser ? theme.brand.surface : theme.surface,
+              },
+            ]}
+          >
             {isProcessingFile || isPending ? (
-              <ActivityIndicator size="small" color={isUser ? '#FFFFFF' : theme.brand.normal} />
+              <ActivityIndicator
+                size="small"
+                color={
+                  isUser
+                    ? NeutralColors.neutral.light.white1
+                    : theme.brand.normal
+                }
+              />
             ) : (
               // Ícone DOC/PDF
-              <Feather name="file-text" size={20} color={isUser ? '#FFFFFF' : theme.textPrimary} />
+              <Ionicons
+                name="document-text-outline"
+                size={20}
+                color={
+                  isUser
+                    ? NeutralColors.neutral.light.white1
+                    : theme.textPrimary
+                }
+              />
             )}
           </View>
 
-          <View style={{ flex: 1 }}>
-              <Text 
-                style={[s.attachmentDocumentText, documentTextStyle]}
-                numberOfLines={1}
-                ellipsizeMode="middle"
+          <View style={ms.attachmentRight}>
+            <Text
+              style={[s.attachmentDocumentText, documentTextStyle]}
+              numberOfLines={1}
+              ellipsizeMode="middle"
+            >
+              {message.original_filename || "Documento"}
+            </Text>
+
+            {/* Texto de status (Lendo documento... ou Tamanho) */}
+            {isProcessingFile || isPending ? (
+              <Text
+                style={[
+                  Typography.bodyRegular.small,
+                  {
+                    color: isUser
+                      ? NeutralColors.fontAndIcon.dark.wh2
+                      : theme.textSecondary,
+                    marginTop: 2,
+                  },
+                ]}
               >
-                {message.original_filename || 'Documento'}
+                {isPending ? t("common.loading") : t("chat.readingDocument")}
               </Text>
-              
-              {/* Texto de status (Lendo documento... ou Tamanho) */}
-              {(isProcessingFile || isPending) ? (
-                <Text style={[
-                  Typography.bodyRegular.small, 
-                  { color: isUser ? 'rgba(255,255,255,0.8)' : theme.textSecondary, marginTop: 2 }
-                ]}>
-                  {isPending ? t('common.loading') : t('chat.readingDocument')}
-                </Text>
-              ) : null}
+            ) : null}
           </View>
         </Pressable>
       </View>
     );
   }, [
-    hasAttachment, 
-    isAudioMessage, 
-    message.attachment_url, 
-    s, 
-    isImageAttachment, 
-    handleImagePress, 
-    isPending, 
-    handleLinkPress, 
-    documentStyle, 
-    isUser, 
-    theme, 
-    documentTextStyle, 
+    hasAttachment,
+    isAudioMessage,
+    message.attachment_url,
+    s,
+    isImageAttachment,
+    handleImagePress,
+    isPending,
+    handleLinkPress,
+    documentStyle,
+    isUser,
+    theme,
+    documentTextStyle,
     message.original_filename,
     isProcessingFile,
-    t
+    t,
   ]);
 
   const renderedActions = useMemo(() => {
     if (isUser || isPending) return null;
     return (
-        <>
-            <View style={s.bubbleDivider} />
-            <View style={s.actionRow}>
-              <View style={s.leftActions}>
-                <Pressable onPress={handleCopy} style={s.actionButton}>
-                  <Feather name="copy" size={16} color={theme.textSecondary} />
-                </Pressable>
-                <Pressable
-                  onPress={handleLike}
-                  style={message.liked ? s.actionButtonFilled : s.actionButton}
-                >
-                  <Feather 
-                    name="thumbs-up" 
-                    size={16} 
-                    color={message.liked ? theme.brand.normal : theme.textSecondary} 
+      <>
+        <View style={s.bubbleDivider} />
+        <View style={s.actionRow}>
+          <View style={s.leftActions}>
+            <Pressable onPress={handleCopy} style={s.actionButton}>
+              <Ionicons
+                name="copy-outline"
+                size={16}
+                color={theme.textSecondary}
+              />
+            </Pressable>
+            <Pressable
+              onPress={handleLike}
+              style={message.liked ? s.actionButtonFilled : s.actionButton}
+            >
+              <Ionicons
+                name={message.liked ? "thumbs-up" : "thumbs-up-outline"}
+                size={16}
+                color={message.liked ? theme.brand.normal : theme.textSecondary}
+              />
+            </Pressable>
+            {!isAudioMessage && (
+              <Pressable
+                onPress={handlePlayTTS}
+                disabled={isTTSDisabled} // Desabilita se houver carregamento ativo
+                style={[
+                  s.actionButton,
+                  isThisMessagePlaying && s.actionButtonFilled,
+                  { opacity: isTTSDisabled ? 0.5 : 1 }, // Feedback visual de desabilitado
+                ]}
+              >
+                {isLoadingThisMessage ? (
+                  // Mostra spinner se estiver carregando ESTA mensagem
+                  <ActivityIndicator size="small" color={theme.brand.normal} />
+                ) : (
+                  // Ícone normal
+                  <Ionicons
+                    name={
+                      isThisMessagePlaying
+                        ? "volume-high-outline"
+                        : "volume-medium-outline"
+                    }
+                    size={16}
+                    color={
+                      isThisMessagePlaying
+                        ? theme.brand.normal
+                        : theme.textSecondary
+                    }
                   />
-                </Pressable>
-                {!isAudioMessage && (
-                    <Pressable 
-                    onPress={handlePlayTTS}
-                    disabled={isTTSDisabled} // Desabilita se houver carregamento ativo
-                    style={[
-                        s.actionButton,
-                        isThisMessagePlaying && s.actionButtonFilled,
-                        { opacity: isTTSDisabled ? 0.5 : 1 } // Feedback visual de desabilitado
-                    ]}
-                    >
-                    {isLoadingThisMessage ? (
-                        // Mostra spinner se estiver carregando ESTA mensagem
-                        <ActivityIndicator size="small" color={theme.brand.normal} />
-                    ) : (
-                        // Ícone normal
-                        <Feather 
-                            name={isThisMessagePlaying ? "volume-2" : "volume-1"} 
-                            size={16} 
-                            color={isThisMessagePlaying ? theme.brand.normal : theme.textSecondary} 
-                        />
-                    )}
-                    </Pressable>
                 )}
-              </View>
-              <View style={s.rightActions}>
-                <Pressable onPress={handleRewrite} style={s.actionButton}>
-                  {message.rewriting ? (
-                    <ActivityIndicator size="small" color={theme.textSecondary} />
-                  ) : (
-                    <Feather name="refresh-cw" size={16} color={theme.textSecondary} />
-                  )}
-                </Pressable>
-              </View>
-            </View>
-          </>
+              </Pressable>
+            )}
+          </View>
+          <View style={s.rightActions}>
+            <Pressable onPress={handleRewrite} style={s.actionButton}>
+              {message.rewriting ? (
+                <ActivityIndicator size="small" color={theme.textSecondary} />
+              ) : (
+                <Ionicons
+                  name="refresh-outline"
+                  size={16}
+                  color={theme.textSecondary}
+                />
+              )}
+            </Pressable>
+          </View>
+        </View>
+      </>
     );
   }, [
-    isUser, 
-    isPending, 
-    s, 
-    handleCopy, 
-    theme, 
-    handleLike, 
-    message.liked, 
-    isAudioMessage, 
-    handlePlayTTS, 
-    isThisMessagePlaying, 
-    handleRewrite, 
+    isUser,
+    isPending,
+    s,
+    handleCopy,
+    theme,
+    handleLike,
+    message.liked,
+    isAudioMessage,
+    handlePlayTTS,
+    isThisMessagePlaying,
+    handleRewrite,
     message.rewriting,
     isTTSDisabled,
-    isLoadingThisMessage
+    isLoadingThisMessage,
   ]);
 
   return (
@@ -399,7 +476,7 @@ const MessageBubbleComponent: React.FC<MessageBubbleProps> = ({
         {shouldShowSuggestions && (
           <View style={s.miniSuggestionRow}>
             {message.suggestions?.map((label, i) => (
-              <SuggestionItem 
+              <SuggestionItem
                 key={i}
                 label={label}
                 messageId={message.id}
@@ -415,14 +492,17 @@ const MessageBubbleComponent: React.FC<MessageBubbleProps> = ({
 };
 
 const SuggestionItem = memo(({ label, messageId, onPress, disabled }: any) => {
-    const handlePress = useCallback(() => onPress?.(messageId, label), [onPress, messageId, label]);
-    return (
-        <MiniSuggestionChip
-            label={label}
-            onPress={handlePress}
-            disabled={disabled}
-        />
-    );
+  const handlePress = useCallback(
+    () => onPress?.(messageId, label),
+    [onPress, messageId, label]
+  );
+  return (
+    <MiniSuggestionChip
+      label={label}
+      onPress={handlePress}
+      disabled={disabled}
+    />
+  );
 });
 
 // --- OTIMIZAÇÃO CRÍTICA: Comparação Rigorosa ---
@@ -436,7 +516,7 @@ const arePropsEqual = (prev: MessageBubbleProps, next: MessageBubbleProps) => {
   // 2. Conteúdo (texto, anexo, duração)
   if (m1.content !== m2.content) return false;
   if (m1.attachment_url !== m2.attachment_url) return false;
-  if (m1.duration !== m2.duration) return false; 
+  if (m1.duration !== m2.duration) return false;
 
   // 3. Estados de interação
   if (m1.liked !== m2.liked) return false;
@@ -445,7 +525,7 @@ const arePropsEqual = (prev: MessageBubbleProps, next: MessageBubbleProps) => {
   // 4. Props contextuais
   if (prev.isLastMessage !== next.isLastMessage) return false;
   if (prev.isSendingSuggestion !== next.isSendingSuggestion) return false;
-  
+
   return true;
 };
 

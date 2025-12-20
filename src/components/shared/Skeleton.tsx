@@ -1,12 +1,20 @@
-import React, { useEffect, useRef } from 'react';
-import { Animated, Easing, View, type StyleProp, type ViewStyle, type DimensionValue } from 'react-native';
+import React, { useEffect, useRef } from "react";
+import {
+  Animated,
+  Easing,
+  View,
+  type StyleProp,
+  type ViewStyle,
+  type DimensionValue,
+} from "react-native";
+import { s } from "./Skeleton.styles";
 
 export const SkeletonBlock: React.FC<{
   width?: DimensionValue;
   height?: DimensionValue;
   radius?: number;
   style?: StyleProp<ViewStyle>;
-}> = ({ width = '100%', height = 16, radius = 8, style }) => {
+}> = ({ width = "100%", height = 16, radius = 8, style }) => {
   const v = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
@@ -28,29 +36,8 @@ export const SkeletonBlock: React.FC<{
   });
 
   return (
-    <View
-      style={[
-        {
-          width,
-          height,
-          borderRadius: radius,
-          overflow: 'hidden',
-          backgroundColor: '#ECECEC',
-        },
-        style,
-      ]}
-    >
-      <Animated.View
-        style={{
-          position: 'absolute',
-          top: 0,
-          bottom: 0,
-          width: 40,
-          transform: [{ translateX }],
-          backgroundColor: '#F7F7F7',
-          opacity: 0.6,
-        }}
-      />
+    <View style={[s.blockBase, { width, height, borderRadius: radius }, style]}>
+      <Animated.View style={[s.shimmer, { transform: [{ translateX }] }]} />
     </View>
   );
 };

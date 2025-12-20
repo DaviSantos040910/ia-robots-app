@@ -1,7 +1,7 @@
 // src/components/navigation/BottomNav.tsx
 import React from "react";
 import { View, Text, TouchableOpacity, useColorScheme } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
+import Ionicons from "@expo/vector-icons/Ionicons";
 import { getTheme } from "../../screens/ChatList/ChatList.styles"; // Will be updated
 import { createBottomNavStyles } from "./BottomNav.styles";
 import { useSafeAreaInsets } from "react-native-safe-area-context";

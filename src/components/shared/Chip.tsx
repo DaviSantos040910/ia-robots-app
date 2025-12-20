@@ -1,10 +1,21 @@
+import React from "react";
+import { View, Text } from "react-native";
+import { Typography } from "../../theme/typography";
+import { s } from "./Chip.styles";
+import { useTheme } from "../../theme/colors";
 
-import React from 'react';
-import { View, Text } from 'react-native';
-import { Typography } from '../../theme/typography';
+export const Chip: React.FC<{ label: string; bg?: string; fg?: string }> = ({
+  label,
+  bg,
+  fg,
+}) => {
+  const theme = useTheme();
+  const backgroundColor = bg ?? theme.brand.surface;
+  const color = fg ?? theme.brand.normal;
 
-export const Chip: React.FC<{ label: string; bg: string; fg: string }>= ({ label, bg, fg }) => (
-  <View style={{ backgroundColor: bg, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 999, marginRight: 8 }}>
-    <Text style={{ ...Typography.bodyRegular.small, color: fg }}>{label}</Text>
-  </View>
-);
+  return (
+    <View style={[s.wrap, { backgroundColor }]}>
+      <Text style={[Typography.presets.label, { color }]}>{label}</Text>
+    </View>
+  );
+};

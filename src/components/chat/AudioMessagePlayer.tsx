@@ -1,21 +1,29 @@
 // src/components/chat/AudioMessagePlayer.tsx
 
-import React, { useEffect, useState, useMemo, memo, useCallback, useRef } from 'react';
-import { 
-  View, 
-  Text, 
-  Pressable, 
-  ActivityIndicator, 
-  LayoutChangeEvent, 
-  GestureResponderEvent, 
-  useColorScheme, 
-  ViewStyle 
-} from 'react-native';
-import { Audio, AVPlaybackStatus } from 'expo-av';
-import { Feather } from '@expo/vector-icons';
-import { useTranslation } from 'react-i18next';
-import { getTheme, createChatStyles } from '../../screens/Chat/Chat.styles';
-import { Colors } from '../../theme/colors';
+import React, {
+  useEffect,
+  useState,
+  useMemo,
+  memo,
+  useCallback,
+  useRef,
+} from "react";
+import {
+  View,
+  Text,
+  Pressable,
+  ActivityIndicator,
+  LayoutChangeEvent,
+  GestureResponderEvent,
+  useColorScheme,
+  ViewStyle,
+} from "react-native";
+import { Audio, AVPlaybackStatus } from "expo-av";
+import Ionicons from "@expo/vector-icons/Ionicons";
+import { useTranslation } from "react-i18next";
+import { getTheme, createChatStyles } from "../../screens/Chat/Chat.styles";
+import { Colors } from "../../theme/colors";
+import { NeutralColors } from "../../theme/neutralColors";
 
 type AudioMessagePlayerProps = {
   uri: string;
@@ -23,56 +31,62 @@ type AudioMessagePlayerProps = {
   isUser: boolean;
 };
 
-const AudioMessagePlayerComponent: React.FC<AudioMessagePlayerProps> = ({ 
-  uri, 
-  duration: initialDuration = 0, 
-  isUser 
+const AudioMessagePlayerComponent: React.FC<AudioMessagePlayerProps> = ({
+  uri,
+  duration: initialDuration = 0,
+  isUser,
 }) => {
   const { t } = useTranslation();
   const scheme = useColorScheme();
-  const theme = getTheme(scheme === 'dark');
+  const theme = getTheme(scheme === "dark");
   const s = createChatStyles(theme);
 
   const soundRef = useRef<Audio.Sound | null>(null);
   const isMounted = useRef(true);
 
   const [isPlaying, setIsPlaying] = useState(false);
-  const [isLoading, setIsLoading] = useState(false); 
+  const [isLoading, setIsLoading] = useState(false);
   const [isLoaded, setIsLoaded] = useState(false);
   const [hasError, setHasError] = useState(false);
-  
+
   const [positionMillis, setPositionMillis] = useState(0);
   const [durationMillis, setDurationMillis] = useState(initialDuration);
   const [barWidth, setBarWidth] = useState(0);
 
-  const colors = useMemo(() => (isUser ? {
-    icon: '#FFFFFF',
-    text: '#FFFFFF',
-    track: 'rgba(255, 255, 255, 0.3)',
-    fill: '#FFFFFF',
-    thumb: '#FFFFFF'
-  } : {
-    icon: theme.textSecondary,
-    text: theme.textSecondary,
-    track: theme.surfaceAlt,
-    fill: theme.brand.normal,
-    thumb: theme.brand.normal
-  }), [isUser, theme]);
+  const colors = useMemo(
+    () =>
+      isUser
+        ? {
+            icon: NeutralColors.neutral.light.white1,
+            text: NeutralColors.neutral.light.white1,
+            track: "rgba(255, 255, 255, 0.3)",
+            fill: NeutralColors.neutral.light.white1,
+            thumb: NeutralColors.neutral.light.white1,
+          }
+        : {
+            icon: theme.textSecondary,
+            text: theme.textSecondary,
+            track: theme.border,
+            fill: theme.brand.normal,
+            thumb: theme.brand.normal,
+          },
+    [isUser, theme]
+  );
 
   // --- CLEANUP CRÍTICO PARA PERFORMANCE EM LISTAS ---
   useEffect(() => {
     isMounted.current = true;
     if (initialDuration > 0) {
-        setDurationMillis(initialDuration);
+      setDurationMillis(initialDuration);
     }
-    
+
     return () => {
       isMounted.current = false;
       // Garante que o som seja descarregado da memória nativa imediatamente
       if (soundRef.current) {
-        soundRef.current.unloadAsync().catch(err => {
-            // Ignorar erros de unload no unmount, pois o componente já pode ter sido destruído
-            console.warn('[AudioPlayer] Unload error (cleanup):', err);
+        soundRef.current.unloadAsync().catch((err) => {
+          // Ignorar erros de unload no unmount, pois o componente já pode ter sido destruído
+          console.warn("[AudioPlayer] Unload error (cleanup):", err);
         });
         soundRef.current = null;
       }
@@ -91,7 +105,7 @@ const AudioMessagePlayerComponent: React.FC<AudioMessagePlayerProps> = ({
         setIsPlaying(false);
         setPositionMillis(0);
         if (soundRef.current) {
-            soundRef.current.stopAsync();
+          soundRef.current.stopAsync();
         }
       }
     } else if (status.error) {
@@ -121,18 +135,17 @@ const AudioMessagePlayerComponent: React.FC<AudioMessagePlayerProps> = ({
         soundRef.current = newSound;
         setIsLoaded(true);
         setIsLoading(false);
-        
+
         if (status.isLoaded) {
-            setIsPlaying(status.isPlaying);
-            if (status.durationMillis) setDurationMillis(status.durationMillis);
+          setIsPlaying(status.isPlaying);
+          if (status.durationMillis) setDurationMillis(status.durationMillis);
         }
       } else {
         // Se desmontou durante o carregamento, descarrega imediatamente
         newSound.unloadAsync();
       }
-
     } catch (error) {
-      console.error('[AudioPlayer] Erro ao carregar:', error);
+      console.error("[AudioPlayer] Erro ao carregar:", error);
       if (isMounted.current) {
         setIsLoading(false);
         setHasError(true);
@@ -144,8 +157,8 @@ const AudioMessagePlayerComponent: React.FC<AudioMessagePlayerProps> = ({
     if (isLoading) return;
 
     if (!soundRef.current) {
-        await loadAndPlaySound();
-        return;
+      await loadAndPlaySound();
+      return;
     }
 
     try {
@@ -165,17 +178,24 @@ const AudioMessagePlayerComponent: React.FC<AudioMessagePlayerProps> = ({
   };
 
   const handleSeek = async (event: GestureResponderEvent) => {
-    if (!soundRef.current || !isLoaded || barWidth === 0 || !durationMillis || hasError) return;
-    
+    if (
+      !soundRef.current ||
+      !isLoaded ||
+      barWidth === 0 ||
+      !durationMillis ||
+      hasError
+    )
+      return;
+
     const { locationX } = event.nativeEvent;
     const percentage = Math.max(0, Math.min(1, locationX / barWidth));
     const seekPosition = percentage * durationMillis;
-    
-    setPositionMillis(seekPosition); 
+
+    setPositionMillis(seekPosition);
     try {
-        await soundRef.current.setPositionAsync(seekPosition);
+      await soundRef.current.setPositionAsync(seekPosition);
     } catch (e) {
-        console.warn("Seek failed", e);
+      console.warn("Seek failed", e);
     }
   };
 
@@ -187,75 +207,104 @@ const AudioMessagePlayerComponent: React.FC<AudioMessagePlayerProps> = ({
     const totalSeconds = Math.floor(millis / 1000);
     const minutes = Math.floor(totalSeconds / 60);
     const seconds = totalSeconds % 60;
-    return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+    return `${minutes.toString().padStart(2, "0")}:${seconds
+      .toString()
+      .padStart(2, "0")}`;
   };
 
-  const progressPercent = durationMillis > 0 
-    ? (positionMillis / durationMillis) * 100 
-    : 0;
+  const progressPercent =
+    durationMillis > 0 ? (positionMillis / durationMillis) * 100 : 0;
 
-  const fillStyle: ViewStyle = useMemo(() => ({
-    width: `${progressPercent}%`, 
-    backgroundColor: hasError ? Colors.semantic.error.light : colors.fill 
-  }), [progressPercent, colors.fill, hasError]);
+  const fillStyle: ViewStyle = useMemo(
+    () => ({
+      width: `${progressPercent}%`,
+      backgroundColor: hasError ? Colors.semantic.error.light : colors.fill,
+    }),
+    [progressPercent, colors.fill, hasError]
+  );
 
-  const thumbStyle: ViewStyle = useMemo(() => ({
-    left: `${progressPercent}%`,
-    backgroundColor: hasError ? 'transparent' : colors.thumb,
-    opacity: progressPercent > 0 ? 1 : 0 
-  }), [progressPercent, colors.thumb, hasError]);
+  const thumbStyle: ViewStyle = useMemo(
+    () => ({
+      left: `${progressPercent}%`,
+      backgroundColor: hasError ? "transparent" : colors.thumb,
+      opacity: progressPercent > 0 ? 1 : 0,
+    }),
+    [progressPercent, colors.thumb, hasError]
+  );
 
   return (
     <View style={[s.audioPlayerContainer, { minHeight: 50 }]}>
-      <Pressable 
-        onPress={handlePlayPause} 
+      <Pressable
+        onPress={handlePlayPause}
         disabled={hasError}
         style={s.audioPlayButton}
         hitSlop={10}
-        accessibilityLabel={hasError ? t('chat.audioError') : (isPlaying ? t('common.pause') : t('common.play'))}
+        accessibilityLabel={
+          hasError
+            ? t("chat.audioError")
+            : isPlaying
+            ? t("common.pause")
+            : t("common.play")
+        }
         accessibilityRole="button"
       >
         {isLoading ? (
           <ActivityIndicator size="small" color={colors.icon} />
         ) : hasError ? (
-          <Feather name="alert-circle" size={24} color={isUser ? '#ffcccc' : Colors.semantic.error.normal} />
+          <Ionicons
+            name="alert-circle-outline"
+            size={24}
+            color={
+              isUser
+                ? NeutralColors.neutral.light.gray2
+                : Colors.semantic.error.normal
+            }
+          />
         ) : (
-          <Feather 
-            name={isPlaying ? "pause" : "play"} 
-            size={24} 
-            color={colors.icon} 
+          <Ionicons
+            name={isPlaying ? "pause-circle" : "play-circle"}
+            size={24}
+            color={colors.icon}
           />
         )}
       </Pressable>
 
       <View style={s.audioProgressContainer}>
-        <View 
-          style={[s.audioTrack, { backgroundColor: colors.track }]} 
+        <View
+          style={[s.audioTrack, { backgroundColor: colors.track }]}
           onLayout={handleLayout}
         >
           <View style={[s.audioFill, fillStyle]} />
           {!hasError && <View style={[s.audioThumb, thumbStyle]} />}
         </View>
-        
-        <Pressable 
-          style={s.audioSeekTouchArea} 
+
+        <Pressable
+          style={s.audioSeekTouchArea}
           onPress={handleSeek}
           disabled={!isLoaded || hasError}
-          accessibilityLabel={t('chat.accessibility.audioProgress')}
+          accessibilityLabel={t("chat.accessibility.audioProgress")}
           accessibilityRole="adjustable"
         />
       </View>
 
       <Text style={[s.audioDurationText, { color: colors.text }]}>
-        {hasError ? "--:--" : (isPlaying || positionMillis > 0 
-          ? formatTime(positionMillis) 
-          : formatTime(durationMillis))
-        }
+        {hasError
+          ? "--:--"
+          : isPlaying || positionMillis > 0
+          ? formatTime(positionMillis)
+          : formatTime(durationMillis)}
       </Text>
     </View>
   );
 };
 
-export const AudioMessagePlayer = memo(AudioMessagePlayerComponent, (prev, next) => {
-    return prev.uri === next.uri && prev.isUser === next.isUser && prev.duration === next.duration;
-});
+export const AudioMessagePlayer = memo(
+  AudioMessagePlayerComponent,
+  (prev, next) => {
+    return (
+      prev.uri === next.uri &&
+      prev.isUser === next.isUser &&
+      prev.duration === next.duration
+    );
+  }
+);

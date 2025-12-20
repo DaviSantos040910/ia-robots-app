@@ -19,7 +19,7 @@ export const Colors = {
     },
     warning: {
       normal: "#D97706",
-      light: "#FEF3C7",
+      light: "#FFFBEB",
       dark: "#B45309",
     },
     info: {
@@ -27,32 +27,64 @@ export const Colors = {
       light: "#DBEAFE",
       dark: "#1D4ED8",
     },
+    organization: {
+      indigo: {
+        normal: "#4F46E5",
+        light: "#E0E7FF",
+        dark: "#3730A3",
+      },
+      teal: {
+        normal: "#0F766E",
+        light: "#CCFBF1",
+        dark: "#115E59",
+      },
+      amber: {
+        normal: "#B45309",
+        light: "#FEF3C7",
+        dark: "#92400E",
+      },
+      rose: {
+        normal: "#E11D48",
+        light: "#FFE4E6",
+        dark: "#9F1239",
+      },
+      sky: {
+        normal: "#0284C7",
+        light: "#E0F2FE",
+        dark: "#075985",
+      },
+      violet: {
+        normal: "#7C3AED",
+        light: "#EDE9FE",
+        dark: "#5B21B6",
+      },
+    },
   },
   brand: {
     light: {
-      normal: "#7C57FF",
-      surface: "#E5E5FF",
-      background: "#FFFFFF",
-      light: "#44466A",
-      dark: "#5D3FD3", // A slightly darker purple for the gradient end.
+      normal: "#4F46E5",
+      surface: "#E0E7FF",
+      background: "#F8FAFC",
+      light: "#312E81",
+      dark: "#3730A3", // A slightly darker indigo for the gradient end.
     },
     dark: {
-      normal: "#7C57FF",
-      surface: "#7572AC",
-      light: "#44466A",
-      dark: "#6A4DFF", // A slightly lighter purple for the gradient end in dark mode.
+      normal: "#818CF8",
+      surface: "#1E1B4B",
+      light: "#C7D2FE",
+      dark: "#6366F1", // A slightly lighter indigo for the gradient end in dark mode.
     },
   },
   secondary: {
     light: {
-      normal1: "#00C9FF",
-      normal2: "#00D1FF",
-      background: "#AEFFF9",
+      normal1: "#0F766E",
+      normal2: "#14B8A6",
+      background: "#CCFBF1",
     },
     dark: {
-      normal1: "#00C9FF",
-      normal2: "#00D1FF",
-      background: "#00959F",
+      normal1: "#2DD4BF",
+      normal2: "#5EEAD4",
+      background: "#0F3B39",
     },
   },
   noEmotion: {
@@ -68,7 +100,7 @@ export const Colors = {
     dark: ["#34A447", "#34AE65", "#26B690", "#45AA77", "#65BB62"],
   },
   warning: {
-    light: ["#FFFBE", "#FFEBCS", "#FFDFAA", "#FB8000", "#FB8000", "#EB9000"],
+    light: ["#FFFBEB", "#FFEBC7", "#FFDFAA", "#FB8000", "#FB8000", "#EB9000"],
     dark: ["#543529", "#805027", "#BF6210", "#DB704A", "#EA8517", "#FAC520"],
   },
 };
@@ -88,18 +120,10 @@ const getFontColors = (isDark: boolean) => {
 
 export const getTheme = (isDark: boolean) => {
   const font = getFontColors(isDark);
-  const background = isDark
-    ? NeutralColors.neutral.dark.gray1
-    : NeutralColors.neutral.light.white1;
-  const surface = isDark
-    ? NeutralColors.neutral.dark.gray2
-    : NeutralColors.neutral.light.white1;
-  const surfaceAlt = isDark
-    ? NeutralColors.neutral.dark.gray3
-    : NeutralColors.neutral.light.gray2;
-  const border = isDark
-    ? NeutralColors.neutral.dark.gray3
-    : NeutralColors.neutral.light.gray3;
+  const background = isDark ? "#0B1220" : "#F8FAFC";
+  const surface = isDark ? "#111A2E" : "#FFFFFF";
+  const surfaceAlt = isDark ? "#16213A" : "#F1F5F9";
+  const border = isDark ? "#233055" : "#E2E8F0";
 
   const brandPalette = isDark ? Colors.brand.dark : Colors.brand.light;
 

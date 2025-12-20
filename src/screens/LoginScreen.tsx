@@ -1,5 +1,5 @@
 // src/screens/LoginScreen.tsx
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo } from "react";
 import {
   View,
   Text,
@@ -12,21 +12,24 @@ import {
   useWindowDimensions,
   Platform,
   Alert,
-} from 'react-native';
-import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
-import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useTranslation } from 'react-i18next';
-import * as yup from 'yup';
-import api from '../services/api';
-import { styles } from './LoginScreen.styles';
-import { Spacing } from '../theme/spacing';
-import { AntDesign } from '@expo/vector-icons';
-import { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { AxiosResponse } from 'axios';
-import type { RootStackParamList } from '../types/navigation';
-import { useAuth } from '../contexts/auth/AuthProvider'; // 1. Importe o hook useAuth
+} from "react-native";
+import { KeyboardAwareScrollView } from "react-native-keyboard-aware-scroll-view";
+import {
+  SafeAreaView,
+  useSafeAreaInsets,
+} from "react-native-safe-area-context";
+import { useTranslation } from "react-i18next";
+import * as yup from "yup";
+import api from "../services/api";
+import { styles } from "./LoginScreen.styles";
+import { Spacing } from "../theme/spacing";
+import Ionicons from "@expo/vector-icons/Ionicons";
+import { NativeStackScreenProps } from "@react-navigation/native-stack";
+import { AxiosResponse } from "axios";
+import type { RootStackParamList } from "../types/navigation";
+import { useAuth } from "../contexts/auth/AuthProvider"; // 1. Importe o hook useAuth
 
-type LoginScreenProps = NativeStackScreenProps<RootStackParamList, 'Login'>;
+type LoginScreenProps = NativeStackScreenProps<RootStackParamList, "Login">;
 
 type FormErrors = {
   emailOrUsername?: string;
@@ -38,8 +41,8 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ navigation }) => {
   const { login } = useAuth(); // 2. Obtenha a função de login do context
 
   const [formData, setFormData] = useState({
-    emailOrUsername: '',
-    password: '',
+    emailOrUsername: "",
+    password: "",
   });
   const [errors, setErrors] = useState<FormErrors>({});
   const [isLoading, setIsLoading] = useState(false);
@@ -49,7 +52,7 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ navigation }) => {
   const { width, height } = useWindowDimensions();
 
   const navigateToSignUp = () => {
-    navigation.navigate('SignUp');
+    navigation.navigate("SignUp");
   };
 
   const avatarSize = useMemo(
@@ -59,8 +62,8 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ navigation }) => {
   const vGap = useMemo(
     () =>
       Math.min(
-        Math.max(height * 0.02, Spacing['spacing-element-m']),
-        Spacing['spacing-card-m']
+        Math.max(height * 0.02, Spacing["spacing-element-m"]),
+        Spacing["spacing-card-m"]
       ),
     [height]
   );
@@ -68,10 +71,12 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ navigation }) => {
   const loginSchema = yup.object().shape({
     emailOrUsername: yup
       .string()
-      .required(t('validation.required', { field: t('login.emailOrUsername') })),
+      .required(
+        t("validation.required", { field: t("login.emailOrUsername") })
+      ),
     password: yup
       .string()
-      .required(t('validation.required', { field: t('login.password') })),
+      .required(t("validation.required", { field: t("login.password") })),
   });
 
   const validateForm = async () => {
@@ -106,10 +111,15 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ navigation }) => {
       interface LoginResponse {
         token: string;
         refresh: string;
-        user: { id: string; username: string; email: string; is_email_verified?: boolean };
+        user: {
+          id: string;
+          username: string;
+          email: string;
+          is_email_verified?: boolean;
+        };
       }
 
-      const response = await api.post<LoginResponse>('/auth/login/', {
+      const response = await api.post<LoginResponse>("/auth/login/", {
         identifier: formData.emailOrUsername.trim(),
         password: formData.password,
       });
@@ -118,16 +128,16 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ navigation }) => {
         // 3. Chame a função de login do context.
         // Ela cuidará de salvar o token e atualizar o estado de autenticação.
         await login(response.token, response.refresh);
-        
+
         // A navegação agora é tratada automaticamente pelo RootNavigator.
         // Não precisamos mais navegar manualmente aqui.
       } else {
         // Esta parte pode nunca ser alcançada se a API sempre retornar um erro
-        Alert.alert('Error', t('errors.generic'));
+        Alert.alert(t("common.error"), t("errors.generic"));
       }
     } catch (error: any) {
-      const errorMessage = error.response?.data?.detail ?? t('errors.generic');
-      Alert.alert('Login Failed', errorMessage);
+      const errorMessage = error.response?.data?.detail ?? t("errors.generic");
+      Alert.alert(t("login.loginFailed"), errorMessage);
     } finally {
       setIsLoading(false);
     }
@@ -135,25 +145,32 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ navigation }) => {
 
   const handleForgotPassword = async () => {
     if (!formData.emailOrUsername.trim()) {
-      Alert.alert(t('errors.required'), t('login.enterEmailOrUsernameForReset'));
+      Alert.alert(
+        t("errors.required"),
+        t("login.enterEmailOrUsernameForReset")
+      );
       return;
     }
 
     setIsLoading(true);
     try {
-      const response: AxiosResponse = await api.post('/auth/forgot-password/', {
+      const response: AxiosResponse = await api.post("/auth/forgot-password/", {
         email: formData.emailOrUsername.trim(),
       });
 
       if (response.status === 200 || response.status === 201) {
-        Alert.alert(t('login.forgotPassword'), t('login.forgotPasswordSuccess'));
+        Alert.alert(
+          t("login.forgotPassword"),
+          t("login.forgotPasswordSuccess")
+        );
       } else {
-        Alert.alert(t('login.forgotPassword'), t('login.forgotPasswordError'));
+        Alert.alert(t("login.forgotPassword"), t("login.forgotPasswordError"));
       }
     } catch (error: any) {
       console.error(error);
-      const message = error.response?.data?.detail ?? t('login.forgotPasswordError');
-      Alert.alert(t('login.forgotPassword'), message);
+      const message =
+        error.response?.data?.detail ?? t("login.forgotPasswordError");
+      Alert.alert(t("login.forgotPassword"), message);
     } finally {
       setIsLoading(false);
     }
@@ -169,11 +186,14 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ navigation }) => {
         <KeyboardAwareScrollView
           enableOnAndroid
           keyboardShouldPersistTaps="handled"
-          extraScrollHeight={Platform.select({ ios: Spacing['spacing-element-l'], android: 0 })}
+          extraScrollHeight={Platform.select({
+            ios: Spacing["spacing-element-l"],
+            android: 0,
+          })}
           contentContainerStyle={{
             flexGrow: 1,
-            paddingTop: insets.top + Spacing['spacing-element-s'],
-            paddingBottom: insets.bottom + Spacing['spacing-element-l'],
+            paddingTop: insets.top + Spacing["spacing-element-s"],
+            paddingBottom: insets.bottom + Spacing["spacing-element-l"],
           }}
           style={{ flex: 1 }}
         >
@@ -181,59 +201,70 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ navigation }) => {
             {/* Header */}
             <View style={styles.headerCenter}>
               <Image
-                source={require('../assets/avatar.png')}
+                source={require("../assets/avatar.png")}
                 style={{
                   width: avatarSize,
                   height: avatarSize,
                   borderRadius: avatarSize / 2,
                   marginBottom: vGap,
                 }}
-                accessibilityLabel={t('accessibility.avatar')}
+                accessibilityLabel={t("accessibility.avatar")}
               />
               <Text style={styles.title} accessibilityRole="header">
-                {t('login.greeting')}
+                {t("login.greeting")}
               </Text>
-              <Text style={styles.subtitle}>{t('login.subtitle')}</Text>
-              <Text style={styles.description}>{t('login.description')}</Text>
+              <Text style={styles.subtitle}>{t("login.subtitle")}</Text>
+              <Text style={styles.description}>{t("login.description")}</Text>
             </View>
 
             {/* Form */}
             <View style={{ marginTop: vGap }}>
               <View style={styles.formGroup}>
                 <TextInput
-                  style={[styles.input, errors.emailOrUsername && styles.inputError]}
-                  placeholder={t('login.emailOrUsername')}
+                  style={[
+                    styles.input,
+                    errors.emailOrUsername && styles.inputError,
+                  ]}
+                  placeholder={t("login.emailOrUsername")}
                   placeholderTextColor="#00000040"
                   value={formData.emailOrUsername}
-                  onChangeText={(text) => handleInputChange('emailOrUsername', text)}
+                  onChangeText={(text) =>
+                    handleInputChange("emailOrUsername", text)
+                  }
                   autoCapitalize="none"
                   autoCorrect={false}
                   keyboardType="email-address"
                   textContentType="username"
                   autoComplete="username"
-                  accessibilityLabel={t('login.emailOrUsername')}
-                  accessibilityHint={t('accessibility.enterEmailOrUsername')}
+                  accessibilityLabel={t("login.emailOrUsername")}
+                  accessibilityHint={t("accessibility.enterEmailOrUsername")}
                   editable={!isLoading}
                   returnKeyType="next"
                 />
-                {errors.emailOrUsername && <Text style={styles.errorText}>{errors.emailOrUsername}</Text>}
+                {errors.emailOrUsername && (
+                  <Text style={styles.errorText}>{errors.emailOrUsername}</Text>
+                )}
               </View>
 
               <View style={styles.formGroup}>
                 <View style={styles.passwordContainer}>
                   <TextInput
-                    style={[styles.input, styles.passwordInput, errors.password && styles.inputError]}
-                    placeholder={t('login.password')}
+                    style={[
+                      styles.input,
+                      styles.passwordInput,
+                      errors.password && styles.inputError,
+                    ]}
+                    placeholder={t("login.password")}
                     placeholderTextColor="#00000040"
                     secureTextEntry={!isPasswordVisible}
                     value={formData.password}
-                    onChangeText={(text) => handleInputChange('password', text)}
+                    onChangeText={(text) => handleInputChange("password", text)}
                     autoCapitalize="none"
                     autoCorrect={false}
                     textContentType="password"
                     autoComplete="password"
-                    accessibilityLabel={t('login.password')}
-                    accessibilityHint={t('accessibility.enterPassword')}
+                    accessibilityLabel={t("login.password")}
+                    accessibilityHint={t("accessibility.enterPassword")}
                     editable={!isLoading}
                     onSubmitEditing={handleLogin}
                     returnKeyType="done"
@@ -241,23 +272,31 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ navigation }) => {
                   <TouchableOpacity
                     style={styles.visibilityToggle}
                     onPress={() => setIsPasswordVisible(!isPasswordVisible)}
-                    accessibilityLabel={isPasswordVisible ? t('accessibility.hidePassword') : t('accessibility.showPassword')}
+                    accessibilityLabel={
+                      isPasswordVisible
+                        ? t("accessibility.hidePassword")
+                        : t("accessibility.showPassword")
+                    }
                   >
                     <Text style={styles.visibilityToggleText}>
-                      {isPasswordVisible ? t('common.hide') : t('common.show')}
+                      {isPasswordVisible ? t("common.hide") : t("common.show")}
                     </Text>
                   </TouchableOpacity>
                 </View>
-                {errors.password && <Text style={styles.errorText}>{errors.password}</Text>}
+                {errors.password && (
+                  <Text style={styles.errorText}>{errors.password}</Text>
+                )}
 
                 <TouchableOpacity
                   onPress={handleForgotPassword}
                   style={styles.forgotInlineButton}
                   disabled={isLoading}
                   accessibilityRole="button"
-                  accessibilityLabel={t('login.forgotPassword')}
+                  accessibilityLabel={t("login.forgotPassword")}
                 >
-                  <Text style={styles.forgotInlineText}>{t('login.forgotPassword')}</Text>
+                  <Text style={styles.forgotInlineText}>
+                    {t("login.forgotPassword")}
+                  </Text>
                 </TouchableOpacity>
               </View>
             </View>
@@ -265,49 +304,79 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ navigation }) => {
             {/* Actions & Footer */}
             <View>
               <TouchableOpacity
-                style={[styles.signInButton, isLoading && styles.signInButtonDisabled]}
+                style={[
+                  styles.signInButton,
+                  isLoading && styles.signInButtonDisabled,
+                ]}
                 onPress={handleLogin}
                 disabled={isLoading}
                 accessibilityRole="button"
                 accessibilityState={{ disabled: isLoading }}
               >
-                {isLoading ? <ActivityIndicator color="#fff" /> : <Text style={styles.signInText}>{t('login.signIn')}</Text>}
+                {isLoading ? (
+                  <ActivityIndicator color="#fff" />
+                ) : (
+                  <Text style={styles.signInText}>{t("login.signIn")}</Text>
+                )}
               </TouchableOpacity>
 
               <TouchableOpacity
                 style={[styles.altButton, styles.googleButton]}
-                onPress={() => handleSocialLogin('google')}
+                onPress={() => handleSocialLogin("google")}
                 disabled={isLoading}
                 accessibilityRole="button"
-                accessibilityLabel={t('login.continueWithGoogle')}
+                accessibilityLabel={t("login.continueWithGoogle")}
               >
-                <AntDesign name="google" size={20} color="#fff" style={{ marginRight: Spacing['spacing-element-m'] }} />
-                <Text style={[styles.altButtonText, styles.googleButtonText]}>{t('login.continueWithGoogle')}</Text>
+                <Ionicons
+                  name="logo-google"
+                  size={20}
+                  color="#fff"
+                  style={{ marginRight: Spacing["spacing-element-m"] }}
+                />
+                <Text style={[styles.altButtonText, styles.googleButtonText]}>
+                  {t("login.continueWithGoogle")}
+                </Text>
               </TouchableOpacity>
 
               <TouchableOpacity
                 style={[styles.altButton, styles.appleButton]}
-                onPress={() => handleSocialLogin('apple')}
+                onPress={() => handleSocialLogin("apple")}
                 disabled={isLoading}
                 accessibilityRole="button"
-                accessibilityLabel={t('login.continueWithApple')}
+                accessibilityLabel={t("login.continueWithApple")}
               >
-                <AntDesign name="apple" size={20} color="#fff" style={{ marginRight: Spacing['spacing-element-m'] }} />
-                <Text style={[styles.altButtonText, styles.appleButtonText]}>{t('login.continueWithApple')}</Text>
+                <Ionicons
+                  name="logo-apple"
+                  size={20}
+                  color="#fff"
+                  style={{ marginRight: Spacing["spacing-element-m"] }}
+                />
+                <Text style={[styles.altButtonText, styles.appleButtonText]}>
+                  {t("login.continueWithApple")}
+                </Text>
               </TouchableOpacity>
 
               <View style={styles.signupContainer}>
-                <Text style={styles.signupText}>{t('signup.haveAccount')} </Text>
-                <TouchableOpacity onPress={navigateToSignUp} disabled={isLoading}>
-                  <Text style={styles.signupLink}>{t('signup.signIn')}</Text>
+                <Text style={styles.signupText}>
+                  {t("signup.haveAccount")}{" "}
+                </Text>
+                <TouchableOpacity
+                  onPress={navigateToSignUp}
+                  disabled={isLoading}
+                >
+                  <Text style={styles.signupLink}>{t("signup.signIn")}</Text>
                 </TouchableOpacity>
               </View>
 
               <Text style={styles.disclaimer}>
-                {t('login.disclaimer.part1')}{' '}
-                <Text style={styles.link}>{t('login.disclaimer.userAgreement')}</Text>{' '}
-                {t('login.disclaimer.and')}{' '}
-                <Text style={styles.link}>{t('login.disclaimer.privacyPolicy')}</Text>
+                {t("login.disclaimer.part1")}{" "}
+                <Text style={styles.link}>
+                  {t("login.disclaimer.userAgreement")}
+                </Text>{" "}
+                {t("login.disclaimer.and")}{" "}
+                <Text style={styles.link}>
+                  {t("login.disclaimer.privacyPolicy")}
+                </Text>
               </Text>
             </View>
           </View>

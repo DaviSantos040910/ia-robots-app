@@ -1,16 +1,22 @@
 // src/components/shared/BottomActionSheet.tsx
-import React, { useRef, useEffect } from 'react';
-import { StyleSheet, View, Text, Modal, Pressable, Animated, Dimensions, Platform } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { useColorScheme } from 'react-native';
-import { useTranslation } from 'react-i18next';
-import { NeutralColors } from '../../theme/neutralColors';
-import { Radius } from '../../theme/radius';
-import { Spacing } from '../../theme/spacing';
-import { Typography } from '../../theme/typography';
-import { Colors } from '../../theme/colors';
+import React, { useRef, useEffect, useMemo } from "react";
+import {
+  View,
+  Text,
+  Modal,
+  Pressable,
+  Animated,
+  Dimensions,
+} from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { useColorScheme } from "react-native";
+import { useTranslation } from "react-i18next";
+import {
+  createBottomActionSheetStyles,
+  getBottomActionSheetTheme,
+} from "./BottomActionSheet.styles";
 
-const SCREEN_HEIGHT = Dimensions.get('window').height;
+const SCREEN_HEIGHT = Dimensions.get("window").height;
 
 interface ActionSheetOption {
   label: string;
@@ -36,27 +42,40 @@ export const BottomActionSheet: React.FC<BottomActionSheetProps> = ({
   const backdropOpacity = useRef(new Animated.Value(0)).current;
 
   const scheme = useColorScheme();
-  const isDarkMode = scheme === 'dark';
+  const isDarkMode = scheme === "dark";
 
-  const theme = {
-    background: isDarkMode ? NeutralColors.neutral.dark.gray1 : NeutralColors.neutral.light.gray1,
-    surface: isDarkMode ? NeutralColors.neutral.dark.gray2 : NeutralColors.neutral.light.white1,
-    textPrimary: isDarkMode ? NeutralColors.fontAndIcon.dark.wh1 : NeutralColors.fontAndIcon.light.primary,
-    textSecondary: isDarkMode ? NeutralColors.fontAndIcon.dark.wh2 : NeutralColors.fontAndIcon.light.secondary,
-    separator: isDarkMode ? NeutralColors.neutral.dark.gray3 : '#3c3c434a',
-    destructive: Colors.semantic.error.normal,
-  };
+  const theme = useMemo(
+    () => getBottomActionSheetTheme(isDarkMode),
+    [isDarkMode]
+  );
+  const s = useMemo(() => createBottomActionSheetStyles(theme), [theme]);
 
   useEffect(() => {
     if (visible) {
       Animated.parallel([
-        Animated.timing(slideAnim, { toValue: 1, duration: 300, useNativeDriver: true }),
-        Animated.timing(backdropOpacity, { toValue: 0.5, duration: 300, useNativeDriver: true }),
+        Animated.timing(slideAnim, {
+          toValue: 1,
+          duration: 300,
+          useNativeDriver: true,
+        }),
+        Animated.timing(backdropOpacity, {
+          toValue: 0.5,
+          duration: 300,
+          useNativeDriver: true,
+        }),
       ]).start();
     } else {
       Animated.parallel([
-        Animated.timing(slideAnim, { toValue: 0, duration: 250, useNativeDriver: true }),
-        Animated.timing(backdropOpacity, { toValue: 0, duration: 250, useNativeDriver: true }),
+        Animated.timing(slideAnim, {
+          toValue: 0,
+          duration: 250,
+          useNativeDriver: true,
+        }),
+        Animated.timing(backdropOpacity, {
+          toValue: 0,
+          duration: 250,
+          useNativeDriver: true,
+        }),
       ]).start();
     }
   }, [visible, slideAnim, backdropOpacity]);
@@ -71,65 +90,14 @@ export const BottomActionSheet: React.FC<BottomActionSheetProps> = ({
     onPress();
   };
 
-  const actionSheetStyles = StyleSheet.create({
-    overlay: {
-      flex: 1,
-      justifyContent: 'flex-end',
-    },
-    backdrop: {
-      ...StyleSheet.absoluteFillObject,
-      backgroundColor: '#000',
-    },
-    container: {
-      backgroundColor: 'transparent',
-      paddingHorizontal: Spacing['spacing-element-m'],
-      paddingBottom: Platform.OS === 'ios' ? Spacing['spacing-element-m'] : Spacing['spacing-element-s'], // Adjusted padding for bottom safe area
-    },
-    optionContainer: {
-      backgroundColor: theme.surface,
-      // AJUSTE: Arredondamento aplicado a todo o contêiner de opções, incluindo o título
-      borderRadius: Radius.large,
-      overflow: 'hidden',
-    },
-    titleSection: {
-      paddingVertical: Spacing['spacing-group-m'],
-      paddingHorizontal: Spacing['spacing-group-m'],
-      alignItems: 'center',
-    },
-    titleText: {
-      ...Typography.bodyRegular.small, // Smaller text for the title
-      color: theme.textSecondary,
-      textAlign: 'center',
-    },
-    optionRow: {
-      paddingVertical: Spacing['spacing-element-l'], // Adjusted vertical padding
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
-    // AJUSTE: Fonte menor para as opções.
-    optionText: {
-      ...Typography.bodyRegular.medium, // Changed to bodyRegular.medium
-      fontSize: 16, // Explicitly set font size to 16
-      color: theme.textPrimary,
-    },
-    destructiveText: {
-      color: theme.destructive,
-    },
-    separator: {
-      height: StyleSheet.hairlineWidth,
-      backgroundColor: theme.separator,
-      marginHorizontal: Spacing['spacing-element-m'], // Added horizontal margin to separator
-    },
-  });
-
   const renderOptions = () => (
-    <View style={actionSheetStyles.optionContainer}>
+    <View style={s.optionContainer}>
       {title && (
         <>
-          <View style={actionSheetStyles.titleSection}>
-            <Text style={actionSheetStyles.titleText}>{title}</Text>
+          <View style={s.titleSection}>
+            <Text style={s.titleText}>{title}</Text>
           </View>
-          <View style={actionSheetStyles.separator} />
+          <View style={s.separator} />
         </>
       )}
       {options.map((option, index) => (
@@ -137,26 +105,31 @@ export const BottomActionSheet: React.FC<BottomActionSheetProps> = ({
           <Pressable
             onPress={() => handleOptionPress(option.onPress)}
             android_ripple={{ color: theme.separator }}
-            style={actionSheetStyles.optionRow}
+            style={s.optionRow}
           >
-            <Text style={[actionSheetStyles.optionText, option.isDestructive && actionSheetStyles.destructiveText]}>
+            <Text
+              style={[s.optionText, option.isDestructive && s.destructiveText]}
+            >
               {option.label}
             </Text>
           </Pressable>
-          {index < options.length - 1 && (
-            <View style={actionSheetStyles.separator} />
-          )}
+          {index < options.length - 1 && <View style={s.separator} />}
         </React.Fragment>
       ))}
     </View>
   );
 
   return (
-    <Modal transparent visible={visible} onRequestClose={onClose} animationType="none">
-      <Pressable style={actionSheetStyles.overlay} onPress={onClose}>
-        <Animated.View style={[actionSheetStyles.backdrop, { opacity: backdropOpacity }]} />
-        <Animated.View style={[actionSheetStyles.container, { transform: [{ translateY }] }]}>
-          <SafeAreaView edges={['bottom']}>
+    <Modal
+      transparent
+      visible={visible}
+      onRequestClose={onClose}
+      animationType="none"
+    >
+      <Pressable style={s.overlay} onPress={onClose}>
+        <Animated.View style={[s.backdrop, { opacity: backdropOpacity }]} />
+        <Animated.View style={[s.container, { transform: [{ translateY }] }]}>
+          <SafeAreaView edges={["bottom"]}>
             {renderOptions()}
             {/* AJUSTE: Botão "Cancel" removido */}
           </SafeAreaView>

@@ -1,4 +1,7 @@
+import React from "react";
+import { View } from "react-native";
+import { s } from "./Divider.styles";
 
-import React from 'react';
-import { View } from 'react-native';
-export const Divider: React.FC<{ color: string }> = ({ color }) => (<View style={{ height: 0.5, backgroundColor: color, width: '100%' }} />);
+export const Divider: React.FC<{ color: string }> = ({ color }) => (
+  <View style={[s.divider, { backgroundColor: color }]} />
+);

@@ -1,7 +1,73 @@
-// src/theme/typography.ts
-// typography.ts - Figma typography scale
-
 export const Typography = {
+  weights: {
+    regular: "Inter_400Regular",
+    medium: "Inter_500Medium",
+    bold: "Inter_600SemiBold",
+  },
+  sizes: {
+    xs: 12,
+    sm: 14,
+    md: 16,
+    lg: 18,
+    xl: 20,
+    xxl: 24,
+    xxxl: 32,
+  },
+  presets: {
+    heading1: {
+      fontSize: 32,
+      fontFamily: "Inter_600SemiBold",
+      lineHeight: 40,
+      letterSpacing: -1,
+    },
+    heading2: {
+      fontSize: 16,
+      fontFamily: "Inter_600SemiBold",
+      lineHeight: 22,
+      letterSpacing: -0.5,
+    },
+    heading3: {
+      fontSize: 20,
+      fontFamily: "Inter_600SemiBold",
+      lineHeight: 28,
+    },
+    body: {
+      fontSize: 16,
+      fontFamily: "Inter_400Regular",
+      lineHeight: 24,
+    },
+    bodySmall: {
+      fontSize: 14,
+      fontFamily: "Inter_400Regular",
+      lineHeight: 20,
+    },
+    label: {
+      fontSize: 12,
+      fontFamily: "Inter_500Medium",
+      textTransform: "uppercase" as const,
+      letterSpacing: 0.5,
+    },
+  },
+
+  bodyRegular: {
+    medium: {
+      fontSize: 14,
+      lineHeight: 22,
+      fontFamily: "Inter_400Regular",
+    },
+    small: {
+      fontSize: 12,
+      lineHeight: 20,
+      fontFamily: "Inter_400Regular",
+    },
+  },
+  bodyMedium: {
+    medium: {
+      fontSize: 14,
+      lineHeight: 22,
+      fontFamily: "Inter_500Medium",
+    },
+  },
   bodySemiBold: {
     large: {
       fontSize: 16,
@@ -36,38 +102,18 @@ export const Typography = {
       fontFamily: "Inter_600SemiBold",
     },
   },
-  // Adicionado Title3 conforme solicitado (estilo Apple HIG aproximado ou Figma)
   title3: {
     fontSize: 24,
     lineHeight: 30,
     fontFamily: "Inter_600SemiBold",
     fontWeight: "600" as const,
   },
-  bodyMedium: {
-    medium: {
-      fontSize: 14,
-      lineHeight: 22,
-      fontFamily: "Inter_500Medium",
-    },
-  },
-  bodyRegular: {
-    medium: {
-      fontSize: 14,
-      lineHeight: 22,
-      fontFamily: "Inter_400Regular",
-    },
-    small: {
-      fontSize: 12,
-      lineHeight: 20,
-      fontFamily: "Inter_400Regular",
-    },
-  },
-};
+} as const;
 
 export const typography = {
-  h4: Typography.titleSemiBold.extraLarge,
-  h6: Typography.titleSemiBold.medium,
-  subtitle1: Typography.titleSemiBold.medium,
-  body2: Typography.bodyRegular.medium,
-  caption: Typography.bodyRegular.small,
+  h4: Typography.presets.heading2,
+  h6: Typography.presets.heading3,
+  subtitle1: Typography.presets.heading3,
+  body2: Typography.presets.bodySmall,
+  caption: Typography.presets.label,
 } as const;

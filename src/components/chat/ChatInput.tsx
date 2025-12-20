@@ -1,24 +1,25 @@
 // src/components/chat/ChatInput.tsx
 
-import React, { useEffect, useState, memo } from 'react';
-import { 
-  Pressable, 
-  TextInput, 
-  View, 
-  LayoutChangeEvent, 
-  Platform, 
-  NativeSyntheticEvent, 
+import React, { useEffect, useState, memo } from "react";
+import {
+  Pressable,
+  TextInput,
+  View,
+  LayoutChangeEvent,
+  Platform,
+  NativeSyntheticEvent,
   TextInputContentSizeChangeEventData,
   ActivityIndicator,
   Text,
-  StyleSheet
-} from 'react-native';
-import { useTranslation } from 'react-i18next';
-import { useColorScheme } from 'react-native';
-import { Feather } from '@expo/vector-icons';
-import { RecordingState } from '../../hooks/useAudioRecorder';
-import { createChatStyles, getTheme } from '../../screens/Chat/Chat.styles';
-import { Colors } from '../../theme/colors';
+  StyleSheet,
+} from "react-native";
+import { useTranslation } from "react-i18next";
+import { useColorScheme } from "react-native";
+import Ionicons from "@expo/vector-icons/Ionicons";
+import { RecordingState } from "../../hooks/useAudioRecorder";
+import { createChatStyles, getTheme } from "../../screens/Chat/Chat.styles";
+import { Colors } from "../../theme/colors";
+import { NeutralColors } from "../../theme/neutralColors";
 
 type Props = {
   value: string;
@@ -42,12 +43,12 @@ const MIN_LINES = 1;
 const MAX_INPUT_HEIGHT = LINE_HEIGHT * MAX_LINES;
 const MIN_INPUT_HEIGHT = LINE_HEIGHT * MIN_LINES;
 
-const ChatInputComponent: React.FC<Props> = ({ 
-  value, 
-  onChangeText, 
-  onSend, 
-  onMic, 
-  onPlus, 
+const ChatInputComponent: React.FC<Props> = ({
+  value,
+  onChangeText,
+  onSend,
+  onMic,
+  onPlus,
   onHeightChange,
   recordingState,
   recordingDuration,
@@ -55,11 +56,11 @@ const ChatInputComponent: React.FC<Props> = ({
   onResumeRecording,
   onStopRecording,
   onCancelRecording,
-  isTranscribing = false
+  isTranscribing = false,
 }) => {
   const { t } = useTranslation();
   const scheme = useColorScheme();
-  const theme = getTheme(scheme === 'dark');
+  const theme = getTheme(scheme === "dark");
   const s = createChatStyles(theme);
 
   const [contentHeight, setContentHeight] = useState(MIN_INPUT_HEIGHT);
@@ -74,13 +75,18 @@ const ChatInputComponent: React.FC<Props> = ({
     onHeightChange?.(e.nativeEvent.layout.height);
   };
 
-  const onContentSizeChange = (e: NativeSyntheticEvent<TextInputContentSizeChangeEventData>) => {
+  const onContentSizeChange = (
+    e: NativeSyntheticEvent<TextInputContentSizeChangeEventData>
+  ) => {
     const h = e.nativeEvent.contentSize?.height || MIN_INPUT_HEIGHT;
     setContentHeight(h);
   };
 
   const canSend = value.trim().length > 0;
-  const inputHeight = Math.min(MAX_INPUT_HEIGHT, Math.max(MIN_INPUT_HEIGHT, contentHeight));
+  const inputHeight = Math.min(
+    MAX_INPUT_HEIGHT,
+    Math.max(MIN_INPUT_HEIGHT, contentHeight)
+  );
   const enableScroll = contentHeight > MAX_INPUT_HEIGHT;
 
   if (isTranscribing) {
@@ -88,69 +94,88 @@ const ChatInputComponent: React.FC<Props> = ({
       <View style={s.inputWrap} onLayout={handleLayout}>
         <View style={s.recordingContainer}>
           <ActivityIndicator size="small" color={theme.brand.normal} />
-          <Text style={s.recordingText}>
-            {t('chat.transcribing', { defaultValue: 'Transcrevendo áudio...' })}
-          </Text>
+          <Text style={s.recordingText}>{t("chat.transcribing")}</Text>
         </View>
       </View>
     );
   }
 
-  if (recordingState !== 'idle') {
+  if (recordingState !== "idle") {
     return (
       <View style={s.inputWrap} onLayout={handleLayout}>
         <View style={s.recordingContainer}>
-          <Pressable 
-            onPress={onCancelRecording} 
+          <Pressable
+            onPress={onCancelRecording}
             style={({ pressed }) => [
-              s.recordingButton, 
-              { opacity: pressed ? 0.6 : 1 }
+              s.recordingButton,
+              { opacity: pressed ? 0.6 : 1 },
             ]}
-            accessibilityLabel={t('common.cancel')}
+            accessibilityLabel={t("common.cancel")}
             accessibilityRole="button"
           >
-            <Feather name="trash-2" size={24} color={Colors.semantic.error.normal} />
-          </Pressable>
-
-          <View style={s.recordingIndicator}>
-            <View style={[
-              s.recordingDot,
-              { backgroundColor: recordingState === 'recording' ? Colors.semantic.error.normal : theme.textSecondary },
-              recordingState === 'recording' && s.recordingDotActive
-            ]} />
-            <Text style={s.recordingDuration}>{recordingDuration}</Text>
-          </View>
-
-          <Pressable 
-            onPress={recordingState === 'recording' ? onPauseRecording : onResumeRecording} 
-            style={({ pressed }) => [
-              s.recordingButton, 
-              { opacity: pressed ? 0.6 : 1 }
-            ]}
-          >
-            <Feather 
-              name={recordingState === 'recording' ? 'pause' : 'mic'} 
-              size={24} 
-              color={theme.textPrimary} 
+            <Ionicons
+              name="trash-outline"
+              size={24}
+              color={Colors.semantic.error.normal}
             />
           </Pressable>
 
-          <Pressable 
-            onPress={onStopRecording} 
+          <View style={s.recordingIndicator}>
+            <View
+              style={[
+                s.recordingDot,
+                {
+                  backgroundColor:
+                    recordingState === "recording"
+                      ? Colors.semantic.error.normal
+                      : theme.textSecondary,
+                },
+                recordingState === "recording" && s.recordingDotActive,
+              ]}
+            />
+            <Text style={s.recordingDuration}>{recordingDuration}</Text>
+          </View>
+
+          <Pressable
+            onPress={
+              recordingState === "recording"
+                ? onPauseRecording
+                : onResumeRecording
+            }
             style={({ pressed }) => [
-              s.recordingButton, 
-              { 
-                backgroundColor: theme.brand.normal, 
-                borderRadius: 20, 
+              s.recordingButton,
+              { opacity: pressed ? 0.6 : 1 },
+            ]}
+          >
+            <Ionicons
+              name={
+                recordingState === "recording" ? "pause-outline" : "mic-outline"
+              }
+              size={24}
+              color={theme.textPrimary}
+            />
+          </Pressable>
+
+          <Pressable
+            onPress={onStopRecording}
+            style={({ pressed }) => [
+              s.recordingButton,
+              {
+                backgroundColor: theme.brand.normal,
+                borderRadius: 20,
                 padding: 8,
                 marginLeft: 8,
-                opacity: pressed ? 0.8 : 1
-              }
+                opacity: pressed ? 0.8 : 1,
+              },
             ]}
-            accessibilityLabel={t('common.send')}
+            accessibilityLabel={t("common.send")}
             accessibilityRole="button"
           >
-            <Feather name="arrow-up" size={20} color="#FFFFFF" />
+            <Ionicons
+              name="create-outline"
+              size={20}
+              color={NeutralColors.neutral.light.white1}
+            />
           </Pressable>
         </View>
       </View>
@@ -160,16 +185,13 @@ const ChatInputComponent: React.FC<Props> = ({
   return (
     <View style={s.inputWrap} onLayout={handleLayout}>
       <View style={s.inputContainer}>
-        <Pressable onPress={onPlus} hitSlop={10} style={{ padding: 4 }}>
-          <Feather name="plus" size={24} color={theme.textSecondary} />
+        <Pressable onPress={onPlus} hitSlop={10} style={s.inputIconButton}>
+          <Ionicons name="add-outline" size={24} color={theme.textSecondary} />
         </Pressable>
 
         <TextInput
-          style={[
-            s.textInput,
-            { height: inputHeight }
-          ]}
-          placeholder={t('chat.inputPlaceholder', { defaultValue: 'Send message...' })}
+          style={[s.textInput, { height: inputHeight }]}
+          placeholder={t("chat.input_placeholder")}
           placeholderTextColor={theme.placeholder}
           value={value}
           onChangeText={onChangeText}
@@ -180,21 +202,29 @@ const ChatInputComponent: React.FC<Props> = ({
         />
 
         {canSend ? (
-          <Pressable onPress={onSend} hitSlop={10} style={{ padding: 4 }}>
-            <Feather name="send" size={24} color={theme.brand.normal} />
+          <Pressable onPress={onSend} hitSlop={10} style={s.inputIconButton}>
+            <Ionicons
+              name="create-outline"
+              size={24}
+              color={theme.brand.normal}
+            />
           </Pressable>
         ) : (
-          <Pressable 
-            onPress={onMic} 
+          <Pressable
+            onPress={onMic}
             hitSlop={10}
-            style={({ pressed }) => ({ 
-                padding: 4,
-                opacity: pressed ? 0.6 : 1 
+            style={({ pressed }) => ({
+              padding: s.inputIconButton.padding,
+              opacity: pressed ? 0.6 : 1,
             })}
-            accessibilityLabel="Gravar mensagem de voz"
+            accessibilityLabel={t("chat.accessibility.recordVoice")}
             accessibilityRole="button"
           >
-            <Feather name="mic" size={24} color={theme.textSecondary} />
+            <Ionicons
+              name="mic-outline"
+              size={24}
+              color={theme.textSecondary}
+            />
           </Pressable>
         )}
       </View>

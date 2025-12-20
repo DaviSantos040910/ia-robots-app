@@ -1,11 +1,11 @@
-import React from 'react';
-import { TouchableOpacity, View, Text, StyleSheet, Image } from 'react-native';
-import { useTheme } from '../../theme/colors';
-import { spacing } from '../../theme/spacing';
-import { radius } from '../../theme/radius';
-import { typography } from '../../theme/typography';
-import { Ionicons } from '@expo/vector-icons';
-import { FEATURES } from '../../config/featureFlags'; // Importando Flags
+import React from "react";
+import { TouchableOpacity, View, Text, StyleSheet, Image } from "react-native";
+import { useTheme } from "../../theme/colors";
+import { spacing } from "../../theme/spacing";
+import { radius } from "../../theme/radius";
+import { Typography } from "../../theme/typography";
+import Ionicons from "@expo/vector-icons/Ionicons";
+import { FEATURES } from "../../config/featureFlags"; // Importando Flags
 
 interface BotRowProps {
   id: string;
@@ -41,13 +41,27 @@ export const BotRow: React.FC<BotRowProps> = ({
       {/* Avatar Lógica: Flag define se mostra Imagem ou Ícone de Pasta */}
       {FEATURES.USE_CHARACTER_AVATAR ? (
         <Image
-          source={imageUrl ? { uri: imageUrl } : require('../../assets/avatar.png')}
-          style={s.avatar}
+          source={
+            imageUrl ? { uri: imageUrl } : require("../../assets/avatar.png")
+          }
+          style={[s.avatar, { backgroundColor: theme.brand.surface }]}
         />
       ) : (
-        <View style={[s.avatarPlaceholder, { backgroundColor: theme.brand.surface, borderColor: theme.brand.border }]}>
-           {/* Ícone técnico de 'Documento/Base de Conhecimento' */}
-          <Ionicons name="library-outline" size={24} color={theme.brand.normal} />
+        <View
+          style={[
+            s.avatarPlaceholder,
+            {
+              backgroundColor: theme.brand.surface,
+              borderColor: theme.brand.border,
+            },
+          ]}
+        >
+          {/* Ícone técnico de 'Documento/Base de Conhecimento' */}
+          <Ionicons
+            name="library-outline"
+            size={24}
+            color={theme.brand.normal}
+          />
         </View>
       )}
 
@@ -65,7 +79,7 @@ export const BotRow: React.FC<BotRowProps> = ({
           {description}
         </Text>
       </View>
-      
+
       {/* Seta discreta indicando navegação */}
       <Ionicons name="chevron-forward" size={16} color={theme.brand.border} />
     </TouchableOpacity>
@@ -74,8 +88,8 @@ export const BotRow: React.FC<BotRowProps> = ({
 
 const s = StyleSheet.create({
   container: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     paddingVertical: spacing.md,
     paddingHorizontal: spacing.lg,
   },
@@ -84,15 +98,15 @@ const s = StyleSheet.create({
     height: 48,
     borderRadius: radius.medium, // Avatar quadrado (técnico)
     marginRight: spacing.md,
-    backgroundColor: '#E2E8F0',
+    backgroundColor: "transparent",
   },
   avatarPlaceholder: {
     width: 48,
     height: 48,
     borderRadius: radius.medium,
     marginRight: spacing.md,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
     borderWidth: 1,
   },
   content: {
@@ -100,17 +114,15 @@ const s = StyleSheet.create({
     marginRight: spacing.sm,
   },
   header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
     marginBottom: 2,
   },
   name: {
-    ...typography.subtitle1,
-    fontWeight: '600',
+    ...Typography.presets.heading3,
   },
   description: {
-    ...typography.body2,
-    lineHeight: 18,
+    ...Typography.presets.bodySmall,
   },
 });

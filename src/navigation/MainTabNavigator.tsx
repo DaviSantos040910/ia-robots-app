@@ -16,9 +16,10 @@ const CreateBotTabScreen: React.FC = (props) => {
 };
 
 const VoiceCallTabScreen: React.FC = () => {
+  const { t } = useTranslation();
   return (
     <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>
-      <Text>Inicie uma chamada por voz a partir de um chat.</Text>
+      <Text>{t("voiceCall.startFromChat")}</Text>
     </View>
   );
 };

@@ -1,11 +1,11 @@
-import React from 'react';
-import { TouchableOpacity, View, Text, StyleSheet, Image } from 'react-native';
-import { useTheme } from '../../theme/colors';
-import { spacing } from '../../theme/spacing';
-import { radius } from '../../theme/radius';
-import { typography } from '../../theme/typography';
-import { Ionicons } from '@expo/vector-icons';
-import { FEATURES } from '../../config/featureFlags'; // Import flags
+import React from "react";
+import { TouchableOpacity, View, Text, StyleSheet, Image } from "react-native";
+import { useTheme } from "../../theme/colors";
+import { spacing } from "../../theme/spacing";
+import { radius } from "../../theme/radius";
+import { typography } from "../../theme/typography";
+import Ionicons from "@expo/vector-icons/Ionicons";
+import { FEATURES } from "../../config/featureFlags"; // Import flags
 
 interface ExploreBotRowProps {
   id: string;
@@ -47,11 +47,23 @@ export const ExploreBotRow: React.FC<ExploreBotRowProps> = ({
       {imageUrl ? (
         <Image
           source={{ uri: imageUrl }}
-          style={s.avatar}
+          style={[s.avatar, { backgroundColor: theme.brand.surface }]}
         />
       ) : (
-        <View style={[s.avatarPlaceholder, { backgroundColor: theme.brand.surface, borderColor: theme.brand.border }]}>
-          <Ionicons name="library-outline" size={24} color={theme.brand.normal} />
+        <View
+          style={[
+            s.avatarPlaceholder,
+            {
+              backgroundColor: theme.brand.surface,
+              borderColor: theme.brand.border,
+            },
+          ]}
+        >
+          <Ionicons
+            name="library-outline"
+            size={24}
+            color={theme.brand.normal}
+          />
         </View>
       )}
 
@@ -69,7 +81,7 @@ export const ExploreBotRow: React.FC<ExploreBotRowProps> = ({
           {description}
         </Text>
       </View>
-      
+
       {/* Seta de navegação técnica */}
       <Ionicons name="chevron-forward" size={16} color={theme.brand.border} />
     </TouchableOpacity>
@@ -78,8 +90,8 @@ export const ExploreBotRow: React.FC<ExploreBotRowProps> = ({
 
 const s = StyleSheet.create({
   container: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     padding: spacing.md,
     marginBottom: spacing.sm,
     borderWidth: 1,
@@ -90,15 +102,15 @@ const s = StyleSheet.create({
     height: 50,
     borderRadius: radius.medium,
     marginRight: spacing.md,
-    backgroundColor: '#f1f1f1',
+    backgroundColor: "transparent",
   },
   avatarPlaceholder: {
     width: 50,
     height: 50,
     borderRadius: radius.medium,
     marginRight: spacing.md,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
     borderWidth: 1,
   },
   content: {
@@ -106,14 +118,14 @@ const s = StyleSheet.create({
     marginRight: spacing.sm,
   },
   header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
     marginBottom: 4,
   },
   name: {
     ...typography.subtitle1,
-    fontWeight: '600',
+    fontWeight: "600",
     flex: 1,
     marginRight: spacing.xs,
   },
@@ -121,5 +133,5 @@ const s = StyleSheet.create({
     ...typography.body2,
     lineHeight: 18,
     marginBottom: 0,
-  }
+  },
 });

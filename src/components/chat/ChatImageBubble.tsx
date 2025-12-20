@@ -1,8 +1,16 @@
-import React, { useState } from 'react';
-import { View, Image, ActivityIndicator, Pressable, StyleSheet, ViewStyle } from 'react-native';
-import { useColorScheme } from 'react-native';
-import { Radius } from '../../theme/radius';
-import { Colors } from '../../theme/colors';
+import React, { useState } from "react";
+import {
+  View,
+  Image,
+  ActivityIndicator,
+  Pressable,
+  StyleSheet,
+  ViewStyle,
+} from "react-native";
+import { useColorScheme } from "react-native";
+import { Radius } from "../../theme/radius";
+import { Colors } from "../../theme/colors";
+import { NeutralColors } from "../../theme/neutralColors";
 
 type Props = {
   uri: string;
@@ -13,15 +21,15 @@ type Props = {
 export const ChatImageBubble: React.FC<Props> = ({ uri, onPress, style }) => {
   const [isLoading, setIsLoading] = useState(true);
   const scheme = useColorScheme();
-  const isDark = scheme === 'dark';
+  const isDark = scheme === "dark";
 
   return (
-    <Pressable 
-      onPress={onPress} 
+    <Pressable
+      onPress={onPress}
       style={({ pressed }) => [
-        styles.container, 
+        styles.container,
         style,
-        { opacity: pressed ? 0.9 : 1 }
+        { opacity: pressed ? 0.9 : 1 },
       ]}
     >
       <Image
@@ -31,12 +39,12 @@ export const ChatImageBubble: React.FC<Props> = ({ uri, onPress, style }) => {
         onLoadStart={() => setIsLoading(true)}
         onLoadEnd={() => setIsLoading(false)}
       />
-      
+
       {isLoading && (
         <View style={styles.loadingOverlay}>
-          <ActivityIndicator 
-            size="small" 
-            color="#FFFFFF" 
+          <ActivityIndicator
+            size="small"
+            color={NeutralColors.neutral.light.white1}
           />
         </View>
       )}
@@ -47,20 +55,20 @@ export const ChatImageBubble: React.FC<Props> = ({ uri, onPress, style }) => {
 const styles = StyleSheet.create({
   container: {
     borderRadius: 16,
-    overflow: 'hidden',
+    overflow: "hidden",
     width: 240,
     height: 240,
-    backgroundColor: 'rgba(0,0,0,0.05)', // Placeholder background
+    backgroundColor: "rgba(0,0,0,0.05)", // Placeholder background
     marginVertical: 4,
   },
   image: {
-    width: '100%',
-    height: '100%',
+    width: "100%",
+    height: "100%",
   },
   loadingOverlay: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0,0,0,0.3)',
-    justifyContent: 'center',
-    alignItems: 'center',
+    backgroundColor: "rgba(0,0,0,0.3)",
+    justifyContent: "center",
+    alignItems: "center",
   },
 });

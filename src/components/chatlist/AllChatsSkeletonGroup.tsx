@@ -4,38 +4,29 @@ import { View } from "react-native";
 import { useColorScheme } from "react-native";
 import { SkeletonBlock } from "../shared/Skeleton";
 import {
-  createAllChatsStyles,
+  createChatListStyles,
   getTheme,
 } from "../../screens/ChatList/ChatList.styles";
 import { ListTokens } from "../../theme/list";
+import { s as sk } from "./AllChatsSkeletonGroup.styles";
 
 const SkeletonRow: React.FC = () => {
-  const scheme = useColorScheme();
-  const t = getTheme(scheme === "dark");
-  const s = createAllChatsStyles(t);
   return (
     // The divider is now part of the row itself for proper spacing.
     <View>
-      <View
-        style={{
-          flexDirection: "row",
-          alignItems: "center",
-          paddingHorizontal: ListTokens.rowPaddingH,
-          paddingVertical: 12,
-        }}
-      >
+      <View style={sk.row}>
         <SkeletonBlock
           width={ListTokens.avatar}
           height={ListTokens.avatar}
           radius={ListTokens.avatar / 2}
         />
-        <View style={{ marginLeft: 14, flex: 1 }}>
+        <View style={sk.right}>
           <SkeletonBlock width={"60%"} height={16} radius={6} />
           <SkeletonBlock
             width={"90%"}
             height={12}
             radius={6}
-            style={{ marginTop: 8 }}
+            style={sk.secondLine}
           />
         </View>
       </View>
@@ -48,10 +39,10 @@ export const AllChatsSkeletonGroup: React.FC<{ count?: number }> = ({
 }) => {
   const scheme = useColorScheme();
   const t = getTheme(scheme === "dark");
-  const s = createAllChatsStyles(t);
+  const s = createChatListStyles(t);
   const items = Array.from({ length: count });
   return (
-    <View style={s.skWrap}>
+    <View style={s.screen}>
       {/* CORREÇÃO: Removido o <View> com o estilo `s.skGroup` que não existe mais. */}
       {items.map((_, i) => (
         <View key={i}>

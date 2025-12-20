@@ -1,12 +1,15 @@
 // src/components/explore/SearchHistory.tsx
-import React from 'react';
-import { View, Text, FlatList, Pressable } from 'react-native';
-import { useColorScheme } from 'react-native';
-import { useTranslation } from 'react-i18next';
-import { Feather } from '@expo/vector-icons';
-import { createExploreStyles, getTheme } from '../../screens/Explore/Explore.styles';
-import { SearchHistoryItem } from '../../services/searchHistoryService';
-import { ScalePressable } from '../shared/Motion';
+import React from "react";
+import { View, Text, FlatList, Pressable } from "react-native";
+import { useColorScheme } from "react-native";
+import { useTranslation } from "react-i18next";
+import Ionicons from "@expo/vector-icons/Ionicons";
+import {
+  createExploreStyles,
+  getTheme,
+} from "../../screens/Explore/Explore.styles";
+import { SearchHistoryItem } from "../../services/searchHistoryService";
+import { ScalePressable } from "../shared/Motion";
 
 interface SearchHistoryProps {
   history: SearchHistoryItem[];
@@ -15,20 +18,29 @@ interface SearchHistoryProps {
   onPressItem: (term: string) => void;
 }
 
-const SearchHistory: React.FC<SearchHistoryProps> = ({ history, onRemoveItem, onClearAll, onPressItem }) => {
+const SearchHistory: React.FC<SearchHistoryProps> = ({
+  history,
+  onRemoveItem,
+  onClearAll,
+  onPressItem,
+}) => {
   const scheme = useColorScheme();
-  const t = getTheme(scheme === 'dark');
+  const { t: i18nT } = useTranslation();
+  const t = getTheme(scheme === "dark");
   const s = createExploreStyles(t);
 
   const renderItem = ({ item }: { item: SearchHistoryItem }) => (
     <View style={s.historyRow}>
-      <Pressable style={s.historyRowContent} onPress={() => onPressItem(item.term)}>
-        <Feather name="clock" size={20} color={t.textSecondary} />
+      <Pressable
+        style={s.historyRowContent}
+        onPress={() => onPressItem(item.term)}
+      >
+        <Ionicons name="time-outline" size={20} color={t.textSecondary} />
         <Text style={s.historyText}>{item.term}</Text>
       </Pressable>
 
       <ScalePressable onPress={() => onRemoveItem(item.id)} hitSlop={10}>
-        <Feather name="x" size={20} color={t.textSecondary} />
+        <Ionicons name="close" size={20} color={t.textSecondary} />
       </ScalePressable>
     </View>
   );
@@ -46,7 +58,7 @@ const SearchHistory: React.FC<SearchHistoryProps> = ({ history, onRemoveItem, on
         scrollEnabled={false}
       />
       <ScalePressable onPress={onClearAll} style={s.clearHistoryButton}>
-        <Text style={s.clearHistoryText}>Clear all search history</Text>
+        <Text style={s.clearHistoryText}>{i18nT("explore.clearHistory")}</Text>
       </ScalePressable>
     </View>
   );

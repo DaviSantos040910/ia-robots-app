@@ -1,5 +1,5 @@
 // src/screens/CreateBot/CreateBotScreen.tsx
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect } from "react";
 import {
   Alert,
   ScrollView,
@@ -10,44 +10,55 @@ import {
   TextInput,
   ActivityIndicator,
   Switch, // Import Switch
-} from 'react-native';
-import { useColorScheme } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { useTranslation } from 'react-i18next';
-import { Feather, Ionicons } from '@expo/vector-icons';
-import { NativeStackScreenProps } from '@react-navigation/native-stack';
-import type { RootStackParamList } from '../../types/navigation';
-import { useFadeSlideIn, ScalePressable } from '../../components/shared/Motion';
-import { getTheme, createCreateBotStyles } from './CreateBot.styles';
-import { LabeledTextInput } from '../../components/shared/LabeledTextInput';
-import { SettingRow, type AnchorCallback } from '../../components/settings/SettingRow';
-import { FloatingMenu, type Anchor } from '../../components/shared/FloatingMenu';
-import { GradientButton } from '../../components/shared/GradientButton';
-import { createBotService, type CreateBotPayload } from '../../services/createBotService';
-import { NeutralColors } from '../../theme/neutralColors';
-import { BottomActionSheet } from '../../components/shared/BottomActionSheet';
-import * as ImagePicker from 'expo-image-picker';
-import { exploreService, Category } from '../../services/exploreService'; // Import exploreService and Category type
-import { CategorySelector } from '../../components/create/CategorySelector'; // Import the new component
-import { Colors } from '../../theme/colors';
+} from "react-native";
+import { useColorScheme } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { useTranslation } from "react-i18next";
+import Ionicons from "@expo/vector-icons/Ionicons";
+import { NativeStackScreenProps } from "@react-navigation/native-stack";
+import type { RootStackParamList } from "../../types/navigation";
+import { useFadeSlideIn, ScalePressable } from "../../components/shared/Motion";
+import { getTheme, createCreateBotStyles } from "./CreateBot.styles";
+import { LabeledTextInput } from "../../components/shared/LabeledTextInput";
+import {
+  SettingRow,
+  type AnchorCallback,
+} from "../../components/settings/SettingRow";
+import {
+  FloatingMenu,
+  type Anchor,
+} from "../../components/shared/FloatingMenu";
+import { GradientButton } from "../../components/shared/GradientButton";
+import {
+  createBotService,
+  type CreateBotPayload,
+} from "../../services/createBotService";
+import { NeutralColors } from "../../theme/neutralColors";
+import { BottomActionSheet } from "../../components/shared/BottomActionSheet";
+import * as ImagePicker from "expo-image-picker";
+import { exploreService, Category } from "../../services/exploreService"; // Import exploreService and Category type
+import { CategorySelector } from "../../components/create/CategorySelector"; // Import the new component
+import { Colors } from "../../theme/colors";
 
-type Props = NativeStackScreenProps<RootStackParamList, 'Create'>;
+type Props = NativeStackScreenProps<RootStackParamList, "Create">;
 
 const CreateBotScreen: React.FC<Props> = ({ navigation }) => {
   const { t } = useTranslation();
   const scheme = useColorScheme();
-  const theme = getTheme(scheme === 'dark');
+  const theme = getTheme(scheme === "dark");
   const s = createCreateBotStyles(theme);
 
   // --- State for Bot Creation Form ---
-  const [botName, setBotName] = useState('');
-  const [botDescription, setBotDescription] = useState('');
-  const [botPrompt, setBotPrompt] = useState('');
-  const [botVoice, setBotVoice] = useState('EnergeticYouth');
-  const [botPublicity, setBotPublicity] = useState<'Private' | 'Guests' | 'Public'>('Public');
+  const [botName, setBotName] = useState("");
+  const [botDescription, setBotDescription] = useState("");
+  const [botPrompt, setBotPrompt] = useState("");
+  const [botVoice, setBotVoice] = useState("EnergeticYouth");
+  const [botPublicity, setBotPublicity] = useState<
+    "Private" | "Guests" | "Public"
+  >("Public");
   // --- NEW: State for Web Search ---
   const [allowWebSearch, setAllowWebSearch] = useState(false);
-  
+
   const [avatarUrl, setAvatarUrl] = useState<string | undefined>(undefined);
 
   // --- State for Categories ---
@@ -57,10 +68,11 @@ const CreateBotScreen: React.FC<Props> = ({ navigation }) => {
 
   // --- UI and Validation State ---
   const [isLoading, setIsLoading] = useState(false);
-  const [nameError, setNameError] = useState('');
-  const [promptError, setPromptError] = useState('');
-  const [categoryError, setCategoryError] = useState('');
-  const [isAvatarActionSheetVisible, setIsAvatarActionSheetVisible] = useState(false);
+  const [nameError, setNameError] = useState("");
+  const [promptError, setPromptError] = useState("");
+  const [categoryError, setCategoryError] = useState("");
+  const [isAvatarActionSheetVisible, setIsAvatarActionSheetVisible] =
+    useState(false);
 
   // --- Menu State (for Voice and Publicity dropdowns) ---
   const [voiceMenuOpen, setVoiceMenuOpen] = useState(false);
@@ -87,34 +99,55 @@ const CreateBotScreen: React.FC<Props> = ({ navigation }) => {
         setAllCategories(categories);
       } catch (error) {
         console.error("Failed to fetch categories:", error);
-        Alert.alert("Error", "Could not load categories. Please try again later.");
+        Alert.alert(
+          t("common.error"),
+          t("createBot.categoriesLoadErrorMessage")
+        );
       } finally {
         setIsLoadingCategories(false);
       }
     };
     fetchCategories();
-  }, []);
+  }, [t]);
 
   // --- Handlers ---
 
-  const handleToggleCategory = useCallback((id: string) => {
-    if (categoryError) setCategoryError('');
+  const handleToggleCategory = useCallback(
+    (id: string) => {
+      if (categoryError) setCategoryError("");
 
-    setSelectedCategoryIds(prevIds => {
-      if (prevIds.includes(id)) {
-        return prevIds.filter(prevId => prevId !== id);
-      } else if (prevIds.length < 3) {
-        return [...prevIds, id];
-      }
-      return prevIds;
-    });
-  }, [categoryError]);
+      setSelectedCategoryIds((prevIds) => {
+        if (prevIds.includes(id)) {
+          return prevIds.filter((prevId) => prevId !== id);
+        } else if (prevIds.length < 3) {
+          return [...prevIds, id];
+        }
+        return prevIds;
+      });
+    },
+    [categoryError]
+  );
 
   const handleCreateBot = async () => {
     let isValid = true;
-    if (!botName.trim()) { setNameError(t('createBot.nameRequired')); isValid = false; } else { setNameError(''); }
-    if (!botPrompt.trim()) { setPromptError(t('createBot.promptRequired')); isValid = false; } else { setPromptError(''); }
-    if (selectedCategoryIds.length === 0) { setCategoryError(t('createBot.categoryRequired')); isValid = false; } else { setCategoryError(''); }
+    if (!botName.trim()) {
+      setNameError(t("createBot.nameRequired"));
+      isValid = false;
+    } else {
+      setNameError("");
+    }
+    if (!botPrompt.trim()) {
+      setPromptError(t("createBot.promptRequired"));
+      isValid = false;
+    } else {
+      setPromptError("");
+    }
+    if (selectedCategoryIds.length === 0) {
+      setCategoryError(t("createBot.categoryRequired"));
+      isValid = false;
+    } else {
+      setCategoryError("");
+    }
 
     if (!isValid) return;
 
@@ -130,66 +163,113 @@ const CreateBotScreen: React.FC<Props> = ({ navigation }) => {
         allow_web_search: allowWebSearch, // Enviando estado do switch
       };
       const newBot = await createBotService.createBot(payload);
-      Alert.alert(t('createBot.creationSuccess'), `Bot "${newBot.name}" created!`, [{ text: 'OK', onPress: () => navigation.goBack() }]);
+      Alert.alert(
+        t("createBot.creationSuccess"),
+        t("createBot.creationSuccessMessage", { name: newBot.name }),
+        [{ text: t("common.ok"), onPress: () => navigation.goBack() }]
+      );
     } catch (error) {
-      console.error('Bot creation failed:', error);
-      Alert.alert(t('createBot.creationError'));
+      console.error("Bot creation failed:", error);
+      Alert.alert(t("createBot.creationError"));
     } finally {
       setIsLoading(false);
     }
   };
 
-  const openMenu = useCallback((setOpen: React.Dispatch<React.SetStateAction<boolean>>, setAnchor: React.Dispatch<React.SetStateAction<Anchor>>, anchor: AnchorCallback) => {
-    setAnchor(anchor);
-    setOpen(true);
-  }, []);
-  
+  const openMenu = useCallback(
+    (
+      setOpen: React.Dispatch<React.SetStateAction<boolean>>,
+      setAnchor: React.Dispatch<React.SetStateAction<Anchor>>,
+      anchor: AnchorCallback
+    ) => {
+      setAnchor(anchor);
+      setOpen(true);
+    },
+    []
+  );
+
   const handleChooseImageFromGallery = useCallback(async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (status !== 'granted') return;
-    const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ImagePicker.MediaTypeOptions.Images, allowsEditing: true, aspect: [1, 1], quality: 1 });
-    if (!result.canceled && result.assets && result.assets.length > 0) setAvatarUrl(result.assets[0].uri);
+    if (status !== "granted") return;
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 1,
+    });
+    if (!result.canceled && result.assets && result.assets.length > 0)
+      setAvatarUrl(result.assets[0].uri);
   }, []);
 
   const handleTakePhoto = useCallback(async () => {
     const { status } = await ImagePicker.requestCameraPermissionsAsync();
-    if (status !== 'granted') return;
-    const result = await ImagePicker.launchCameraAsync({ allowsEditing: true, aspect: [1, 1], quality: 1 });
-    if (!result.canceled && result.assets && result.assets.length > 0) setAvatarUrl(result.assets[0].uri);
+    if (status !== "granted") return;
+    const result = await ImagePicker.launchCameraAsync({
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 1,
+    });
+    if (!result.canceled && result.assets && result.assets.length > 0)
+      setAvatarUrl(result.assets[0].uri);
   }, []);
-  
-  const voiceOptions = [{ label: 'Energetic Youth', value: 'EnergeticYouth' }, { label: 'Calm Adult', value: 'CalmAdult' }];
+
+  const voiceOptions = [
+    { label: "Energetic Youth", value: "EnergeticYouth" },
+    { label: "Calm Adult", value: "CalmAdult" },
+  ];
   const publicityOptions = [
-    { label: t('botSettings.publicityPrivate'), value: 'Private' },
-    { label: t('botSettings.publicityGuests'), value: 'Guests' },
-    { label: t('botSettings.publicityPublic'), value: 'Public' },
+    { label: t("botSettings.publicityPrivate"), value: "Private" },
+    { label: t("botSettings.publicityGuests"), value: "Guests" },
+    { label: t("botSettings.publicityPublic"), value: "Public" },
   ];
 
   return (
-    <SafeAreaView style={s.screen} edges={['top', 'bottom']}>
+    <SafeAreaView style={s.screen} edges={["top", "bottom"]}>
       <Animated.View style={[s.topBar, headerAnim]}>
-        <ScalePressable onPress={() => navigation.goBack()} hitSlop={10} style={s.closeBtn}>
-          <Feather name="x" size={26} color={theme.textPrimary} />
+        <ScalePressable
+          onPress={() => navigation.goBack()}
+          hitSlop={10}
+          style={s.closeBtn}
+        >
+          <Ionicons name="close" size={26} color={theme.textPrimary} />
         </ScalePressable>
-        <Text style={s.topBarTitle}>{t('createBot.title')}</Text>
+        <Text style={s.topBarTitle}>{t("createBot.title")}</Text>
       </Animated.View>
 
-      <ScrollView contentContainerStyle={s.scrollViewContent} keyboardShouldPersistTaps="handled">
+      <ScrollView
+        contentContainerStyle={s.scrollViewContent}
+        keyboardShouldPersistTaps="handled"
+      >
         <Animated.View style={[s.avatarContainer, avatarAnim]}>
           <View style={s.avatarWrapper}>
-            {avatarUrl ? <Image source={{ uri: avatarUrl }} style={s.avatarImage} /> : <Ionicons name="camera-outline" size={50} color={theme.textSecondary} />}
-            <ScalePressable onPress={() => setIsAvatarActionSheetVisible(true)} style={s.editAvatarBtn}>
-              <Feather name="edit-2" size={18} color={NeutralColors.neutral.light.white1} />
+            {avatarUrl ? (
+              <Image source={{ uri: avatarUrl }} style={s.avatarImage} />
+            ) : (
+              <Ionicons
+                name="camera-outline"
+                size={50}
+                color={theme.textSecondary}
+              />
+            )}
+            <ScalePressable
+              onPress={() => setIsAvatarActionSheetVisible(true)}
+              style={s.editAvatarBtn}
+            >
+              <Ionicons
+                name="pencil-outline"
+                size={18}
+                color={NeutralColors.neutral.light.white1}
+              />
             </ScalePressable>
           </View>
         </Animated.View>
 
         <Animated.View style={[s.formSection, nameInputAnim]}>
           <View style={s.nameInputContainer}>
-            <Text style={s.nameInputLabel}>{t('createBot.nameLabel')}</Text>
+            <Text style={s.nameInputLabel}>{t("createBot.nameLabel")}</Text>
             <TextInput
               style={s.nameTextInput}
-              placeholder="e.g., Space Traveler"
+              placeholder={t("createBot.namePlaceholder")}
               placeholderTextColor={theme.textSecondary}
               value={botName}
               onChangeText={setBotName}
@@ -200,11 +280,11 @@ const CreateBotScreen: React.FC<Props> = ({ navigation }) => {
         </Animated.View>
         <Animated.View style={[s.formSection, descriptionInputAnim]}>
           <LabeledTextInput
-            label={t('createBot.descriptionLabel')}
-            placeholder={t('createBot.descriptionPlaceholder')}
+            label={t("createBot.descriptionLabel")}
+            placeholder={t("createBot.descriptionPlaceholder")}
             value={botDescription}
             onChangeText={setBotDescription}
-            maxLength={255} 
+            maxLength={255}
             style={s.descriptionInput}
             multiline
           />
@@ -212,8 +292,8 @@ const CreateBotScreen: React.FC<Props> = ({ navigation }) => {
 
         <Animated.View style={[s.formSection, promptInputAnim]}>
           <LabeledTextInput
-            label={t('createBot.promptLabel')}
-            placeholder={t('createBot.promptPlaceholder')}
+            label={t("createBot.promptLabel")}
+            placeholder={t("createBot.promptPlaceholder")}
             placeholderTextColor={theme.textSecondary}
             value={botPrompt}
             onChangeText={setBotPrompt}
@@ -226,9 +306,12 @@ const CreateBotScreen: React.FC<Props> = ({ navigation }) => {
 
         {/* --- Category Selection Section --- */}
         <Animated.View style={[s.categorySection, categoryAnim]}>
-          <Text style={s.categoryLabel}>{t('createBot.categoryLabel')}</Text>
+          <Text style={s.categoryLabel}>{t("createBot.categoryLabel")}</Text>
           {isLoadingCategories ? (
-            <ActivityIndicator color={theme.brand.normal} style={{ alignSelf: 'flex-start' }} />
+            <ActivityIndicator
+              color={theme.brand.normal}
+              style={{ alignSelf: "flex-start" }}
+            />
           ) : (
             <CategorySelector
               allCategories={allCategories}
@@ -236,41 +319,109 @@ const CreateBotScreen: React.FC<Props> = ({ navigation }) => {
               onToggleCategory={handleToggleCategory}
             />
           )}
-          {categoryError ? <Text style={s.inputErrorText}>{categoryError}</Text> : null}
+          {categoryError ? (
+            <Text style={s.inputErrorText}>{categoryError}</Text>
+          ) : null}
         </Animated.View>
 
         {/* --- NEW: Web Search Switch --- */}
-        <Animated.View style={[s.formSection, { padding: 16, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }, webSearchAnim]}>
+        <Animated.View
+          style={[
+            s.formSection,
+            {
+              padding: 16,
+              flexDirection: "row",
+              justifyContent: "space-between",
+              alignItems: "center",
+            },
+            webSearchAnim,
+          ]}
+        >
           <View style={{ flex: 1, marginRight: 16 }}>
-            <Text style={{ ...s.nameInputLabel, marginBottom: 4 }}>Permitir pesquisa no Google</Text>
+            <Text style={{ ...s.nameInputLabel, marginBottom: 4 }}>
+              {t("createBot.allowWebSearchTitle")}
+            </Text>
             <Text style={{ ...s.labeledInputDescription, marginBottom: 0 }}>
-              O bot poderá buscar informações atualizadas na internet.
+              {t("createBot.allowWebSearchDescription")}
             </Text>
           </View>
           <Switch
             value={allowWebSearch}
             onValueChange={setAllowWebSearch}
-            trackColor={{ false: theme.border, true: Colors.brand.light.normal }}
+            trackColor={{
+              false: theme.border,
+              true: Colors.brand.light.normal,
+            }}
             thumbColor={NeutralColors.neutral.light.white1}
           />
         </Animated.View>
 
         {/* --- Settings Section --- */}
         <Animated.View style={[s.formSection, s.settingsCard, settingsAnim]}>
-          <SettingRow label={t('botSettings.voice')} value={botVoice} iconName="volume-2" iconBgColor="#4A90E2" onPress={(anchor) => openMenu(setVoiceMenuOpen, setVoiceAnchor, anchor)} />
+          <SettingRow
+            label={t("botSettings.voice")}
+            value={botVoice}
+            iconName="volume-medium-outline"
+            iconBgColor="#4A90E2"
+            onPress={(anchor) =>
+              openMenu(setVoiceMenuOpen, setVoiceAnchor, anchor)
+            }
+          />
           <View style={s.divider} />
-          <SettingRow label={t('botSettings.publicity')} value={t(`botSettings.publicity${botPublicity}` as any)} iconName="settings" iconBgColor="#F5A623" onPress={(anchor) => openMenu(setPubMenuOpen, setPubAnchor, anchor)} />
+          <SettingRow
+            label={t("botSettings.publicity")}
+            value={t(`botSettings.publicity${botPublicity}` as any)}
+            iconName="settings-outline"
+            iconBgColor="#F5A623"
+            onPress={(anchor) => openMenu(setPubMenuOpen, setPubAnchor, anchor)}
+          />
         </Animated.View>
 
         <Animated.View style={[s.createButtonContainer, buttonAnim]}>
-          <GradientButton title={t('createBot.createButton')} onPress={handleCreateBot} isLoading={isLoading} disabled={isLoading} />
+          <GradientButton
+            title={t("createBot.createButton")}
+            onPress={handleCreateBot}
+            isLoading={isLoading}
+            disabled={isLoading}
+          />
         </Animated.View>
       </ScrollView>
 
       {/* --- Menus & Action Sheets --- */}
-      <FloatingMenu visible={voiceMenuOpen} onClose={() => setVoiceMenuOpen(false)} anchor={voiceAnchor} options={voiceOptions} selected={botVoice} onSelect={(v) => { setBotVoice(v); setVoiceMenuOpen(false); }} />
-      <FloatingMenu visible={pubMenuOpen} onClose={() => setPubMenuOpen(false)} anchor={pubAnchor} options={publicityOptions} selected={botPublicity} onSelect={(v) => { setBotPublicity(v as any); setPubMenuOpen(false); }} />
-      <BottomActionSheet visible={isAvatarActionSheetVisible} onClose={() => setIsAvatarActionSheetVisible(false)} title={t('createBot.avatarActionSheetTitle')} options={[{ label: t('createBot.takeNewPhoto'), onPress: handleTakePhoto }, { label: t('createBot.chooseFromGallery'), onPress: handleChooseImageFromGallery }]} />
+      <FloatingMenu
+        visible={voiceMenuOpen}
+        onClose={() => setVoiceMenuOpen(false)}
+        anchor={voiceAnchor}
+        options={voiceOptions}
+        selected={botVoice}
+        onSelect={(v) => {
+          setBotVoice(v);
+          setVoiceMenuOpen(false);
+        }}
+      />
+      <FloatingMenu
+        visible={pubMenuOpen}
+        onClose={() => setPubMenuOpen(false)}
+        anchor={pubAnchor}
+        options={publicityOptions}
+        selected={botPublicity}
+        onSelect={(v) => {
+          setBotPublicity(v as any);
+          setPubMenuOpen(false);
+        }}
+      />
+      <BottomActionSheet
+        visible={isAvatarActionSheetVisible}
+        onClose={() => setIsAvatarActionSheetVisible(false)}
+        title={t("createBot.avatarActionSheetTitle")}
+        options={[
+          { label: t("createBot.takeNewPhoto"), onPress: handleTakePhoto },
+          {
+            label: t("createBot.chooseFromGallery"),
+            onPress: handleChooseImageFromGallery,
+          },
+        ]}
+      />
     </SafeAreaView>
   );
 };

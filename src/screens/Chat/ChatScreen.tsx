@@ -26,7 +26,7 @@ import {
   NativeStackNavigationProp,
   NativeStackScreenProps,
 } from "@react-navigation/native-stack";
-import { Ionicons } from "@expo/vector-icons";
+import Ionicons from "@expo/vector-icons/Ionicons";
 import {
   FlashList,
   type ListRenderItem,
@@ -207,7 +207,7 @@ const ChatScreen: React.FC = () => {
       try {
         flashListRef.current.scrollToEnd({ animated: true });
       } catch (error) {
-        console.warn("Erro ao fazer scroll:", error);
+        console.warn("Scroll failed:", error);
       }
     }
   }, [renderMessages.length]);
@@ -574,8 +574,7 @@ const ChatScreen: React.FC = () => {
 
         <Animated.View style={typingContainerStyle}>
           <Text style={s.typingIndicator}>
-            {typingMessage ||
-              t("chat.botTyping", { defaultValue: "Bot is typing..." })}
+            {typingMessage || t("chat.botTyping")}
           </Text>
         </Animated.View>
 
@@ -607,10 +606,8 @@ const ChatScreen: React.FC = () => {
 
           {isReadOnly ? (
             <View style={s.activateBanner}>
-              <Text style={{ color: theme.textSecondary, textAlign: "center" }}>
-                {t("chat.readOnlyMessage", {
-                  defaultValue: "This chat is archived.",
-                })}
+              <Text style={s.activateBannerText}>
+                {t("chat.readOnlyMessage")}
               </Text>
             </View>
           ) : (

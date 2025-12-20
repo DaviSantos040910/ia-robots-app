@@ -58,51 +58,51 @@ export type ChatTheme = ReturnType<typeof getTheme>;
 export const createChatStyles = (t: ChatTheme) =>
   StyleSheet.create({
     screen: { flex: 1, backgroundColor: t.background },
-    
+
     // --- NOVOS ESTILOS PARA LIMPEZA DO JSX ---
-    keyboardAvoidingView: { 
-      flex: 1 
+    keyboardAvoidingView: {
+      flex: 1,
     },
     loadingContainer: {
       flex: 1,
-      justifyContent: 'center',
-      alignItems: 'center',
+      justifyContent: "center",
+      alignItems: "center",
     },
     flatList: {
       flex: 1,
     },
     flatListContent: {
       paddingHorizontal: Spacing["spacing-group-s"],
-      paddingTop: Spacing['spacing-element-m'],
-      // O paddingBottom será dinâmico no componente se necessário, 
+      paddingTop: Spacing["spacing-element-m"],
+      // O paddingBottom será dinâmico no componente se necessário,
       // mas podemos ter um base aqui.
     },
     attachmentsScrollView: {
-      paddingHorizontal: Spacing['spacing-group-s'],
-      paddingTop: Spacing['spacing-element-s'],
-      paddingBottom: Spacing['spacing-element-s'],
+      paddingHorizontal: Spacing["spacing-group-s"],
+      paddingTop: Spacing["spacing-element-s"],
+      paddingBottom: Spacing["spacing-element-s"],
     },
     attachmentsContainer: {
-      marginRight: Spacing['spacing-element-m'],
+      marginRight: Spacing["spacing-element-m"],
     },
     attachmentLoader: {
       marginLeft: 10,
     },
     typingIndicator: {
-      textAlign: 'center',
+      textAlign: "center",
       color: t.textSecondary,
       padding: 4,
     },
     loadingOverlay: {
-      position: 'absolute',
+      position: "absolute",
       top: 0,
       left: 0,
       right: 0,
       bottom: 0,
       zIndex: 10,
-      backgroundColor: 'rgba(255,255,255,0.5)',
-      justifyContent: 'center',
-      alignItems: 'center',
+      backgroundColor: "rgba(255,255,255,0.5)",
+      justifyContent: "center",
+      alignItems: "center",
     },
     // --- FIM NOVOS ESTILOS ---
 
@@ -153,7 +153,10 @@ export const createChatStyles = (t: ChatTheme) =>
     },
 
     bubbleText: { ...Typography.bodyRegular.medium, color: t.textPrimary },
-    userText: { ...Typography.bodyRegular.medium, color: "#FFFFFF" },
+    userText: {
+      ...Typography.bodyRegular.medium,
+      color: NeutralColors.neutral.light.white1,
+    },
 
     readMore: {
       ...Typography.bodyRegular.medium,
@@ -288,6 +291,10 @@ export const createChatStyles = (t: ChatTheme) =>
       borderColor: t.border,
     },
 
+    inputIconButton: {
+      padding: 4,
+    },
+
     textInput: {
       flex: 1,
       ...Typography.bodyRegular.medium,
@@ -295,37 +302,6 @@ export const createChatStyles = (t: ChatTheme) =>
       paddingTop: 0,
       paddingBottom: 0,
       marginLeft: 8,
-    },
-
-    placeholder: { color: t.placeholder },
-    inputIcons: { flexDirection: "row", alignItems: "center" },
-
-    plusButton: {
-      width: 32,
-      height: 32,
-      borderRadius: 16,
-      alignItems: "center",
-      justifyContent: "center",
-      backgroundColor: t.surface,
-    },
-
-    scrollToEndButton: {
-      position: "absolute",
-      bottom: 80,
-      right: 20,
-      width: 40,
-      height: 40,
-      borderRadius: 20,
-      backgroundColor: t.surface,
-      alignItems: "center",
-      justifyContent: "center",
-      borderWidth: StyleSheet.hairlineWidth,
-      borderColor: t.border,
-      elevation: 4,
-      shadowColor: "#000",
-      shadowOpacity: 0.15,
-      shadowRadius: 6,
-      shadowOffset: { width: 0, height: 3 },
     },
 
     activateBanner: {
@@ -337,6 +313,12 @@ export const createChatStyles = (t: ChatTheme) =>
       alignItems: "center",
     },
 
+    activateBannerText: {
+      ...Typography.presets.bodySmall,
+      color: t.textPrimary,
+      textAlign: "center",
+    },
+
     activateButton: {
       backgroundColor: t.brand.normal,
       paddingVertical: Spacing["spacing-element-m"],
@@ -346,7 +328,7 @@ export const createChatStyles = (t: ChatTheme) =>
 
     activateButtonText: {
       ...Typography.bodySemiBold.medium,
-      color: "#FFFFFF",
+      color: NeutralColors.neutral.light.white1,
     },
 
     // --- ESTILOS DE GRAVAÇÃO DE ÁUDIO ---
@@ -386,9 +368,8 @@ export const createChatStyles = (t: ChatTheme) =>
     },
 
     recordingDuration: {
-      ...Typography.bodyRegular.medium,
+      ...Typography.bodySemiBold.medium,
       color: t.textPrimary,
-      fontWeight: "600",
       fontVariant: ["tabular-nums"],
     },
 
@@ -400,88 +381,88 @@ export const createChatStyles = (t: ChatTheme) =>
 
     // --- ESTILOS DO AUDIO PLAYER ---
     audioPlayerContainer: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        paddingVertical: 4,
-        minWidth: 220,
+      flexDirection: "row",
+      alignItems: "center",
+      paddingVertical: 4,
+      minWidth: 220,
     },
     audioPlayButton: {
-        paddingRight: Spacing['spacing-element-m'],
+      paddingRight: Spacing["spacing-element-m"],
     },
     audioProgressContainer: {
-        flex: 1,
-        height: 30, 
-        justifyContent: 'center',
-        marginRight: Spacing['spacing-element-m'],
+      flex: 1,
+      height: 30,
+      justifyContent: "center",
+      marginRight: Spacing["spacing-element-m"],
     },
     audioTrack: {
-        height: 4,
-        borderRadius: 2,
-        width: '100%',
-        position: 'relative',
-        overflow: 'visible',
+      height: 4,
+      borderRadius: 2,
+      width: "100%",
+      position: "relative",
+      overflow: "visible",
     },
     audioFill: {
-        height: '100%',
-        borderRadius: 2,
+      height: "100%",
+      borderRadius: 2,
     },
     audioThumb: {
-        position: 'absolute',
-        width: 12,
-        height: 12,
-        borderRadius: 6,
-        top: -4,
-        marginLeft: -6,
+      position: "absolute",
+      width: 12,
+      height: 12,
+      borderRadius: 6,
+      top: -4,
+      marginLeft: -6,
     },
     audioSeekTouchArea: {
-        ...StyleSheet.absoluteFillObject,
-        zIndex: 1,
+      ...StyleSheet.absoluteFillObject,
+      zIndex: 1,
     },
     audioDurationText: {
-        ...Typography.bodyRegular.small,
-        fontVariant: ['tabular-nums'],
-        minWidth: 35,
-        textAlign: 'right',
+      ...Typography.bodyRegular.small,
+      fontVariant: ["tabular-nums"],
+      minWidth: 35,
+      textAlign: "right",
     },
 
     // --- ESTILOS DE ANEXOS (MessageBubble) ---
     attachmentContainer: {
-        marginTop: Spacing['spacing-element-s'],
-        borderRadius: Radius.medium,
-        overflow: 'hidden',
-        minWidth: 200,
+      marginTop: Spacing["spacing-element-s"],
+      borderRadius: Radius.medium,
+      overflow: "hidden",
+      minWidth: 200,
     },
     attachmentImage: {
-        width: 220,
-        height: 220,
-        borderRadius: Radius.medium,
-        backgroundColor: 'rgba(0,0,0,0.05)',
+      width: 220,
+      height: 220,
+      borderRadius: Radius.medium,
+      backgroundColor: "rgba(0,0,0,0.05)",
     },
     attachmentLoadingOverlay: {
-        ...StyleSheet.absoluteFillObject,
-        backgroundColor: 'rgba(0,0,0,0.3)',
-        justifyContent: 'center',
-        alignItems: 'center',
-        borderRadius: Radius.medium,
+      ...StyleSheet.absoluteFillObject,
+      backgroundColor: "rgba(0,0,0,0.3)",
+      justifyContent: "center",
+      alignItems: "center",
+      borderRadius: Radius.medium,
     },
     attachmentDocument: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        padding: Spacing['spacing-element-l'],
-        borderRadius: Radius.medium,
-        borderWidth: StyleSheet.hairlineWidth,
-        width: 220,
+      flexDirection: "row",
+      alignItems: "center",
+      padding: Spacing["spacing-element-l"],
+      borderRadius: Radius.medium,
+      borderWidth: StyleSheet.hairlineWidth,
+      width: 220,
     },
     attachmentDocumentText: {
-        ...Typography.bodyRegular.medium,
+      ...Typography.bodyRegular.medium,
     },
     transcriptionToggle: {
-        marginTop: 4,
+      marginTop: 4,
     },
     transcriptionText: {
-        marginTop: 8,
-        marginBottom: 4, 
-        opacity: 0.9, 
-        fontSize: 14
-    }
+      marginTop: 8,
+      marginBottom: 4,
+      opacity: 0.9,
+      fontSize: 14,
+    },
   });

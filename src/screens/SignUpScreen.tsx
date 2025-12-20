@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo } from "react";
 import {
   View,
   Text,
@@ -10,23 +10,25 @@ import {
   TouchableWithoutFeedback,
   useWindowDimensions,
   Platform,
-} from 'react-native';
-import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
-import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useTranslation } from 'react-i18next';
-import * as yup from 'yup';
-import { AntDesign } from '@expo/vector-icons';
-import { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { styles } from './SignUpScreen.styles';
-import { Spacing } from '../theme/spacing';
-import { Colors } from '../theme/colors';
-import { NeutralColors } from '../theme/neutralColors';
+} from "react-native";
+import { KeyboardAwareScrollView } from "react-native-keyboard-aware-scroll-view";
+import {
+  SafeAreaView,
+  useSafeAreaInsets,
+} from "react-native-safe-area-context";
+import { useTranslation } from "react-i18next";
+import * as yup from "yup";
+import { NativeStackScreenProps } from "@react-navigation/native-stack";
+import { styles } from "./SignUpScreen.styles";
+import { Spacing } from "../theme/spacing";
+import { Colors } from "../theme/colors";
+import { NeutralColors } from "../theme/neutralColors";
 // inside SignUpScreen component (replace handleSignUp)
-import api from '../services/api'; // add near top imports
-import { Alert } from 'react-native';
-import type { RootStackParamList } from '../types/navigation';
+import api from "../services/api"; // add near top imports
+import { Alert } from "react-native";
+import type { RootStackParamList } from "../types/navigation";
 
-type SignUpScreenProps = NativeStackScreenProps<RootStackParamList, 'SignUp'>;
+type SignUpScreenProps = NativeStackScreenProps<RootStackParamList, "SignUp">;
 type FormErrors = {
   name?: string;
   email?: string;
@@ -37,15 +39,16 @@ type FormErrors = {
 const SignUpScreen: React.FC<SignUpScreenProps> = ({ navigation }) => {
   const { t } = useTranslation();
   const [formData, setFormData] = useState({
-    name: '',
-    email: '',
-    password: '',
-    confirmPassword: '',
+    name: "",
+    email: "",
+    password: "",
+    confirmPassword: "",
   });
   const [errors, setErrors] = useState<FormErrors>({});
   const [isLoading, setIsLoading] = useState(false);
   const [isPasswordVisible, setIsPasswordVisible] = useState(false);
-  const [isConfirmPasswordVisible, setIsConfirmPasswordVisible] = useState(false);
+  const [isConfirmPasswordVisible, setIsConfirmPasswordVisible] =
+    useState(false);
 
   const insets = useSafeAreaInsets();
   const { width, height } = useWindowDimensions();
@@ -55,30 +58,36 @@ const SignUpScreen: React.FC<SignUpScreenProps> = ({ navigation }) => {
     [width]
   );
   const vGap = useMemo(
-    () => Math.min(Math.max(height * 0.02, Spacing['spacing-element-m']), Spacing['spacing-card-m']),
+    () =>
+      Math.min(
+        Math.max(height * 0.02, Spacing["spacing-element-m"]),
+        Spacing["spacing-card-m"]
+      ),
     [height]
   );
 
   const signUpSchema = yup.object().shape({
     name: yup
       .string()
-      .required(t('validation.required', { field: t('signup.name') })),
+      .required(t("validation.required", { field: t("signup.name") })),
     email: yup
       .string()
-      .email(t('validation.email'))
-      .required(t('validation.required', { field: t('signup.email') })),
+      .email(t("validation.email"))
+      .required(t("validation.required", { field: t("signup.email") })),
     password: yup
       .string()
-      .min(8, t('validation.password.minLength'))
+      .min(8, t("validation.password.minLength"))
       .matches(
         /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[\W_]).{8,}$/,
-        t('validation.password.complexity')
+        t("validation.password.complexity")
       )
-      .required(t('validation.required', { field: t('signup.password') })),
+      .required(t("validation.required", { field: t("signup.password") })),
     confirmPassword: yup
       .string()
-      .oneOf([yup.ref('password'), null], t('validation.password.mismatch'))
-      .required(t('validation.required', { field: t('signup.confirmPassword') })),
+      .oneOf([yup.ref("password"), null], t("validation.password.mismatch"))
+      .required(
+        t("validation.required", { field: t("signup.confirmPassword") })
+      ),
   });
 
   const validateForm = async () => {
@@ -107,7 +116,7 @@ const SignUpScreen: React.FC<SignUpScreenProps> = ({ navigation }) => {
     Keyboard.dismiss();
     const isValid = await validateForm();
     if (!isValid) return;
-  
+
     setIsLoading(true);
     try {
       // Prepare payload: use username instead of full name
@@ -116,32 +125,33 @@ const SignUpScreen: React.FC<SignUpScreenProps> = ({ navigation }) => {
         email: formData.email.trim(),
         password: formData.password,
       };
-  
+
       // API call to register endpoint
       // POST /api/auth/register/ expected to return { message: "User registered. Please verify your email." }
-      const res = await api.post('/auth/register/', payload);
-  
+      const res = await api.post("/auth/register/", payload);
+
       // Show confirmation and navigate user to login or a verify screen
-      Alert.alert(
-        'Registered',
-        'Account created. Check your email for a verification link.',
-        [{ text: 'OK', onPress: () => navigation.navigate('Login') }]
-      );
+      Alert.alert(t("signup.registeredTitle"), t("signup.registeredMessage"), [
+        { text: t("common.ok"), onPress: () => navigation.navigate("Login") },
+      ]);
     } catch (error: any) {
       // Map backend validation errors to form fields when possible
       const data = error.response?.data;
       if (data) {
         // If serializer returned field errors, set them
         const fieldErrors: any = {};
-        if (data.username) fieldErrors.name = data.username.join(' ');
-        if (data.email) fieldErrors.email = data.email.join(' ');
-        if (data.password) fieldErrors.password = data.password.join(' ');
+        if (data.username) fieldErrors.name = data.username.join(" ");
+        if (data.email) fieldErrors.email = data.email.join(" ");
+        if (data.password) fieldErrors.password = data.password.join(" ");
         if (Object.keys(fieldErrors).length) setErrors(fieldErrors);
         else {
-          Alert.alert('Error', data.detail || 'Signup failed. Try again.');
+          Alert.alert(
+            t("common.error"),
+            data.detail || t("signup.signupFailed")
+          );
         }
       } else {
-        Alert.alert('Error', 'Network error. Please try again.');
+        Alert.alert(t("common.error"), t("errors.generic"));
       }
     } finally {
       setIsLoading(false);
@@ -149,7 +159,7 @@ const SignUpScreen: React.FC<SignUpScreenProps> = ({ navigation }) => {
   };
 
   const navigateToLogin = () => {
-    navigation.navigate('Login');
+    navigation.navigate("Login");
   };
 
   return (
@@ -159,52 +169,56 @@ const SignUpScreen: React.FC<SignUpScreenProps> = ({ navigation }) => {
           contentContainerStyle={styles.scrollContent}
           keyboardShouldPersistTaps="handled"
           enableOnAndroid={true}
-          extraScrollHeight={Platform.OS === 'ios' ? 100 : 0}
+          extraScrollHeight={Platform.OS === "ios" ? 100 : 0}
           enableResetScrollToCoords={false}
         >
-          <View style={[styles.scrollView, { paddingBottom: insets.bottom + vGap }]}>
+          <View
+            style={[styles.scrollView, { paddingBottom: insets.bottom + vGap }]}
+          >
             <Image
-              source={require('../assets/avatar.png')}
+              source={require("../assets/avatar.png")}
               style={[styles.avatar, { width: avatarSize, height: avatarSize }]}
               resizeMode="contain"
             />
 
-            <Text style={styles.title}>{t('signup.title')}</Text>
-            <Text style={styles.subtitle}>{t('signup.subtitle')}</Text>
+            <Text style={styles.title}>{t("signup.title")}</Text>
+            <Text style={styles.subtitle}>{t("signup.subtitle")}</Text>
 
             <View style={styles.formGroup}>
               <TextInput
-                style={[
-                  styles.input,
-                  errors.name && styles.inputError,
-                ]}
-                placeholder={t('signup.namePlaceholder')}
-                placeholderTextColor={NeutralColors.fontAndIcon.light.placeholder}
+                style={[styles.input, errors.name && styles.inputError]}
+                placeholder={t("signup.namePlaceholder")}
+                placeholderTextColor={
+                  NeutralColors.fontAndIcon.light.placeholder
+                }
                 value={formData.name}
-                onChangeText={(text) => handleInputChange('name', text)}
+                onChangeText={(text) => handleInputChange("name", text)}
                 autoCapitalize="words"
                 autoCorrect={false}
                 editable={!isLoading}
               />
-              {errors.name && <Text style={styles.errorText}>{errors.name}</Text>}
+              {errors.name && (
+                <Text style={styles.errorText}>{errors.name}</Text>
+              )}
             </View>
 
             <View style={styles.formGroup}>
               <TextInput
-                style={[
-                  styles.input,
-                  errors.email && styles.inputError,
-                ]}
-                placeholder={t('signup.emailPlaceholder')}
-                placeholderTextColor={NeutralColors.fontAndIcon.light.placeholder}
+                style={[styles.input, errors.email && styles.inputError]}
+                placeholder={t("signup.emailPlaceholder")}
+                placeholderTextColor={
+                  NeutralColors.fontAndIcon.light.placeholder
+                }
                 value={formData.email}
-                onChangeText={(text) => handleInputChange('email', text)}
+                onChangeText={(text) => handleInputChange("email", text)}
                 keyboardType="email-address"
                 autoCapitalize="none"
                 autoCorrect={false}
                 editable={!isLoading}
               />
-              {errors.email && <Text style={styles.errorText}>{errors.email}</Text>}
+              {errors.email && (
+                <Text style={styles.errorText}>{errors.email}</Text>
+              )}
             </View>
 
             <View style={styles.formGroup}>
@@ -215,10 +229,12 @@ const SignUpScreen: React.FC<SignUpScreenProps> = ({ navigation }) => {
                     styles.passwordInput,
                     errors.password && styles.inputError,
                   ]}
-                  placeholder={t('signup.passwordPlaceholder')}
-                  placeholderTextColor={NeutralColors.fontAndIcon.light.placeholder}
+                  placeholder={t("signup.passwordPlaceholder")}
+                  placeholderTextColor={
+                    NeutralColors.fontAndIcon.light.placeholder
+                  }
                   value={formData.password}
-                  onChangeText={(text) => handleInputChange('password', text)}
+                  onChangeText={(text) => handleInputChange("password", text)}
                   secureTextEntry={!isPasswordVisible}
                   autoCapitalize="none"
                   editable={!isLoading}
@@ -229,11 +245,13 @@ const SignUpScreen: React.FC<SignUpScreenProps> = ({ navigation }) => {
                   disabled={isLoading}
                 >
                   <Text style={styles.visibilityToggleText}>
-                    {isPasswordVisible ? t('common.hide') : t('common.show')}
+                    {isPasswordVisible ? t("common.hide") : t("common.show")}
                   </Text>
                 </TouchableOpacity>
               </View>
-              {errors.password && <Text style={styles.errorText}>{errors.password}</Text>}
+              {errors.password && (
+                <Text style={styles.errorText}>{errors.password}</Text>
+              )}
             </View>
 
             <View style={styles.formGroup}>
@@ -244,21 +262,29 @@ const SignUpScreen: React.FC<SignUpScreenProps> = ({ navigation }) => {
                     styles.passwordInput,
                     errors.confirmPassword && styles.inputError,
                   ]}
-                  placeholder={t('signup.confirmPasswordPlaceholder')}
-                  placeholderTextColor={NeutralColors.fontAndIcon.light.placeholder}
+                  placeholder={t("signup.confirmPasswordPlaceholder")}
+                  placeholderTextColor={
+                    NeutralColors.fontAndIcon.light.placeholder
+                  }
                   value={formData.confirmPassword}
-                  onChangeText={(text) => handleInputChange('confirmPassword', text)}
+                  onChangeText={(text) =>
+                    handleInputChange("confirmPassword", text)
+                  }
                   secureTextEntry={!isConfirmPasswordVisible}
                   autoCapitalize="none"
                   editable={!isLoading}
                 />
                 <TouchableOpacity
                   style={styles.visibilityToggle}
-                  onPress={() => setIsConfirmPasswordVisible(!isConfirmPasswordVisible)}
+                  onPress={() =>
+                    setIsConfirmPasswordVisible(!isConfirmPasswordVisible)
+                  }
                   disabled={isLoading}
                 >
                   <Text style={styles.visibilityToggleText}>
-                    {isConfirmPasswordVisible ? t('common.hide') : t('common.show')}
+                    {isConfirmPasswordVisible
+                      ? t("common.hide")
+                      : t("common.show")}
                   </Text>
                 </TouchableOpacity>
               </View>
@@ -274,25 +300,32 @@ const SignUpScreen: React.FC<SignUpScreenProps> = ({ navigation }) => {
               activeOpacity={0.8}
             >
               {isLoading ? (
-                <ActivityIndicator color={NeutralColors.neutral.light.white1} size="small" />
+                <ActivityIndicator
+                  color={NeutralColors.neutral.light.white1}
+                  size="small"
+                />
               ) : (
-                <Text style={styles.buttonText}>{t('signup.button')}</Text>
+                <Text style={styles.buttonText}>{t("signup.button")}</Text>
               )}
             </TouchableOpacity>
 
             <View style={styles.footer}>
-              <Text style={styles.footerText}>{t('signup.haveAccount')} </Text>
+              <Text style={styles.footerText}>{t("signup.haveAccount")} </Text>
               <TouchableOpacity onPress={navigateToLogin} disabled={isLoading}>
-                <Text style={styles.footerLink}>{t('signup.signIn')}</Text>
+                <Text style={styles.footerLink}>{t("signup.signIn")}</Text>
               </TouchableOpacity>
             </View>
             {/* Disclaimer */}
-             <Text style={styles.disclaimer}>
-              {t('login.disclaimer.part1')}{' '}
-              <Text style={styles.link}>{t('login.disclaimer.userAgreement')}</Text>{' '}
-              {t('login.disclaimer.and')}{' '}
-               <Text style={styles.link}>{t('login.disclaimer.privacyPolicy')}</Text>
-                </Text>
+            <Text style={styles.disclaimer}>
+              {t("login.disclaimer.part1")}{" "}
+              <Text style={styles.link}>
+                {t("login.disclaimer.userAgreement")}
+              </Text>{" "}
+              {t("login.disclaimer.and")}{" "}
+              <Text style={styles.link}>
+                {t("login.disclaimer.privacyPolicy")}
+              </Text>
+            </Text>
           </View>
         </KeyboardAwareScrollView>
       </SafeAreaView>

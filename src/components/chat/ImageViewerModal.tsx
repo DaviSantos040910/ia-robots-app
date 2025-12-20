@@ -1,7 +1,16 @@
-import React from 'react';
-import { Modal, View, Image, StyleSheet, Pressable, StatusBar, Platform } from 'react-native';
-import { Feather } from '@expo/vector-icons';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import React from "react";
+import {
+  Modal,
+  View,
+  Image,
+  StyleSheet,
+  Pressable,
+  StatusBar,
+  Platform,
+} from "react-native";
+import Ionicons from "@expo/vector-icons/Ionicons";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { NeutralColors } from "../../theme/neutralColors";
 
 interface ImageViewerModalProps {
   visible: boolean;
@@ -9,7 +18,11 @@ interface ImageViewerModalProps {
   onClose: () => void;
 }
 
-export const ImageViewerModal: React.FC<ImageViewerModalProps> = ({ visible, imageUrl, onClose }) => {
+export const ImageViewerModal: React.FC<ImageViewerModalProps> = ({
+  visible,
+  imageUrl,
+  onClose,
+}) => {
   const insets = useSafeAreaInsets();
 
   if (!imageUrl) return null;
@@ -34,13 +47,17 @@ export const ImageViewerModal: React.FC<ImageViewerModalProps> = ({ visible, ima
           />
         </Pressable>
 
-        <Pressable 
-          style={[styles.closeButton, { top: insets.top + 16 }]} 
+        <Pressable
+          style={[styles.closeButton, { top: insets.top + 16 }]}
           onPress={onClose}
           hitSlop={20}
         >
           <View style={styles.closeButtonBackground}>
-            <Feather name="x" size={24} color="#FFFFFF" />
+            <Ionicons
+              name="close"
+              size={24}
+              color={NeutralColors.neutral.light.white1}
+            />
           </View>
         </Pressable>
       </View>
@@ -51,27 +68,27 @@ export const ImageViewerModal: React.FC<ImageViewerModalProps> = ({ visible, ima
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#000000',
-    justifyContent: 'center',
-    alignItems: 'center',
+    backgroundColor: NeutralColors.neutral.dark.black1,
+    justifyContent: "center",
+    alignItems: "center",
   },
   backdrop: {
-    width: '100%',
-    height: '100%',
-    justifyContent: 'center',
-    alignItems: 'center',
+    width: "100%",
+    height: "100%",
+    justifyContent: "center",
+    alignItems: "center",
   },
   image: {
-    width: '100%',
-    height: '100%',
+    width: "100%",
+    height: "100%",
   },
   closeButton: {
-    position: 'absolute',
+    position: "absolute",
     right: 20,
     zIndex: 10,
   },
   closeButtonBackground: {
-    backgroundColor: 'rgba(0,0,0,0.5)',
+    backgroundColor: "rgba(0,0,0,0.5)",
     borderRadius: 20,
     padding: 8,
   },

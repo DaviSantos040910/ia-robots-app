@@ -3,6 +3,7 @@
     "show": "Mostrar",
     "hide": "Ocultar",
     "cancel": "Cancelar",
+    "ok": "OK",
     "error": "Erro",
     "ops": "Ops",
     "play": "Reproduzir",
@@ -27,7 +28,8 @@
     "newChatTitle": "Iniciar novo chat?",
     "newChatMessage": "Isso arquivará a conversa atual e iniciará uma nova. Deseja continuar?",
     "proceed": "Prosseguir",
-    "inputPlaceholder": "Interrogar base de conhecimento...",
+    "inputPlaceholder": "Adicionar nota...",
+    "input_placeholder": "Adicionar nota...",
     "activateButton": "Tornar esta conversa ativa",
     "activateConfirmTitle": "Ativar este chat?",
     "activateConfirmMessage": "Isso arquivará o chat ativo atual com este bot e restaurará este. Deseja continuar?",
@@ -70,11 +72,13 @@
       "deactivateVoice": "Desativar modo de voz",
       "call": "Iniciar chamada de voz",
       "moreOptions": "Mais opções",
+      "recordVoice": "Gravar nota de voz",
       "audioProgress": "Barra de progresso do áudio"
     }
   },
 
   "voiceCall": {
+    "startFromChat": "Inicie uma chamada por voz a partir de um chat.",
     "status": {
       "preparing": "Preparando...",
       "listening": "Ouvindo...",
@@ -111,9 +115,13 @@
   },
 
   "botsScreen": {
-    "title": "Meus Bots",
-    "emptyTitle": "Nenhum bot ainda",
-    "emptyMessage": "Bots que você criar ou adicionar pela aba Biblioteca aparecerão aqui."
+    "title": "Meus Cadernos",
+    "emptyTitle": "Nenhum caderno ainda",
+    "emptyMessage": "Os cadernos que você criar ou adicionar pela Biblioteca aparecerão aqui."
+  },
+
+  "bots": {
+    "create_new": "Criar novo Caderno"
   },
 
   "botSettings": {
@@ -136,7 +144,7 @@
   },
 
   "createBot": {
-    "title": "Novo Módulo",
+    "title": "Novo Caderno",
     "nameLabel": "Nome",
     "descriptionLabel": "Descrição",
     "descriptionPlaceholder": "ex: Um assistente amigável para planejamento de viagens.",
@@ -144,18 +152,22 @@
     "promptPlaceholder": "Você é um viajante espacial...",
     "categoryLabel": "Categoria",
     "categoryDescription": "Selecione até 3 categorias que melhor descrevem seu bot.",
-    "createButton": "Inicializar Módulo",
-    "nameRequired": "Nome do bot é obrigatório.",
+    "createButton": "Criar Caderno",
+    "nameRequired": "Nome do caderno é obrigatório.",
     "promptRequired": "Prompt é obrigatório.",
     "categoryRequired": "Selecione pelo menos uma categoria.",
-    "creationSuccess": "Bot criado com sucesso!",
-    "creationError": "Falha ao criar bot. Tente novamente.",
-    "avatarActionSheetTitle": "Esta imagem será usada como avatar do bot.",
+    "creationSuccess": "Caderno criado com sucesso!",
+    "creationSuccessMessage": "Caderno \"{{name}}\" criado!",
+    "creationError": "Falha ao criar caderno. Tente novamente.",
+    "categoriesLoadErrorMessage": "Não foi possível carregar as categorias. Tente novamente mais tarde.",
+    "avatarActionSheetTitle": "Esta imagem será usada como capa do caderno.",
     "takeNewPhoto": "Tirar nova foto",
     "chooseFromGallery": "Escolher da galeria",
-    "namePlaceholder": "Nome do Módulo (ex: Financeiro)",
+    "namePlaceholder": "Nome do Caderno (ex: Financeiro)",
     "descPlaceholder": "Defina o escopo deste módulo de conhecimento...",
-    "systemPromptPlaceholder": "Instruções de sistema (Prompt Engenharia)..."
+    "systemPromptPlaceholder": "Instruções de sistema (Prompt Engenharia)...",
+    "allowWebSearchTitle": "Permitir pesquisa na web",
+    "allowWebSearchDescription": "O caderno poderá buscar informações atualizadas na internet."
   },
 
   "explore": {
@@ -189,6 +201,7 @@
     "enterEmailOrUsernameForReset": "Informe seu email ou nome de usuário para redefinir a senha.",
     "continueWithGoogle": "Continuar com Google",
     "continueWithApple": "Continuar com Apple",
+    "loginFailed": "Falha no login",
     "disclaimer": {
       "part1": "Ao continuar, você concorda com nosso",
       "userAgreement": "Contrato do Usuário",
@@ -210,7 +223,10 @@
     "confirmPasswordPlaceholder": "Confirme sua senha",
     "button": "Criar Conta",
     "haveAccount": "Já possui uma conta?",
-    "signIn": "Entrar"
+    "signIn": "Entrar",
+    "registeredTitle": "Cadastro concluído",
+    "registeredMessage": "Conta criada. Verifique seu email para confirmar.",
+    "signupFailed": "Falha ao criar conta. Tente novamente."
   },
 
   "validation": {

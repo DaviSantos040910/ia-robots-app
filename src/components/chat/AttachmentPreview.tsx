@@ -1,43 +1,56 @@
-import React from 'react';
-import { View, Image, Text, Pressable, StyleSheet } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
-import { useColorScheme } from 'react-native';
-import { getTheme } from '../../screens/Chat/Chat.styles';
-import { AttachmentPickerResult } from '../../services/attachmentService';
-import { Colors } from '../../theme/colors';
-import { Typography } from '../../theme/typography';
-import { Spacing } from '../../theme/spacing';
-import { Radius } from '../../theme/radius';
+import React from "react";
+import { View, Image, Text, Pressable, StyleSheet } from "react-native";
+import Ionicons from "@expo/vector-icons/Ionicons";
+import { useColorScheme } from "react-native";
+import { getTheme } from "../../screens/Chat/Chat.styles";
+import { AttachmentPickerResult } from "../../services/attachmentService";
+import { Colors } from "../../theme/colors";
+import { NeutralColors } from "../../theme/neutralColors";
+import { Typography } from "../../theme/typography";
+import { Spacing } from "../../theme/spacing";
+import { Radius } from "../../theme/radius";
 
 type Props = {
   attachment: AttachmentPickerResult;
   onRemove: (uri: string) => void;
 };
 
-export const AttachmentPreview: React.FC<Props> = ({ attachment, onRemove }) => {
+export const AttachmentPreview: React.FC<Props> = ({
+  attachment,
+  onRemove,
+}) => {
   const scheme = useColorScheme();
-  const theme = getTheme(scheme === 'dark');
+  const theme = getTheme(scheme === "dark");
 
-  const isImage = attachment.type?.startsWith('image/');
+  const isImage = attachment.type?.startsWith("image/");
 
   return (
     <View style={[styles.container, { backgroundColor: theme.surface }]}>
       <View style={styles.content}>
         {isImage ? (
-          <Image 
-            source={{ uri: attachment.uri }} 
+          <Image
+            source={{ uri: attachment.uri }}
             style={styles.imageThumbnail}
             resizeMode="cover"
           />
         ) : (
-          <View style={[styles.iconContainer, { backgroundColor: theme.brand.normal }]}>
-            <Ionicons name="document-text-outline" size={24} color="#FFFFFF" />
+          <View
+            style={[
+              styles.iconContainer,
+              { backgroundColor: theme.brand.normal },
+            ]}
+          >
+            <Ionicons
+              name="document-text-outline"
+              size={24}
+              color={NeutralColors.neutral.light.white1}
+            />
           </View>
         )}
-        
+
         <View style={styles.info}>
-          <Text 
-            style={[styles.fileName, { color: theme.textPrimary }]} 
+          <Text
+            style={[styles.fileName, { color: theme.textPrimary }]}
             numberOfLines={1}
           >
             {attachment.name}
@@ -50,12 +63,19 @@ export const AttachmentPreview: React.FC<Props> = ({ attachment, onRemove }) => 
         </View>
       </View>
 
-      <Pressable 
-        onPress={() => onRemove(attachment.uri)} 
-        style={[styles.removeButton, { backgroundColor: Colors.semantic.error.normal }]}
+      <Pressable
+        onPress={() => onRemove(attachment.uri)}
+        style={[
+          styles.removeButton,
+          { backgroundColor: Colors.semantic.error.normal },
+        ]}
         hitSlop={8}
       >
-        <Ionicons name="close" size={16} color="#FFFFFF" />
+        <Ionicons
+          name="close"
+          size={16}
+          color={NeutralColors.neutral.light.white1}
+        />
       </Pressable>
     </View>
   );
@@ -69,19 +89,19 @@ const formatFileSize = (bytes: number): string => {
 
 const styles = StyleSheet.create({
   container: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: Spacing['spacing-group-s'],
-    paddingVertical: Spacing['spacing-element-m'],
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: Spacing["spacing-group-s"],
+    paddingVertical: Spacing["spacing-element-m"],
     // ✅ CORREÇÃO 1: Removido espaçamentos que causam o bug
     // marginHorizontal: Spacing['spacing-group-s'], (removido)
     // marginBottom: Spacing['spacing-element-m'], (removido)
     borderRadius: Radius.medium,
   },
   content: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     flex: 1,
   },
   imageThumbnail: {
@@ -93,12 +113,12 @@ const styles = StyleSheet.create({
     width: 48,
     height: 48,
     borderRadius: Radius.small,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
   },
   info: {
     flex: 1,
-    marginLeft: Spacing['spacing-group-s'],
+    marginLeft: Spacing["spacing-group-s"],
   },
   fileName: {
     ...Typography.bodyMedium.medium,
@@ -111,8 +131,8 @@ const styles = StyleSheet.create({
     width: 28,
     height: 28,
     borderRadius: 14,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginLeft: Spacing['spacing-element-m'],
+    alignItems: "center",
+    justifyContent: "center",
+    marginLeft: Spacing["spacing-element-m"],
   },
 });

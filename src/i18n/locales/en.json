@@ -3,6 +3,7 @@
     "show": "Show",
     "hide": "Hide",
     "cancel": "Cancel",
+    "ok": "OK",
     "error": "Error",
     "ops": "Oops",
     "play": "Play",
@@ -27,7 +28,8 @@
     "newChatTitle": "Start new chat?",
     "newChatMessage": "This will archive the current conversation and start a new one. Do you want to proceed?",
     "proceed": "Proceed",
-    "inputPlaceholder": "Query knowledge base...",
+    "inputPlaceholder": "Add a note...",
+    "input_placeholder": "Add a note...",
     "activateButton": "Make this conversation active",
     "activateConfirmTitle": "Activate this chat?",
     "activateConfirmMessage": "This will archive the current active chat with this bot and restore this one. Do you want to proceed?",
@@ -70,11 +72,13 @@
       "deactivateVoice": "Disable voice mode",
       "call": "Start voice call",
       "moreOptions": "More options",
+      "recordVoice": "Record a voice note",
       "audioProgress": "Audio progress bar"
     }
   },
 
   "voiceCall": {
+    "startFromChat": "Start a voice call from a chat.",
     "status": {
       "preparing": "Preparing...",
       "listening": "Listening...",
@@ -111,9 +115,13 @@
   },
 
   "botsScreen": {
-    "title": "My Bots",
-    "emptyTitle": "No bots yet",
-    "emptyMessage": "Bots you create or add from the Library tab will appear here."
+    "title": "My Notebooks",
+    "emptyTitle": "No notebooks yet",
+    "emptyMessage": "Notebooks you create or add from the Library tab will appear here."
+  },
+
+  "bots": {
+    "create_new": "Create new Notebook"
   },
 
   "botSettings": {
@@ -136,7 +144,7 @@
   },
 
   "createBot": {
-    "title": "New Module",
+    "title": "New Notebook",
     "nameLabel": "Name",
     "descriptionLabel": "Description",
     "descriptionPlaceholder": "e.g. A friendly assistant for travel planning.",
@@ -144,18 +152,22 @@
     "promptPlaceholder": "You are a space traveler...",
     "categoryLabel": "Category",
     "categoryDescription": "Select up to 3 categories that best describe your bot.",
-    "createButton": "Initialize Module",
-    "nameRequired": "Bot name is required.",
+    "createButton": "Create Notebook",
+    "nameRequired": "Notebook name is required.",
     "promptRequired": "Prompt is required.",
     "categoryRequired": "Please select at least one category.",
-    "creationSuccess": "Bot created successfully!",
-    "creationError": "Failed to create bot. Please try again.",
-    "avatarActionSheetTitle": "This image will be used as the bot avatar.",
+    "creationSuccess": "Notebook created successfully!",
+    "creationSuccessMessage": "Notebook \"{{name}}\" created!",
+    "creationError": "Failed to create notebook. Please try again.",
+    "categoriesLoadErrorMessage": "Could not load categories. Please try again later.",
+    "avatarActionSheetTitle": "This image will be used as the notebook cover.",
     "takeNewPhoto": "Take a new photo",
     "chooseFromGallery": "Choose from gallery",
-    "namePlaceholder": "Module name (e.g. Finance)",
+    "namePlaceholder": "Notebook name (e.g. Finance)",
     "descPlaceholder": "Define the scope of this knowledge module...",
-    "systemPromptPlaceholder": "System instructions (Prompt Engineering)..."
+    "systemPromptPlaceholder": "System instructions (Prompt Engineering)...",
+    "allowWebSearchTitle": "Allow web search",
+    "allowWebSearchDescription": "The notebook can fetch up-to-date information from the internet."
   },
 
   "explore": {
@@ -189,6 +201,7 @@
     "enterEmailOrUsernameForReset": "Enter your email or username to reset your password.",
     "continueWithGoogle": "Continue with Google",
     "continueWithApple": "Continue with Apple",
+    "loginFailed": "Login failed",
     "disclaimer": {
       "part1": "By continuing, you agree to our",
       "userAgreement": "User Agreement",
@@ -210,7 +223,10 @@
     "confirmPasswordPlaceholder": "Confirm your password",
     "button": "Create Account",
     "haveAccount": "Already have an account?",
-    "signIn": "Sign in"
+    "signIn": "Sign in",
+    "registeredTitle": "Registered",
+    "registeredMessage": "Account created. Check your email for a verification link.",
+    "signupFailed": "Signup failed. Try again."
   },
 
   "validation": {

@@ -1,10 +1,10 @@
 import React, { useCallback, useRef } from "react";
 import { View, Text, StyleSheet, TouchableOpacity, Image } from "react-native";
 import { useNavigation } from "@react-navigation/native";
-import { Ionicons } from "@expo/vector-icons";
+import Ionicons from "@expo/vector-icons/Ionicons";
 import { useTheme } from "../../theme/colors";
 import { spacing } from "../../theme/spacing";
-import { typography } from "../../theme/typography";
+import { Typography } from "../../theme/typography";
 import { radius } from "../../theme/radius";
 import { FEATURES } from "../../config/featureFlags"; // Importando Flags
 import type { Anchor } from "./ActionSheetMenu";
@@ -78,7 +78,7 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
     >
       <View style={s.leftContainer}>
         <TouchableOpacity onPress={handleBack} style={s.backButton}>
-          <Ionicons name="arrow-back" size={24} color={theme.brand.text} />
+          <Ionicons name="arrow-back" size={24} color={theme.brand.normal} />
         </TouchableOpacity>
 
         <TouchableOpacity
@@ -141,7 +141,7 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
                   : "volume-mute-outline"
               }
               size={24}
-              color={theme.brand.text}
+              color={theme.brand.normal}
             />
           </TouchableOpacity>
         )}
@@ -149,7 +149,11 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
         {/* Botão de Chamada (Feature Flag) */}
         {FEATURES.SHOW_PHONE_CALL_BUTTON && !!phoneHandler && (
           <TouchableOpacity onPress={phoneHandler} style={s.iconButton}>
-            <Ionicons name="call-outline" size={24} color={theme.brand.text} />
+            <Ionicons
+              name="call-outline"
+              size={24}
+              color={theme.brand.normal}
+            />
           </TouchableOpacity>
         )}
 
@@ -162,7 +166,7 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
           <Ionicons
             name="ellipsis-vertical"
             size={24}
-            color={theme.brand.text}
+            color={theme.brand.normal}
           />
         </TouchableOpacity>
       </View>
@@ -199,7 +203,7 @@ const s = StyleSheet.create({
     height: 36,
     borderRadius: radius.medium, // Quadrado
     marginRight: spacing.sm,
-    backgroundColor: "#e0e0e0",
+    backgroundColor: "transparent",
   },
   avatarPlaceholder: {
     width: 36,
@@ -211,12 +215,10 @@ const s = StyleSheet.create({
     borderWidth: 1,
   },
   name: {
-    ...typography.subtitle1,
-    fontWeight: "700",
+    ...Typography.presets.heading2,
   },
   status: {
-    ...typography.caption,
-    fontWeight: "500",
+    ...Typography.presets.bodySmall,
   },
   rightContainer: {
     flexDirection: "row",
