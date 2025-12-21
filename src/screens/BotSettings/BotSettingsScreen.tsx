@@ -19,10 +19,6 @@ import {
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
 import type { RootStackParamList } from "../../types/navigation";
 import { Chip } from "../../components/shared/Chip";
-import {
-  FloatingMenu,
-  type Anchor,
-} from "../../components/shared/FloatingMenu";
 import { ScalePressable, useFadeSlideIn } from "../../components/shared/Motion";
 import {
   botSettingsService,
@@ -46,11 +42,6 @@ const BotSettingsScreen: React.FC<Props> = ({ route, navigation }) => {
   // --- State ---
   const [loading, setLoading] = useState(true);
   const [bot, setBot] = useState<BotDetails | null>(null);
-  const [publicity, setPublicity] = useState<"Private" | "Guests" | "Public">(
-    "Public"
-  );
-  const [pubMenuOpen, setPubMenuOpen] = useState(false);
-  const [pubAnchor, setPubAnchor] = useState<Anchor>(null);
 
   // --- Animations ---
   const topBarAnim = useFadeSlideIn({ dy: -8, duration: 280 });
@@ -67,7 +58,6 @@ const BotSettingsScreen: React.FC<Props> = ({ route, navigation }) => {
         const details = await botSettingsService.getBotDetails(botId);
         if (isMounted) {
           setBot(details);
-          setPublicity(details.settings.publicity);
         }
       } catch (error) {
         console.error("Failed to fetch bot details:", error);
@@ -107,11 +97,6 @@ const BotSettingsScreen: React.FC<Props> = ({ route, navigation }) => {
     );
   };
 
-  const openPubMenu = (anchor: AnchorCallback) => {
-    setPubAnchor(anchor);
-    setPubMenuOpen(true);
-  };
-
   if (loading || !bot) {
     return (
       <View style={[s.loadingWrap, { backgroundColor: theme.background }]}>
@@ -119,12 +104,6 @@ const BotSettingsScreen: React.FC<Props> = ({ route, navigation }) => {
       </View>
     );
   }
-
-  const publicityOptions = [
-    { label: t("botSettings.publicityPrivate"), value: "Private" },
-    { label: t("botSettings.publicityGuests"), value: "Guests" },
-    { label: t("botSettings.publicityPublic"), value: "Public" },
-  ];
 
   return (
     <SafeAreaView style={s.screen} edges={["top", "bottom"]}>
@@ -182,28 +161,21 @@ const BotSettingsScreen: React.FC<Props> = ({ route, navigation }) => {
 
         <Animated.View style={[s.settingsCard, settingsAnim]}>
           <SettingRow
-            label={t("botSettings.voice")}
-            value={bot.settings.voice}
-            iconName="volume-medium-outline"
+            label={"Informações Básicas"}
+            value={""}
+            iconName="create-outline"
             iconBgColor={Colors.semantic.organization.sky.normal}
-            showChevron={false}
-          />
-          <View style={s.divider} />
-          <SettingRow
-            label={t("botSettings.language")}
-            value={bot.settings.language}
-            iconName="globe-outline"
-            iconBgColor={Colors.semantic.organization.teal.normal}
-            showChevron={false}
-          />
-          <View style={s.divider} />
-          <SettingRow
-            label={t("botSettings.publicity")}
-            value={t(`botSettings.publicity${publicity}` as any)}
-            iconName="settings-outline"
-            iconBgColor={Colors.semantic.organization.amber.normal}
             showChevron={bot.createdByMe}
-            onPress={bot.createdByMe ? openPubMenu : undefined}
+            onPress={
+              bot.createdByMe
+                ? (_anchor: AnchorCallback) => {
+                    Alert.alert(
+                      t("common.ops"),
+                      "Edição de informações básicas ainda não disponível neste build."
+                    );
+                  }
+                : undefined
+            }
           />
         </Animated.View>
 
@@ -223,15 +195,6 @@ const BotSettingsScreen: React.FC<Props> = ({ route, navigation }) => {
           </View>
         </Animated.View>
       </ScrollView>
-
-      <FloatingMenu
-        visible={pubMenuOpen}
-        onClose={() => setPubMenuOpen(false)}
-        anchor={pubAnchor}
-        options={publicityOptions}
-        selected={publicity}
-        onSelect={(v) => setPublicity(v as any)}
-      />
     </SafeAreaView>
   );
 };

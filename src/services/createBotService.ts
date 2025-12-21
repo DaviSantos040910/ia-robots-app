@@ -1,6 +1,6 @@
 // src/services/createBotService.ts
-import api from './api';
-import { BotDetails } from './botSettingsService'; // Reusing BotDetails type for consistency.
+import api from "./api";
+import { BotDetails } from "./botSettingsService"; // Reusing BotDetails type for consistency.
 
 /**
  * Defines the shape of the data required to create a new bot.
@@ -13,8 +13,11 @@ export type CreateBotPayload = {
   avatarUrl?: string; // Optional for initial creation
   settings: {
     voice: string;
-    publicity: 'Private' | 'Guests' | 'Public';
+    publicity: "Private" | "Guests" | "Public";
   };
+  visibility?: "PUBLIC" | "PRIVATE";
+  language?: string;
+  voiceId?: string;
   // The list of category IDs selected by the user
   category_ids: string[];
   // --- NEW: Web Search Flag ---
@@ -34,7 +37,6 @@ const realCreateBotService = {
    * @returns A promise that resolves with the final BotDetails.
    */
   async createBot(payload: CreateBotPayload): Promise<BotDetails> {
-    
     // --- Step 1: Create the bot with text data ---
     const textPayload = {
       name: payload.name,
@@ -44,33 +46,43 @@ const realCreateBotService = {
       publicity: payload.settings.publicity,
       allow_web_search: payload.allow_web_search, // Enviando o novo campo
       category_ids: payload.category_ids,
+      visibility: payload.visibility,
+      language: payload.language,
+      voiceId: payload.voiceId,
     };
 
-    console.log(`[API] Step 1: Sending text payload to create bot`, textPayload);
-    const createdBot = await api.post<BotDetails>('/api/v1/bots/', textPayload);
+    console.log(
+      `[API] Step 1: Sending text payload to create bot`,
+      textPayload
+    );
+    const createdBot = await api.post<BotDetails>("/api/v1/bots/", textPayload);
 
     // --- Step 2: If an avatar URI exists, upload the image ---
     if (payload.avatarUrl) {
       console.log(`[API] Step 2: Uploading avatar for bot ID ${createdBot.id}`);
-      
+
       const formData = new FormData();
       // 'uri' is the local file path from the image picker
       // 'name' is the filename
       // 'type' is the mime type
-      formData.append('avatar_url', {
+      formData.append("avatar_url", {
         uri: payload.avatarUrl,
         name: `avatar_${createdBot.id}.jpg`,
-        type: 'image/jpeg',
+        type: "image/jpeg",
       } as any);
 
       try {
         // We use PUT or PATCH to update the existing bot with the image.
         // Let's assume the BotSerializer can handle file uploads on an update.
-        const updatedBot = await api.patch<BotDetails>(`/api/v1/bots/${createdBot.id}/`, formData, {
-          headers: {
-            'Content-Type': 'multipart/form-data', // This is crucial for file uploads
-          },
-        });
+        const updatedBot = await api.patch<BotDetails>(
+          `/api/v1/bots/${createdBot.id}/`,
+          formData,
+          {
+            headers: {
+              "Content-Type": "multipart/form-data", // This is crucial for file uploads
+            },
+          }
+        );
         return updatedBot; // Return the bot with the final avatar URL
       } catch (error) {
         console.error("Avatar upload failed:", error);
@@ -91,21 +103,21 @@ const realCreateBotService = {
 const mockCreateBotService = {
   async createBot(payload: CreateBotPayload): Promise<BotDetails> {
     console.log(`[MOCK] Creating bot with payload:`, payload);
-    await new Promise(resolve => setTimeout(resolve, 1500)); // Simulate network delay
+    await new Promise((resolve) => setTimeout(resolve, 1500)); // Simulate network delay
     return {
       id: `bot-${Date.now()}`,
       name: payload.name,
-      handle: `@${payload.name.replace(/\s/g, '').toLowerCase()}`,
+      handle: `@${payload.name.replace(/\s/g, "").toLowerCase()}`,
       avatarUrl: payload.avatarUrl,
-      stats: { monthlyUsers: '0', followers: '0' },
+      stats: { monthlyUsers: "0", followers: "0" },
       // Mock service still uses the nested structure for its return type example
       settings: {
         voice: payload.settings.voice,
-        language: 'English', // language is removed but mock can keep it for now
+        language: "English", // language is removed but mock can keep it for now
         publicity: payload.settings.publicity,
         allow_web_search: payload.allow_web_search, // Mock support
       },
-      tags: ['newly_created'],
+      tags: ["newly_created"],
       createdByMe: true,
     };
   },
@@ -114,4 +126,6 @@ const mockCreateBotService = {
 // This flag allows for easily switching between mock and real data sources.
 const USE_MOCK_API = false;
 
-export const createBotService = USE_MOCK_API ? mockCreateBotService : realCreateBotService;
+export const createBotService = USE_MOCK_API
+  ? mockCreateBotService
+  : realCreateBotService;

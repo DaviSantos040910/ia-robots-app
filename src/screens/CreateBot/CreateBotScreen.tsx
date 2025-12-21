@@ -20,14 +20,6 @@ import type { RootStackParamList } from "../../types/navigation";
 import { useFadeSlideIn, ScalePressable } from "../../components/shared/Motion";
 import { getTheme, createCreateBotStyles } from "./CreateBot.styles";
 import { LabeledTextInput } from "../../components/shared/LabeledTextInput";
-import {
-  SettingRow,
-  type AnchorCallback,
-} from "../../components/settings/SettingRow";
-import {
-  FloatingMenu,
-  type Anchor,
-} from "../../components/shared/FloatingMenu";
 import { GradientButton } from "../../components/shared/GradientButton";
 import {
   createBotService,
@@ -43,7 +35,7 @@ import { Colors } from "../../theme/colors";
 type Props = NativeStackScreenProps<RootStackParamList, "Create">;
 
 const CreateBotScreen: React.FC<Props> = ({ navigation }) => {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const scheme = useColorScheme();
   const theme = getTheme(scheme === "dark");
   const s = createCreateBotStyles(theme);
@@ -52,10 +44,6 @@ const CreateBotScreen: React.FC<Props> = ({ navigation }) => {
   const [botName, setBotName] = useState("");
   const [botDescription, setBotDescription] = useState("");
   const [botPrompt, setBotPrompt] = useState("");
-  const [botVoice, setBotVoice] = useState("EnergeticYouth");
-  const [botPublicity, setBotPublicity] = useState<
-    "Private" | "Guests" | "Public"
-  >("Public");
   // --- NEW: State for Web Search ---
   const [allowWebSearch, setAllowWebSearch] = useState(false);
 
@@ -74,12 +62,6 @@ const CreateBotScreen: React.FC<Props> = ({ navigation }) => {
   const [isAvatarActionSheetVisible, setIsAvatarActionSheetVisible] =
     useState(false);
 
-  // --- Menu State (for Voice and Publicity dropdowns) ---
-  const [voiceMenuOpen, setVoiceMenuOpen] = useState(false);
-  const [voiceAnchor, setVoiceAnchor] = useState<Anchor>(null);
-  const [pubMenuOpen, setPubMenuOpen] = useState(false);
-  const [pubAnchor, setPubAnchor] = useState<Anchor>(null);
-
   // --- Staggered Animations for a professional feel ---
   const headerAnim = useFadeSlideIn({ dy: -8, duration: 280 });
   const avatarAnim = useFadeSlideIn({ delay: 80, dy: 12 });
@@ -88,7 +70,6 @@ const CreateBotScreen: React.FC<Props> = ({ navigation }) => {
   const promptInputAnim = useFadeSlideIn({ delay: 200, dy: 12 });
   const categoryAnim = useFadeSlideIn({ delay: 260, dy: 12 });
   const webSearchAnim = useFadeSlideIn({ delay: 290, dy: 12 }); // Animation for web search
-  const settingsAnim = useFadeSlideIn({ delay: 320, dy: 12 });
   const buttonAnim = useFadeSlideIn({ delay: 380, dy: 12 });
 
   // --- Data Fetching: Load categories when the screen mounts ---
@@ -153,14 +134,18 @@ const CreateBotScreen: React.FC<Props> = ({ navigation }) => {
 
     setIsLoading(true);
     try {
+      const language = i18n.language || "pt-BR";
       const payload: CreateBotPayload = {
         name: botName.trim(),
         prompt: botPrompt.trim(),
         description: botDescription.trim(),
         avatarUrl,
-        settings: { voice: botVoice, publicity: botPublicity },
+        settings: { voice: "EnergeticYouth", publicity: "Public" },
         category_ids: selectedCategoryIds,
         allow_web_search: allowWebSearch, // Enviando estado do switch
+        visibility: "PUBLIC",
+        language,
+        voiceId: "",
       };
       const newBot = await createBotService.createBot(payload);
       Alert.alert(
@@ -175,18 +160,6 @@ const CreateBotScreen: React.FC<Props> = ({ navigation }) => {
       setIsLoading(false);
     }
   };
-
-  const openMenu = useCallback(
-    (
-      setOpen: React.Dispatch<React.SetStateAction<boolean>>,
-      setAnchor: React.Dispatch<React.SetStateAction<Anchor>>,
-      anchor: AnchorCallback
-    ) => {
-      setAnchor(anchor);
-      setOpen(true);
-    },
-    []
-  );
 
   const handleChooseImageFromGallery = useCallback(async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -212,16 +185,6 @@ const CreateBotScreen: React.FC<Props> = ({ navigation }) => {
     if (!result.canceled && result.assets && result.assets.length > 0)
       setAvatarUrl(result.assets[0].uri);
   }, []);
-
-  const voiceOptions = [
-    { label: "Energetic Youth", value: "EnergeticYouth" },
-    { label: "Calm Adult", value: "CalmAdult" },
-  ];
-  const publicityOptions = [
-    { label: t("botSettings.publicityPrivate"), value: "Private" },
-    { label: t("botSettings.publicityGuests"), value: "Guests" },
-    { label: t("botSettings.publicityPublic"), value: "Public" },
-  ];
 
   return (
     <SafeAreaView style={s.screen} edges={["top", "bottom"]}>
@@ -356,27 +319,6 @@ const CreateBotScreen: React.FC<Props> = ({ navigation }) => {
           />
         </Animated.View>
 
-        {/* --- Settings Section --- */}
-        <Animated.View style={[s.formSection, s.settingsCard, settingsAnim]}>
-          <SettingRow
-            label={t("botSettings.voice")}
-            value={botVoice}
-            iconName="volume-medium-outline"
-            iconBgColor="#4A90E2"
-            onPress={(anchor) =>
-              openMenu(setVoiceMenuOpen, setVoiceAnchor, anchor)
-            }
-          />
-          <View style={s.divider} />
-          <SettingRow
-            label={t("botSettings.publicity")}
-            value={t(`botSettings.publicity${botPublicity}` as any)}
-            iconName="settings-outline"
-            iconBgColor="#F5A623"
-            onPress={(anchor) => openMenu(setPubMenuOpen, setPubAnchor, anchor)}
-          />
-        </Animated.View>
-
         <Animated.View style={[s.createButtonContainer, buttonAnim]}>
           <GradientButton
             title={t("createBot.createButton")}
@@ -387,29 +329,7 @@ const CreateBotScreen: React.FC<Props> = ({ navigation }) => {
         </Animated.View>
       </ScrollView>
 
-      {/* --- Menus & Action Sheets --- */}
-      <FloatingMenu
-        visible={voiceMenuOpen}
-        onClose={() => setVoiceMenuOpen(false)}
-        anchor={voiceAnchor}
-        options={voiceOptions}
-        selected={botVoice}
-        onSelect={(v) => {
-          setBotVoice(v);
-          setVoiceMenuOpen(false);
-        }}
-      />
-      <FloatingMenu
-        visible={pubMenuOpen}
-        onClose={() => setPubMenuOpen(false)}
-        anchor={pubAnchor}
-        options={publicityOptions}
-        selected={botPublicity}
-        onSelect={(v) => {
-          setBotPublicity(v as any);
-          setPubMenuOpen(false);
-        }}
-      />
+      {/* --- Action Sheets --- */}
       <BottomActionSheet
         visible={isAvatarActionSheetVisible}
         onClose={() => setIsAvatarActionSheetVisible(false)}
