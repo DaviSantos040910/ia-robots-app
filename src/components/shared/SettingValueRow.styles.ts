@@ -1,7 +1,7 @@
 import { StyleSheet } from "react-native";
 import { spacing } from "../../theme/spacing";
-import { radius } from "../../theme/radius";
-import { typography } from "../../theme/typography";
+import { Radius } from "../../theme/radius";
+import { Typography } from "../../theme/typography";
 import type { AppTheme } from "../../theme/colors";
 
 export const createSettingValueRowStyles = (t: AppTheme) =>
@@ -21,7 +21,7 @@ export const createSettingValueRowStyles = (t: AppTheme) =>
     leadingIconWrap: {
       width: 32,
       height: 32,
-      borderRadius: radius.round,
+      borderRadius: Radius.round,
       backgroundColor: t.brand.surface,
       borderWidth: StyleSheet.hairlineWidth,
       borderColor: t.brand.border,
@@ -30,17 +30,17 @@ export const createSettingValueRowStyles = (t: AppTheme) =>
       marginRight: spacing.md,
     },
     leadingIconText: {
-      ...typography.body2,
+      ...Typography.bodyRegular,
       color: t.textSecondary,
       fontWeight: "700",
     },
     rowLabel: {
-      ...typography.body2,
+      ...Typography.bodyRegular,
       color: t.textPrimary,
       flex: 1,
     },
     rowValue: {
-      ...typography.body2,
+      ...Typography.bodyRegular,
       color: t.textSecondary,
     },
     chevron: {

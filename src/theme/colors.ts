@@ -62,17 +62,18 @@ export const Colors = {
   },
   brand: {
     light: {
-      normal: "#4F46E5",
-      surface: "#E0E7FF",
-      background: "#F8FAFC",
-      light: "#312E81",
-      dark: "#3730A3", // A slightly darker indigo for the gradient end.
+      normal: "#4F46E5", // Indigo 600 - Primary Brand Color
+      surface: "#F3F4F6", // Gray 100 for subtle surfaces
+      background: "#FFFFFF", // Pure White for clean look (NotebookLM style)
+      light: "#E0E7FF",
+      dark: "#3730A3",
     },
     dark: {
       normal: "#818CF8",
       surface: "#1E1B4B",
+      background: "#0B1220",
       light: "#C7D2FE",
-      dark: "#6366F1", // A slightly lighter indigo for the gradient end in dark mode.
+      dark: "#6366F1",
     },
   },
   secondary: {
@@ -115,15 +116,21 @@ const getFontColors = (isDark: boolean) => {
     } as const;
   }
 
-  return NeutralColors.fontAndIcon.light as any;
+  return {
+    ...NeutralColors.fontAndIcon.light,
+    // Ensure primary text is strong black for light mode
+    primary: '#111827', // Gray 900
+    secondary: '#6B7280', // Gray 500
+  } as const;
 };
 
 export const getTheme = (isDark: boolean) => {
   const font = getFontColors(isDark);
-  const background = isDark ? "#0B1220" : "#F8FAFC";
-  const surface = isDark ? "#111A2E" : "#FFFFFF";
-  const surfaceAlt = isDark ? "#16213A" : "#F1F5F9";
-  const border = isDark ? "#233055" : "#E2E8F0";
+  // NotebookLM Style: Clean White Background
+  const background = isDark ? Colors.brand.dark.background : Colors.brand.light.background;
+  const surface = isDark ? Colors.brand.dark.surface : "#FFFFFF";
+  const surfaceAlt = isDark ? "#16213A" : "#F3F4F6"; // Gray 100
+  const border = isDark ? "#233055" : "#E5E7EB"; // Gray 200
 
   const brandPalette = isDark ? Colors.brand.dark : Colors.brand.light;
 
@@ -133,18 +140,19 @@ export const getTheme = (isDark: boolean) => {
     surface,
     surfaceAlt,
     border,
-    textPrimary: (font as any).primary,
-    textSecondary: (font as any).secondary,
-    placeholder: (font as any).placeholder,
-    disabled: (font as any).disabled,
+    textPrimary: font.primary,
+    textSecondary: font.secondary,
+    placeholder: font.placeholder,
+    disabled: font.disabled,
     brand: {
       normal: brandPalette.normal,
       surface: brandPalette.surface,
-
-      background,
+      background: brandPalette.background,
+      light: brandPalette.light,
+      dark: brandPalette.dark,
       border,
-      text: (font as any).primary,
-      textSecondary: (font as any).secondary,
+      text: font.primary,
+      textSecondary: font.secondary,
       primary: brandPalette.normal,
     },
   } as const;

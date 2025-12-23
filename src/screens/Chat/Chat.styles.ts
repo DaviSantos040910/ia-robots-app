@@ -314,7 +314,7 @@ export const createChatStyles = (t: ChatTheme) =>
     },
 
     activateBannerText: {
-      ...Typography.presets.bodySmall,
+      ...Typography.bodySmall,
       color: t.textPrimary,
       textAlign: "center",
     },

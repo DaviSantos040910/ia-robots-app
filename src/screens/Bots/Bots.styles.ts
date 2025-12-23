@@ -36,7 +36,7 @@ export const createBotsScreenStyles = (t: ChatListTheme) =>
       color: t.textPrimary,
     },
     description: {
-      ...Typography.presets.bodySmall,
+      ...Typography.bodySmall,
       color: t.textSecondary,
       marginTop: 2,
     },
@@ -66,7 +66,7 @@ export const createBotsScreenStyles = (t: ChatListTheme) =>
       marginBottom: 6,
     },
     emptyDesc: {
-      ...Typography.presets.body,
+      ...Typography.body,
       color: t.textSecondary,
       textAlign: "center",
     },

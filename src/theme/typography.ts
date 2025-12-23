@@ -1,10 +1,13 @@
+// src/theme/typography.ts
 export const Typography = {
   weights: {
     regular: "Inter_400Regular",
     medium: "Inter_500Medium",
-    bold: "Inter_600SemiBold",
+    semibold: "Inter_600SemiBold",
+    bold: "Inter_700Bold",
   },
   sizes: {
+    xxs: 11,
     xs: 12,
     sm: 14,
     md: 16,
@@ -12,8 +15,10 @@ export const Typography = {
     xl: 20,
     xxl: 24,
     xxxl: 32,
+    display: 40,
   },
   presets: {
+    // Headings
     heading1: {
       fontSize: 32,
       fontFamily: "Inter_600SemiBold",
@@ -21,9 +26,9 @@ export const Typography = {
       letterSpacing: -1,
     },
     heading2: {
-      fontSize: 16,
+      fontSize: 24,
       fontFamily: "Inter_600SemiBold",
-      lineHeight: 22,
+      lineHeight: 32,
       letterSpacing: -0.5,
     },
     heading3: {
@@ -31,15 +36,43 @@ export const Typography = {
       fontFamily: "Inter_600SemiBold",
       lineHeight: 28,
     },
-    body: {
+
+    // Body Text
+    bodyLarge: {
       fontSize: 16,
       fontFamily: "Inter_400Regular",
       lineHeight: 24,
     },
-    bodySmall: {
+    bodyRegular: {
+      medium: {
+        fontSize: 14,
+        fontFamily: "Inter_500Medium",
+        lineHeight: 20,
+      },
+      regular: {
+        fontSize: 14,
+        fontFamily: "Inter_400Regular",
+        lineHeight: 20,
+      },
+      small: {
+        fontSize: 12,
+        fontFamily: "Inter_400Regular",
+        lineHeight: 16,
+      },
+    },
+
+    // UI Elements
+    button: {
       fontSize: 14,
-      fontFamily: "Inter_400Regular",
+      fontFamily: "Inter_500Medium",
       lineHeight: 20,
+      letterSpacing: 0.1,
+    },
+    caption: {
+      fontSize: 12,
+      fontFamily: "Inter_400Regular",
+      lineHeight: 16,
+      letterSpacing: 0.2,
     },
     label: {
       fontSize: 12,
@@ -49,71 +82,91 @@ export const Typography = {
     },
   },
 
-  bodyRegular: {
-    medium: {
-      fontSize: 14,
-      lineHeight: 22,
-      fontFamily: "Inter_400Regular",
-    },
-    small: {
-      fontSize: 12,
-      lineHeight: 20,
-      fontFamily: "Inter_400Regular",
-    },
-  },
+  // Legacy Support (Mapping old names to new structure if needed, or keeping them)
   bodyMedium: {
     medium: {
       fontSize: 14,
-      lineHeight: 22,
       fontFamily: "Inter_500Medium",
+      lineHeight: 20,
     },
   },
-  bodySemiBold: {
-    large: {
-      fontSize: 16,
-      lineHeight: 24,
+
+  // Additional typography presets for compatibility
+  titleSemiBold: {
+    extraLarge: {
+      fontSize: 24,
       fontFamily: "Inter_600SemiBold",
+      lineHeight: 32,
+    },
+    large: {
+      fontSize: 20,
+      fontFamily: "Inter_600SemiBold",
+      lineHeight: 28,
     },
     medium: {
-      fontSize: 14,
-      lineHeight: 22,
+      fontSize: 16,
       fontFamily: "Inter_600SemiBold",
+      lineHeight: 24,
+    },
+    small: {
+      fontSize: 14,
+      fontFamily: "Inter_600SemiBold",
+      lineHeight: 20,
+    },
+  },
+
+  bodyRegular: {
+    medium: {
+      fontSize: 14,
+      fontFamily: "Inter_500Medium",
+      lineHeight: 20,
+    },
+    regular: {
+      fontSize: 14,
+      fontFamily: "Inter_400Regular",
+      lineHeight: 20,
     },
     small: {
       fontSize: 12,
-      lineHeight: 20,
-      fontFamily: "Inter_600SemiBold",
+      fontFamily: "Inter_400Regular",
+      lineHeight: 16,
     },
   },
-  titleSemiBold: {
-    extraLarge: {
-      fontSize: 20,
-      lineHeight: 28,
-      fontFamily: "Inter_600SemiBold",
-    },
+
+  bodySemiBold: {
     large: {
-      fontSize: 18,
-      lineHeight: 26,
+      fontSize: 16,
       fontFamily: "Inter_600SemiBold",
+      lineHeight: 24,
     },
     medium: {
-      fontSize: 16,
-      lineHeight: 24,
+      fontSize: 14,
       fontFamily: "Inter_600SemiBold",
+      lineHeight: 20,
+    },
+    small: {
+      fontSize: 12,
+      fontFamily: "Inter_600SemiBold",
+      lineHeight: 16,
     },
   },
-  title3: {
-    fontSize: 24,
-    lineHeight: 30,
-    fontFamily: "Inter_600SemiBold",
-    fontWeight: "600" as const,
-  },
-} as const;
 
-export const typography = {
-  h4: Typography.presets.heading2,
-  h6: Typography.presets.heading3,
-  subtitle1: Typography.presets.heading3,
-  body2: Typography.presets.bodySmall,
-  caption: Typography.presets.label,
+  // Additional compatibility typography presets
+  title3: {
+    fontSize: 20,
+    fontFamily: "Inter_600SemiBold",
+    lineHeight: 28,
+  },
+
+  bodySmall: {
+    fontSize: 12,
+    fontFamily: "Inter_400Regular",
+    lineHeight: 16,
+  },
+
+  body: {
+    fontSize: 14,
+    fontFamily: "Inter_400Regular",
+    lineHeight: 20,
+  },
 } as const;

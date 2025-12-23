@@ -323,7 +323,7 @@ const CreateBotScreen: React.FC<Props> = ({ navigation }) => {
           <GradientButton
             title={t("createBot.createButton")}
             onPress={handleCreateBot}
-            isLoading={isLoading}
+            loading={isLoading}
             disabled={isLoading}
           />
         </Animated.View>

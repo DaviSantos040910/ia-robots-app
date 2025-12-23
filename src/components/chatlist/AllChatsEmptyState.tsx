@@ -2,7 +2,7 @@ import React from "react";
 import { View, Text, Pressable } from "react-native";
 import { useColorScheme } from "react-native";
 import {
-  createAllChatsStyles,
+  createChatListStyles,
   getTheme,
 } from "../../screens/ChatList/ChatList.styles";
 
@@ -11,7 +11,7 @@ export const AllChatsEmptyState: React.FC<{ onCreate: () => void }> = ({
 }) => {
   const scheme = useColorScheme();
   const t = getTheme(scheme === "dark");
-  const s = createAllChatsStyles(t);
+  const s = createChatListStyles(t);
   return (
     <View style={s.emptyWrap}>
       <View style={s.emptyCard}>

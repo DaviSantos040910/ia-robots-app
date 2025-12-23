@@ -2,14 +2,14 @@
 import { StyleSheet } from "react-native";
 import {
   getTheme as getAllChatsTheme,
-  AllChatsTheme,
+  ChatListTheme,
 } from "../../screens/ChatList/ChatList.styles";
 import { Typography } from "../../theme/typography";
 import { Elevation } from "../../theme/elevation";
 // CORREÇÃO: Adicionada a importação do objeto `Colors`
 import { Colors } from "../../theme/colors";
 
-export const createBottomNavStyles = (t: AllChatsTheme) =>
+export const createBottomNavStyles = (t: ChatListTheme) =>
   StyleSheet.create({
     container: {
       position: "absolute",

@@ -1,14 +1,21 @@
 // src/theme/radius.ts
-// radius.ts - Figma border radius scale
 export const Radius = {
   none: 0,
-  small: 2,
-  medium: 4,
-  large: 8,
-  extraLarge: 12,
-  xLarge: 20, // New value for bubbles
-  round: 999,
-  circle: 50,
-};
-
-export const radius = Radius;
+  xxs: 4,
+  xs: 8,
+  small: 6, // Small radius for subtle rounding
+  sm: 12, // Standard Card radius
+  medium: 14, // Medium radius
+  md: 16,
+  lg: 24, // Larger cards / modals
+  xl: 32,
+  xLarge: 40, // Extra large radius
+  pill: 9999, // Fully rounded buttons
+  card: 16,
+  button: 12,
+  input: 12,
+  round: 8, // Additional round radius for compatibility
+  circle: 50, // Perfect circle radius
+  large: 20, // Large radius for bigger elements
+  extraLarge: 48, // Extra large radius for bigger elements
+} as const;

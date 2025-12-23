@@ -8,6 +8,9 @@ import { BottomNav } from "../components/navigation/BottomNav";
 import { MainTabParamList } from "../types/navigation";
 import { useTranslation } from "react-i18next";
 import { FEATURES } from "../config/featureFlags"; // Importando Flags
+import { Ionicons } from '@expo/vector-icons';
+import ProfileScreen from '../screens/Profile/ProfileScreen'; // Nova importação
+
 
 const Tab = createBottomTabNavigator<MainTabParamList>();
 
@@ -63,6 +66,17 @@ export const MainTabNavigator = () => {
           options={{ title: t("mainTabs.voice") }}
         />
       )}
+       {/* Nova Aba de Perfil */}
+      <Tab.Screen
+        name="Profile"
+        component={ProfileScreen}
+        options={{
+          tabBarLabel: t('mainTabs.me'),
+          tabBarIcon: ({ color, focused }) => (
+            <Ionicons name={focused ? 'person' : 'person-outline'} size={24} color={color} />
+          ),
+        }}
+      />
     </Tab.Navigator>
   );
 };

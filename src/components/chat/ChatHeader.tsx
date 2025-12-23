@@ -5,7 +5,7 @@ import Ionicons from "@expo/vector-icons/Ionicons";
 import { useTheme } from "../../theme/colors";
 import { spacing } from "../../theme/spacing";
 import { Typography } from "../../theme/typography";
-import { radius } from "../../theme/radius";
+import { Radius } from "../../theme/radius";
 import { FEATURES } from "../../config/featureFlags"; // Importando Flags
 import type { Anchor } from "./ActionSheetMenu";
 
@@ -201,14 +201,14 @@ const s = StyleSheet.create({
   avatar: {
     width: 36,
     height: 36,
-    borderRadius: radius.medium, // Quadrado
+    borderRadius: Radius.medium, // Quadrado
     marginRight: spacing.sm,
     backgroundColor: "transparent",
   },
   avatarPlaceholder: {
     width: 36,
     height: 36,
-    borderRadius: radius.medium,
+    borderRadius: Radius.medium,
     marginRight: spacing.sm,
     justifyContent: "center",
     alignItems: "center",
@@ -218,7 +218,7 @@ const s = StyleSheet.create({
     ...Typography.presets.heading2,
   },
   status: {
-    ...Typography.presets.bodySmall,
+    ...Typography.bodySmall,
   },
   rightContainer: {
     flexDirection: "row",

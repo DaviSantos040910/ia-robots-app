@@ -6,6 +6,7 @@ export type MainTabParamList = {
   Explore: undefined;
   CreateBot: undefined;
   VoiceCall: undefined;
+  Profile: undefined;
 };
 
 export type RootStackParamList = {
@@ -39,4 +40,7 @@ export type RootStackParamList = {
   };
 
   ArchivedChats: { botId: string };
+
+  // Settings Screen
+  Settings: undefined;
 };

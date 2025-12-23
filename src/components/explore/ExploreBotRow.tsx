@@ -1,137 +1,109 @@
-import React from "react";
-import { TouchableOpacity, View, Text, StyleSheet, Image } from "react-native";
+
+import React, { useMemo } from "react";
+import { TouchableOpacity, View, Text, StyleSheet, Image, ViewStyle, TextStyle, ImageStyle } from "react-native";
 import { useTheme } from "../../theme/colors";
-import { spacing } from "../../theme/spacing";
-import { radius } from "../../theme/radius";
-import { typography } from "../../theme/typography";
+import { Typography } from "../../theme/typography";
+import { Spacing } from "../../theme/spacing";
+import { Radius } from "../../theme/radius";
 import Ionicons from "@expo/vector-icons/Ionicons";
-import { FEATURES } from "../../config/featureFlags"; // Import flags
 
 interface ExploreBotRowProps {
   id: string;
   name: string;
   description: string;
   imageUrl?: string | null;
-  category?: string;
-  author?: string;
-  isSubscribed?: boolean;
-  onToggleSubscribe?: () => void;
   onPress: () => void;
 }
 
 export const ExploreBotRow: React.FC<ExploreBotRowProps> = ({
+  id,
   name,
   description,
   imageUrl,
-  category,
-  author,
-  isSubscribed,
-  onToggleSubscribe,
   onPress,
 }) => {
   const theme = useTheme();
 
+  const styles = useMemo(() => StyleSheet.create({
+    container: {
+      flexDirection: "row",
+      padding: Spacing["spacing-group-s"],
+      marginBottom: Spacing["spacing-element-m"],
+      backgroundColor: theme.surface,
+      borderRadius: Radius.card,
+      // Subtle shadow for cards
+      shadowColor: theme.brand.light, 
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.1,
+      shadowRadius: 4,
+      elevation: 2,
+      alignItems: 'center',
+    } as ViewStyle,
+    
+    imageContainer: {
+        marginRight: Spacing["spacing-group-s"],
+    } as ViewStyle,
+
+    image: {
+      width: 56,
+      height: 56,
+      borderRadius: Radius.sm, // Rounded square
+      backgroundColor: theme.surfaceAlt,
+    } as ImageStyle,
+    
+    placeholder: {
+        width: 56,
+        height: 56,
+        borderRadius: Radius.sm,
+        backgroundColor: theme.surfaceAlt,
+        justifyContent: 'center',
+        alignItems: 'center',
+    } as ViewStyle,
+
+    content: {
+      flex: 1,
+      justifyContent: "center",
+    } as ViewStyle,
+
+    name: {
+      ...Typography.presets.heading3, // Smaller heading or bold body
+      fontSize: 16,
+      color: theme.textPrimary,
+      marginBottom: 4,
+    } as TextStyle,
+
+    description: {
+      ...Typography.presets.bodyRegular.small,
+      color: theme.textSecondary,
+    } as TextStyle,
+    
+    chevron: {
+        marginLeft: Spacing["spacing-element-s"],
+    } as ViewStyle
+  }), [theme]);
+
   return (
-    <TouchableOpacity
-      style={[
-        s.container,
-        {
-          backgroundColor: theme.brand.background,
-          borderColor: theme.brand.border,
-        },
-      ]}
-      onPress={onPress}
-      activeOpacity={0.7}
-    >
-      {/* Lógica de Avatar: Usa imagem se existir, senão ícone de biblioteca */}
-      {imageUrl ? (
-        <Image
-          source={{ uri: imageUrl }}
-          style={[s.avatar, { backgroundColor: theme.brand.surface }]}
-        />
-      ) : (
-        <View
-          style={[
-            s.avatarPlaceholder,
-            {
-              backgroundColor: theme.brand.surface,
-              borderColor: theme.brand.border,
-            },
-          ]}
-        >
-          <Ionicons
-            name="library-outline"
-            size={24}
-            color={theme.brand.normal}
-          />
-        </View>
-      )}
+    <TouchableOpacity style={styles.container} onPress={onPress} activeOpacity={0.7}>
+      <View style={styles.imageContainer}>
+          {imageUrl ? (
+            <Image source={{ uri: imageUrl }} style={styles.image} resizeMode="cover" />
+          ) : (
+             <View style={styles.placeholder}>
+                 <Ionicons name="journal-outline" size={24} color={theme.brand.normal} />
+             </View>
+          )}
+      </View>
 
-      <View style={s.content}>
-        <View style={s.header}>
-          <Text style={[s.name, { color: theme.brand.text }]} numberOfLines={1}>
-            {name}
-          </Text>
-        </View>
-
-        <Text
-          style={[s.description, { color: theme.brand.textSecondary }]}
-          numberOfLines={2}
-        >
+      <View style={styles.content}>
+        <Text style={styles.name} numberOfLines={1}>
+          {name}
+        </Text>
+        <Text style={styles.description} numberOfLines={2}>
           {description}
         </Text>
       </View>
-
-      {/* Seta de navegação técnica */}
-      <Ionicons name="chevron-forward" size={16} color={theme.brand.border} />
+      
+      <Ionicons name="chevron-forward" size={20} color={theme.disabled} style={styles.chevron} />
     </TouchableOpacity>
   );
 };
-
-const s = StyleSheet.create({
-  container: {
-    flexDirection: "row",
-    alignItems: "center",
-    padding: spacing.md,
-    marginBottom: spacing.sm,
-    borderWidth: 1,
-    borderRadius: radius.medium,
-  },
-  avatar: {
-    width: 50,
-    height: 50,
-    borderRadius: radius.medium,
-    marginRight: spacing.md,
-    backgroundColor: "transparent",
-  },
-  avatarPlaceholder: {
-    width: 50,
-    height: 50,
-    borderRadius: radius.medium,
-    marginRight: spacing.md,
-    justifyContent: "center",
-    alignItems: "center",
-    borderWidth: 1,
-  },
-  content: {
-    flex: 1,
-    marginRight: spacing.sm,
-  },
-  header: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 4,
-  },
-  name: {
-    ...typography.subtitle1,
-    fontWeight: "600",
-    flex: 1,
-    marginRight: spacing.xs,
-  },
-  description: {
-    ...typography.body2,
-    lineHeight: 18,
-    marginBottom: 0,
-  },
-});

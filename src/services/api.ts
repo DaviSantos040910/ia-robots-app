@@ -78,12 +78,12 @@ class ApiService {
     );
   }
 
-  async get<T>(url: string, config?: AxiosRequestConfig): Promise<T> {
+ async get<T = unknown>(url: string, config?: AxiosRequestConfig): Promise<T> {
     const response = await this.api.get<T>(url, config);
     return response.data;
   }
 
-  async post<T>(
+  async post<T = unknown>(
     url: string,
     data?: any,
     config?: AxiosRequestConfig
@@ -92,7 +92,7 @@ class ApiService {
     return response.data;
   }
 
-  async put<T>(
+  async put<T = unknown>(
     url: string,
     data?: any,
     config?: AxiosRequestConfig
@@ -100,17 +100,21 @@ class ApiService {
     const response = await this.api.put<T>(url, data, config);
     return response.data;
   }
-  async patch<T>(url: string, data?: any, config?: AxiosRequestConfig): Promise<T> {
+
+  async patch<T = unknown>(
+    url: string,
+    data?: any,
+    config?: AxiosRequestConfig
+  ): Promise<T> {
     const response = await this.api.patch<T>(url, data, config);
     return response.data;
   }
 
-  async delete<T>(url: string, config?: AxiosRequestConfig): Promise<T> {
+  async delete<T = unknown>(url: string, config?: AxiosRequestConfig): Promise<T> {
     const response = await this.api.delete<T>(url, config);
     return response.data;
   }
 }
 
 const api = ApiService.getInstance();
-
 export default api;

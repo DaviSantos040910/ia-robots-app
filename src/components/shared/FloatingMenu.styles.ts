@@ -1,7 +1,7 @@
 import { StyleSheet } from "react-native";
 import { spacing } from "../../theme/spacing";
-import { radius } from "../../theme/radius";
-import { typography } from "../../theme/typography";
+import { Radius } from "../../theme/radius";
+import { Typography } from "../../theme/typography";
 
 type FloatingMenuTheme = {
   surface: string;
@@ -20,7 +20,7 @@ export const createFloatingMenuStyles = (t: FloatingMenuTheme) =>
     menu: {
       position: "absolute",
       backgroundColor: t.surface,
-      borderRadius: radius.medium,
+      borderRadius: Radius.medium,
       paddingVertical: spacing.xs,
       minWidth: 180,
       borderWidth: StyleSheet.hairlineWidth,
@@ -36,7 +36,7 @@ export const createFloatingMenuStyles = (t: FloatingMenuTheme) =>
       paddingHorizontal: spacing.md,
     },
     optionText: {
-      ...typography.body2,
+      ...Typography.bodyRegular,
       fontSize: 16,
       color: t.textPrimary,
       fontWeight: "400",

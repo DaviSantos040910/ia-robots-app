@@ -1,88 +1,115 @@
 // src/components/shared/GradientButton.tsx
-import React, { useRef, useEffect } from "react";
+// Refactored to be a Solid Color Button (NotebookLM style)
+// We keep the name "GradientButton" to minimize refactoring elsewhere, but implementation changes.
+
+import React from "react";
 import {
-  Pressable,
-  Animated,
+  Text,
+  TouchableOpacity,
+  TouchableOpacityProps,
   ActivityIndicator,
   ViewStyle,
   TextStyle,
-  View,
+  StyleSheet,
 } from "react-native";
-import { LinearGradient } from "expo-linear-gradient";
-import { useScaleOnPress } from "./Motion";
-import { useColorScheme } from "react-native";
-import { Colors } from "../../theme/colors";
-import { s } from "./GradientButton.styles";
+import { useTheme } from "../../theme/colors";
+import { Typography } from "../../theme/typography";
+import { Radius } from "../../theme/radius";
 
-interface GradientButtonProps {
+interface GradientButtonProps extends TouchableOpacityProps {
   title: string;
-  onPress: () => void;
-  isLoading?: boolean;
-  disabled?: boolean;
+  loading?: boolean;
+  variant?: "primary" | "secondary" | "outline" | "danger";
+  onPress?: () => void;
   style?: ViewStyle;
   textStyle?: TextStyle;
-  gradientColors?: string[];
 }
 
 export const GradientButton: React.FC<GradientButtonProps> = ({
   title,
+  loading = false,
+  variant = "primary",
   onPress,
-  isLoading = false,
-  disabled = false,
   style,
   textStyle,
-  gradientColors,
+  disabled,
+  ...props
 }) => {
-  const { style: pressStyle, onPressIn, onPressOut } = useScaleOnPress();
-  const scheme = useColorScheme();
+  const theme = useTheme();
 
-  const defaultGradientColors =
-    scheme === "dark"
-      ? [Colors.brand.dark.normal, Colors.brand.dark.dark]
-      : [Colors.brand.light.normal, Colors.brand.light.dark];
+  const getBackgroundColor = () => {
+    if (disabled) return theme.disabled;
+    switch (variant) {
+      case "primary":
+        return theme.brand.normal; // Indigo
+      case "secondary":
+        return theme.surfaceAlt; // Light Gray
+      case "danger":
+        return "#DC2626"; // Red
+      case "outline":
+        return "transparent";
+      default:
+        return theme.brand.normal;
+    }
+  };
 
-  const fadeAnim = useRef(new Animated.Value(1)).current;
+  const getTextColor = () => {
+    if (disabled) return theme.textSecondary;
+    switch (variant) {
+      case "primary":
+      case "danger":
+        return "#FFFFFF";
+      case "secondary":
+        return theme.textPrimary;
+      case "outline":
+        return theme.brand.normal;
+      default:
+        return "#FFFFFF";
+    }
+  };
 
-  useEffect(() => {
-    Animated.timing(fadeAnim, {
-      toValue: isLoading ? 0 : 1,
-      duration: 150,
-      useNativeDriver: true,
-    }).start();
-  }, [isLoading, fadeAnim]);
+  const getBorder = () => {
+      if (variant === 'outline') {
+          return {
+              borderWidth: 1,
+              borderColor: theme.brand.normal
+          }
+      }
+      return {};
+  }
 
-  const buttonDisabled = disabled || isLoading;
+  const baseStyle: ViewStyle = {
+    height: 48,
+    borderRadius: Radius.pill, // NotebookLM uses pill buttons often or rounded rects
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: getBackgroundColor(),
+    opacity: disabled ? 0.6 : 1,
+    paddingHorizontal: 24,
+    ...getBorder(),
+    ...style,
+  };
 
-  // AJUSTE: O componente foi reestruturado para aplicar a animação de escala
-  // em um `Animated.View` externo, que é a prática correta.
+  const labelStyle: TextStyle = {
+    ...Typography.presets.button,
+    color: getTextColor(),
+    fontWeight: "600",
+    ...textStyle,
+  };
+
   return (
-    <Animated.View style={[pressStyle, style]}>
-      <Pressable
-        onPress={onPress}
-        onPressIn={onPressIn}
-        onPressOut={onPressOut}
-        disabled={buttonDisabled}
-      >
-        <View style={[s.innerWrap, { opacity: buttonDisabled ? 0.6 : 1 }]}>
-          <LinearGradient
-            colors={gradientColors || defaultGradientColors}
-            start={{ x: 0, y: 0.5 }}
-            end={{ x: 1, y: 0.5 }}
-            style={s.gradient}
-          >
-            {isLoading && (
-              <ActivityIndicator
-                size="small"
-                color={s.title.color}
-                style={s.loading}
-              />
-            )}
-            <Animated.Text style={[s.title, { opacity: fadeAnim }, textStyle]}>
-              {title}
-            </Animated.Text>
-          </LinearGradient>
-        </View>
-      </Pressable>
-    </Animated.View>
+    <TouchableOpacity
+      style={baseStyle}
+      onPress={onPress}
+      disabled={disabled || loading}
+      activeOpacity={0.8}
+      {...props}
+    >
+      {loading ? (
+        <ActivityIndicator color={getTextColor()} />
+      ) : (
+        <Text style={labelStyle}>{title}</Text>
+      )}
+    </TouchableOpacity>
   );
 };

@@ -2,334 +2,171 @@ import React, { useState, useMemo } from "react";
 import {
   View,
   Text,
-  TextInput,
   TouchableOpacity,
-  Image,
-  ActivityIndicator,
-  Keyboard,
-  TouchableWithoutFeedback,
-  useWindowDimensions,
+  StyleSheet,
+  KeyboardAvoidingView,
   Platform,
+  Alert,
 } from "react-native";
-import { KeyboardAwareScrollView } from "react-native-keyboard-aware-scroll-view";
-import {
-  SafeAreaView,
-  useSafeAreaInsets,
-} from "react-native-safe-area-context";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { useNavigation } from "@react-navigation/native";
+import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { useTranslation } from "react-i18next";
-import * as yup from "yup";
-import { NativeStackScreenProps } from "@react-navigation/native-stack";
-import { styles } from "./SignUpScreen.styles";
+import { useAuth } from "../contexts/auth/AuthProvider"; // Assuming login exists here too
+import { RootStackParamList } from "../types/navigation";
+import { useTheme } from "../theme/colors";
+import { Typography } from "../theme/typography";
 import { Spacing } from "../theme/spacing";
-import { Colors } from "../theme/colors";
-import { NeutralColors } from "../theme/neutralColors";
-// inside SignUpScreen component (replace handleSignUp)
-import api from "../services/api"; // add near top imports
-import { Alert } from "react-native";
-import type { RootStackParamList } from "../types/navigation";
+import { FormField } from "../components/shared/FormField";
+import { GradientButton } from "../components/shared/GradientButton";
+import api from "../services/api";
 
-type SignUpScreenProps = NativeStackScreenProps<RootStackParamList, "SignUp">;
-type FormErrors = {
-  name?: string;
-  email?: string;
-  password?: string;
-  confirmPassword?: string;
-};
+type SignUpScreenNavigationProp = NativeStackNavigationProp<
+  RootStackParamList,
+  "SignUp"
+>;
 
-const SignUpScreen: React.FC<SignUpScreenProps> = ({ navigation }) => {
+const SignUpScreen: React.FC = () => {
   const { t } = useTranslation();
-  const [formData, setFormData] = useState({
-    name: "",
-    email: "",
-    password: "",
-    confirmPassword: "",
-  });
-  const [errors, setErrors] = useState<FormErrors>({});
-  const [isLoading, setIsLoading] = useState(false);
-  const [isPasswordVisible, setIsPasswordVisible] = useState(false);
-  const [isConfirmPasswordVisible, setIsConfirmPasswordVisible] =
-    useState(false);
+  const navigation = useNavigation<SignUpScreenNavigationProp>();
+  const { login } = useAuth();
+  const theme = useTheme();
 
-  const insets = useSafeAreaInsets();
-  const { width, height } = useWindowDimensions();
+  const [username, setUsername] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [loading, setLoading] = useState(false);
 
-  const avatarSize = useMemo(
-    () => Math.min(Math.max(width * 0.24, 80), 120),
-    [width]
-  );
-  const vGap = useMemo(
+  const styles = useMemo(
     () =>
-      Math.min(
-        Math.max(height * 0.02, Spacing["spacing-element-m"]),
-        Spacing["spacing-card-m"]
-      ),
-    [height]
+      StyleSheet.create({
+        container: {
+          flex: 1,
+          backgroundColor: theme.background,
+          paddingHorizontal: Spacing["spacing-layout-l"],
+          justifyContent: "center",
+        },
+        header: {
+          alignItems: "center",
+          marginBottom: Spacing["spacing-layout-xl"],
+        },
+        title: {
+          ...Typography.presets.heading2,
+          color: theme.textPrimary,
+          textAlign: "center",
+          marginBottom: Spacing["spacing-element-xs"],
+        },
+        subtitle: {
+          ...Typography.presets.bodyRegular.medium,
+          color: theme.textSecondary,
+          textAlign: "center",
+        },
+        form: {
+          width: "100%",
+        },
+        footer: {
+          flexDirection: "row",
+          justifyContent: "center",
+          marginTop: Spacing["spacing-layout-l"],
+        },
+        footerText: {
+          ...Typography.presets.bodyRegular.small,
+          color: theme.textSecondary,
+        },
+        loginText: {
+          ...Typography.presets.bodyRegular.small,
+          color: theme.brand.normal,
+          fontWeight: "600",
+          marginLeft: 4,
+        },
+      }),
+    [theme]
   );
-
-  const signUpSchema = yup.object().shape({
-    name: yup
-      .string()
-      .required(t("validation.required", { field: t("signup.name") })),
-    email: yup
-      .string()
-      .email(t("validation.email"))
-      .required(t("validation.required", { field: t("signup.email") })),
-    password: yup
-      .string()
-      .min(8, t("validation.password.minLength"))
-      .matches(
-        /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[\W_]).{8,}$/,
-        t("validation.password.complexity")
-      )
-      .required(t("validation.required", { field: t("signup.password") })),
-    confirmPassword: yup
-      .string()
-      .oneOf([yup.ref("password"), null], t("validation.password.mismatch"))
-      .required(
-        t("validation.required", { field: t("signup.confirmPassword") })
-      ),
-  });
-
-  const validateForm = async () => {
-    try {
-      await signUpSchema.validate(formData, { abortEarly: false });
-      setErrors({});
-      return true;
-    } catch (err: any) {
-      const validationErrors: FormErrors = {};
-      err.inner.forEach((error: any) => {
-        validationErrors[error.path as keyof FormErrors] = error.message;
-      });
-      setErrors(validationErrors);
-      return false;
-    }
-  };
-
-  const handleInputChange = (field: string, value: string) => {
-    setFormData({ ...formData, [field]: value });
-    if (errors[field as keyof FormErrors]) {
-      setErrors({ ...errors, [field]: undefined });
-    }
-  };
 
   const handleSignUp = async () => {
-    Keyboard.dismiss();
-    const isValid = await validateForm();
-    if (!isValid) return;
-
-    setIsLoading(true);
-    try {
-      // Prepare payload: use username instead of full name
-      const payload = {
-        username: formData.name.trim(),
-        email: formData.email.trim(),
-        password: formData.password,
-      };
-
-      // API call to register endpoint
-      // POST /api/auth/register/ expected to return { message: "User registered. Please verify your email." }
-      const res = await api.post("/auth/register/", payload);
-
-      // Show confirmation and navigate user to login or a verify screen
-      Alert.alert(t("signup.registeredTitle"), t("signup.registeredMessage"), [
-        { text: t("common.ok"), onPress: () => navigation.navigate("Login") },
-      ]);
-    } catch (error: any) {
-      // Map backend validation errors to form fields when possible
-      const data = error.response?.data;
-      if (data) {
-        // If serializer returned field errors, set them
-        const fieldErrors: any = {};
-        if (data.username) fieldErrors.name = data.username.join(" ");
-        if (data.email) fieldErrors.email = data.email.join(" ");
-        if (data.password) fieldErrors.password = data.password.join(" ");
-        if (Object.keys(fieldErrors).length) setErrors(fieldErrors);
-        else {
-          Alert.alert(
-            t("common.error"),
-            data.detail || t("signup.signupFailed")
-          );
-        }
-      } else {
-        Alert.alert(t("common.error"), t("errors.generic"));
-      }
-    } finally {
-      setIsLoading(false);
+    if (!username || !email || !password) {
+      Alert.alert(t("common.error"), t("auth.fillAllFields"));
+      return;
     }
-  };
 
-  const navigateToLogin = () => {
-    navigation.navigate("Login");
+    setLoading(true);
+    try {
+      await api.post("/auth/register/", { username, email, password });
+      // Auto login after register
+      const response = (await api.post("/auth/login/", {
+        username,
+        password,
+      })) as { data: { access: string; refresh: string } };
+      const { access, refresh } = response.data;
+      await login(access, refresh);
+    } catch (error) {
+      console.error(error);
+      Alert.alert(t("common.error"), t("auth.registerFailed"));
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
-    <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-      <SafeAreaView style={[styles.container, { paddingTop: insets.top }]}>
-        <KeyboardAwareScrollView
-          contentContainerStyle={styles.scrollContent}
-          keyboardShouldPersistTaps="handled"
-          enableOnAndroid={true}
-          extraScrollHeight={Platform.OS === "ios" ? 100 : 0}
-          enableResetScrollToCoords={false}
-        >
-          <View
-            style={[styles.scrollView, { paddingBottom: insets.bottom + vGap }]}
-          >
-            <Image
-              source={require("../assets/avatar.png")}
-              style={[styles.avatar, { width: avatarSize, height: avatarSize }]}
-              resizeMode="contain"
-            />
+    <SafeAreaView style={styles.container}>
+      <KeyboardAvoidingView
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
+      >
+        <View style={styles.header}>
+          <Text style={styles.title}>
+            {t("auth.createAccount", { defaultValue: "Criar conta" })}
+          </Text>
+          <Text style={styles.subtitle}>
+            {t("auth.signUpSubtitle", {
+              defaultValue: "Comece a estudar com inteligência",
+            })}
+          </Text>
+        </View>
 
-            <Text style={styles.title}>{t("signup.title")}</Text>
-            <Text style={styles.subtitle}>{t("signup.subtitle")}</Text>
+        <View style={styles.form}>
+          <FormField
+            label={t("auth.username", { defaultValue: "Nome de usuário" })}
+            value={username}
+            onChangeText={setUsername}
+            autoCapitalize="none"
+            placeholder="Seu nome"
+          />
+          <FormField
+            label={t("auth.email", { defaultValue: "Email" })}
+            value={email}
+            onChangeText={setEmail}
+            keyboardType="email-address"
+            autoCapitalize="none"
+            placeholder="nome@exemplo.com"
+          />
+          <FormField
+            label={t("auth.password", { defaultValue: "Senha" })}
+            value={password}
+            onChangeText={setPassword}
+            secureTextEntry
+            placeholder="••••••••"
+          />
 
-            <View style={styles.formGroup}>
-              <TextInput
-                style={[styles.input, errors.name && styles.inputError]}
-                placeholder={t("signup.namePlaceholder")}
-                placeholderTextColor={
-                  NeutralColors.fontAndIcon.light.placeholder
-                }
-                value={formData.name}
-                onChangeText={(text) => handleInputChange("name", text)}
-                autoCapitalize="words"
-                autoCorrect={false}
-                editable={!isLoading}
-              />
-              {errors.name && (
-                <Text style={styles.errorText}>{errors.name}</Text>
-              )}
-            </View>
+          <GradientButton
+            title={t("auth.signUp", { defaultValue: "Cadastrar" })}
+            onPress={handleSignUp}
+            loading={loading}
+            style={{ marginTop: Spacing["spacing-group-m"] }}
+          />
+        </View>
 
-            <View style={styles.formGroup}>
-              <TextInput
-                style={[styles.input, errors.email && styles.inputError]}
-                placeholder={t("signup.emailPlaceholder")}
-                placeholderTextColor={
-                  NeutralColors.fontAndIcon.light.placeholder
-                }
-                value={formData.email}
-                onChangeText={(text) => handleInputChange("email", text)}
-                keyboardType="email-address"
-                autoCapitalize="none"
-                autoCorrect={false}
-                editable={!isLoading}
-              />
-              {errors.email && (
-                <Text style={styles.errorText}>{errors.email}</Text>
-              )}
-            </View>
-
-            <View style={styles.formGroup}>
-              <View style={styles.passwordContainer}>
-                <TextInput
-                  style={[
-                    styles.input,
-                    styles.passwordInput,
-                    errors.password && styles.inputError,
-                  ]}
-                  placeholder={t("signup.passwordPlaceholder")}
-                  placeholderTextColor={
-                    NeutralColors.fontAndIcon.light.placeholder
-                  }
-                  value={formData.password}
-                  onChangeText={(text) => handleInputChange("password", text)}
-                  secureTextEntry={!isPasswordVisible}
-                  autoCapitalize="none"
-                  editable={!isLoading}
-                />
-                <TouchableOpacity
-                  style={styles.visibilityToggle}
-                  onPress={() => setIsPasswordVisible(!isPasswordVisible)}
-                  disabled={isLoading}
-                >
-                  <Text style={styles.visibilityToggleText}>
-                    {isPasswordVisible ? t("common.hide") : t("common.show")}
-                  </Text>
-                </TouchableOpacity>
-              </View>
-              {errors.password && (
-                <Text style={styles.errorText}>{errors.password}</Text>
-              )}
-            </View>
-
-            <View style={styles.formGroup}>
-              <View style={styles.passwordContainer}>
-                <TextInput
-                  style={[
-                    styles.input,
-                    styles.passwordInput,
-                    errors.confirmPassword && styles.inputError,
-                  ]}
-                  placeholder={t("signup.confirmPasswordPlaceholder")}
-                  placeholderTextColor={
-                    NeutralColors.fontAndIcon.light.placeholder
-                  }
-                  value={formData.confirmPassword}
-                  onChangeText={(text) =>
-                    handleInputChange("confirmPassword", text)
-                  }
-                  secureTextEntry={!isConfirmPasswordVisible}
-                  autoCapitalize="none"
-                  editable={!isLoading}
-                />
-                <TouchableOpacity
-                  style={styles.visibilityToggle}
-                  onPress={() =>
-                    setIsConfirmPasswordVisible(!isConfirmPasswordVisible)
-                  }
-                  disabled={isLoading}
-                >
-                  <Text style={styles.visibilityToggleText}>
-                    {isConfirmPasswordVisible
-                      ? t("common.hide")
-                      : t("common.show")}
-                  </Text>
-                </TouchableOpacity>
-              </View>
-              {errors.confirmPassword && (
-                <Text style={styles.errorText}>{errors.confirmPassword}</Text>
-              )}
-            </View>
-
-            <TouchableOpacity
-              style={[styles.button, isLoading && styles.buttonDisabled]}
-              onPress={handleSignUp}
-              disabled={isLoading}
-              activeOpacity={0.8}
-            >
-              {isLoading ? (
-                <ActivityIndicator
-                  color={NeutralColors.neutral.light.white1}
-                  size="small"
-                />
-              ) : (
-                <Text style={styles.buttonText}>{t("signup.button")}</Text>
-              )}
-            </TouchableOpacity>
-
-            <View style={styles.footer}>
-              <Text style={styles.footerText}>{t("signup.haveAccount")} </Text>
-              <TouchableOpacity onPress={navigateToLogin} disabled={isLoading}>
-                <Text style={styles.footerLink}>{t("signup.signIn")}</Text>
-              </TouchableOpacity>
-            </View>
-            {/* Disclaimer */}
-            <Text style={styles.disclaimer}>
-              {t("login.disclaimer.part1")}{" "}
-              <Text style={styles.link}>
-                {t("login.disclaimer.userAgreement")}
-              </Text>{" "}
-              {t("login.disclaimer.and")}{" "}
-              <Text style={styles.link}>
-                {t("login.disclaimer.privacyPolicy")}
-              </Text>
+        <View style={styles.footer}>
+          <Text style={styles.footerText}>
+            {t("auth.hasAccount", { defaultValue: "Já tem uma conta?" })}
+          </Text>
+          <TouchableOpacity onPress={() => navigation.navigate("Login")}>
+            <Text style={styles.loginText}>
+              {t("auth.login", { defaultValue: "Entrar" })}
             </Text>
-          </View>
-        </KeyboardAwareScrollView>
-      </SafeAreaView>
-    </TouchableWithoutFeedback>
+          </TouchableOpacity>
+        </View>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
   );
 };
 

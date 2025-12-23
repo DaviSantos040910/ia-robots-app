@@ -2,7 +2,7 @@ import React from "react";
 import { TouchableOpacity, View, Text, StyleSheet, Image } from "react-native";
 import { useTheme } from "../../theme/colors";
 import { spacing } from "../../theme/spacing";
-import { radius } from "../../theme/radius";
+import { Radius } from "../../theme/radius";
 import { Typography } from "../../theme/typography";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { FEATURES } from "../../config/featureFlags"; // Importando Flags
@@ -96,14 +96,14 @@ const s = StyleSheet.create({
   avatar: {
     width: 48,
     height: 48,
-    borderRadius: radius.medium, // Avatar quadrado (técnico)
+    borderRadius: Radius.medium, // Avatar quadrado (técnico)
     marginRight: spacing.md,
     backgroundColor: "transparent",
   },
   avatarPlaceholder: {
     width: 48,
     height: 48,
-    borderRadius: radius.medium,
+    borderRadius: Radius.medium,
     marginRight: spacing.md,
     justifyContent: "center",
     alignItems: "center",
@@ -123,6 +123,6 @@ const s = StyleSheet.create({
     ...Typography.presets.heading3,
   },
   description: {
-    ...Typography.presets.bodySmall,
+    ...Typography.bodySmall,
   },
 });

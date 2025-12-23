@@ -1,6 +1,6 @@
 // src/services/botService.ts
 import api from './api';
-import { ChatBootstrap } from '../types/chat';
+import { ChatBootstrap, Bot } from '../types/chat';
 
 const realBotService = {
   /**
@@ -14,7 +14,20 @@ const realBotService = {
     const response = await api.get<ChatBootstrap>(`/api/v1/chats/bootstrap/bot/${botId}/`);
     return response;
   },
+
+
+/**
+   * Lista bots criados pelo usuário logado.
+   *
+   * Backend: usa o endpoint já existente do BotListCreateView (GET /api/v1/bots/),
+   * que filtra por owner=request.user no get_queryset.
+   */
+ async fetchCreatedBots(): Promise<Bot[]> {
+    return api.get<Bot[]>(`/api/v1/bots/`);
+  },
 };
+
+
 
 const mockBotService = {
     async getChatBootstrap(botId: string): Promise<ChatBootstrap> {
@@ -26,7 +39,12 @@ const mockBotService = {
             welcome: 'This is a mocked welcome message.',
             suggestions: [],
         };
-    }
+    },
+    async fetchCreatedBots(): Promise<Bot[]> {
+    console.log('[MOCK] Fetching created bots for current user');
+    await new Promise(resolve => setTimeout(resolve, 400));
+    return [];
+  },
 };
 
 const USE_MOCK_API = false;
